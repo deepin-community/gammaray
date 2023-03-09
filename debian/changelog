@@ -1,5 +1,387 @@
-template-repository (1.0-1) unstable; urgency=medium
+gammaray (2.11.3-3) unstable; urgency=medium
 
-  * Initial release
+  * Team upload.
 
- -- Tsic404 <liuheng@deepin.org>  Sat, 28 Jan 2023 13:46:49 +0800
+  [ Adrian Bunk ]
+  * qtwebengine5-dev is now available on mips64el.
+
+  [ Dmitry Shachnev ]
+  * Update debian/watch to use GitHub API and add signature verification.
+    - Remove no longer needed debian/source/lintian-overrides.
+  * Bump Standards-Version to 4.6.2, no changes needed.
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Thu, 02 Mar 2023 21:03:05 +0300
+
+gammaray (2.11.3-2) unstable; urgency=medium
+
+  * Team upload.
+  * Make test failures non-fatal on ppc64el (closes: #1026932).
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Sat, 24 Dec 2022 19:06:21 +0300
+
+gammaray (2.11.3-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+  * Refresh patches.
+  * Update KDAB's copyright.
+
+ -- Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>  Thu, 21 Apr 2022 18:53:33 -0300
+
+gammaray (2.11.2-2) unstable; urgency=medium
+
+  * Team upload.
+  * Add a patch to make the tests less flaky (closes: #973461).
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Sat, 31 Oct 2020 18:09:56 -0300
+
+gammaray (2.11.2-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Update to debhelper compat level 13.
+    - Use ${DEB_HOST_MULTIARCH} substitution in the install files.
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Wed, 14 Oct 2020 19:53:00 +0300
+
+gammaray (2.11.1-2) unstable; urgency=medium
+
+  * Team upload.
+  * Build-depend on qml-module-qtqml.
+  * Install the 3dinspector plugins.
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Thu, 25 Jun 2020 19:37:58 +0300
+
+gammaray (2.11.1-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+  * Update debian/copyright.
+  * Stop adding -Wl,--as-needed manually, it is by default in Bullseye.
+  * Bump Standards-Version to 4.5.0, no changes needed.
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Tue, 19 May 2020 14:21:07 +0300
+
+gammaray (2.11.0-2) unstable; urgency=medium
+
+  * Team upload.
+  * Ignore tests results on s390x (closes: #949903). They are currently
+    failing because of QTBUG-56975, on big endian systems green and blue
+    colors are swapped.
+  * Make the tests results fatal on amd64, arm64, i386 and ppc64el.
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Sun, 16 Feb 2020 00:35:00 +0300
+
+gammaray (2.11.0-1) unstable; urgency=medium
+
+  * Team upload.
+  * Acknowledge NMU, thanks Yanhao Mo!
+  * New upstream release (closes: #909927).
+  * Update Vcs fields to reflect qt-extras → extras move.
+  * Refresh debian-archs-fix-build.patch.
+  * Fix mkspecs installation path (qt-system-paths.patch).
+  * Update debian/copyright.
+  * Simplify debian/rules by using the default build directory.
+  * Stop setting GAMMARAY_BUILD_DOCS=false, to get the manpage built.
+  * Build-depend on qtlocation5-dev to enable positioning_ui plugin.
+  * Add runtime QML dependencies for the positioning_ui plugin.
+  * Build-depend on glslang-tools to enable GL shader code validation.
+  * Remove debian/gammaray-probe-qt4.*, this package is no longer built.
+  * Update to debhelper compat level 12.
+  * Drop libvtk6-qt-dev build-dependency. Upstream has ported to VTK7 but
+    according to them the objectvisualizer_ui plugin is “just for toying
+    around, highly experimental”.
+  * Install more files reported by dh_missing.
+  * Update Homepage URL.
+  * Build-depend on qtwebengine5-dev only on architectures where it is
+    available.
+  * Bump Standards-Version to 4.4.0, no changes needed.
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Tue, 27 Aug 2019 22:01:03 +0300
+
+gammaray (2.9.0-2.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+    - Rebuild with Qt 5.10 (Closes: #902098).
+  * d/gammaray.install: Remove the 2nd line about *gammaray_3dinspector*
+    because they don't get compiled.
+
+ -- Yanhao Mo <yanhaocs@gmail.com>  Fri, 22 Jun 2018 11:35:28 +0800
+
+gammaray (2.9.0-2) unstable; urgency=medium
+
+  * Team upload.
+  * Correct the build dependency on QtWebEngine.
+
+ -- Simon Quigley <tsimonq2@ubuntu.com>  Tue, 27 Mar 2018 18:00:57 -0500
+
+gammaray (2.9.0-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+  * Import changes from Ubuntu.
+  * Remove skip-test-failing-prior-qt57.patch because Qt has moved past 5.7.
+  * Refresh patches.
+  * Bump Standards-version to 4.1.3, no changes needed.
+  * Bump debhelper compat to 11, no changes needed.
+  * Update Vcs-* to reflect the move to Salsa.
+  * Merge changes from Neon (Closes: #874883, LP: #1757644), thanks Riddell
+    and sgclark for your work!
+  * In the overrides, debian-watch-may-check-gpg-signature => debian-
+    watch-does-not-check-gpg-signature.
+  * Fix package-uses-deprecated-source-override-location.
+  * Remove get-orig-source rule.
+
+ -- Simon Quigley <tsimonq2@ubuntu.com>  Sun, 25 Mar 2018 05:51:07 -0500
+
+gammaray (2.7.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Refresh patches:
+    - debian-archs-fix-build.patch
+    - disable-qt4-objectvisualizer.patch.
+  * Enable Wayland compositor inspector plugin.
+  * Enable 3D Widget inspector.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Thu, 02 Mar 2017 13:02:54 +0100
+
+gammaray (2.6.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Drop Fix-compilation-on-ARM-when-building-against-Qt-4.patch
+    - applied upstream.
+  * Refresh patches:
+    - debian-archs-fix-build.patch
+    - disable-qt4-objectvisualizer.patch
+    - disable-qt4-webinspector.patch.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Tue, 01 Nov 2016 09:29:39 +0100
+
+gammaray (2.5.1-2) unstable; urgency=medium
+
+  * Increase GammaRay launcher timeout when running the test suite
+    - attempts to fix FTBFS issues on mips architectures.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Fri, 05 Aug 2016 08:41:19 +0200
+
+gammaray (2.5.1-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Fix FTBFS on armel and armhf.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Thu, 28 Jul 2016 07:29:38 +0200
+
+gammaray (2.5.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Migrate to automatic debug packages.
+  * Use secure URIs in Vcs-* fields.
+  * Bump Standards-Version to 3.9.8.
+  * Refresh patches:
+    - debian-archs-fix-build.patch
+    - disable-qt4-objectvisualizer.patch
+    - disable-qt4-webinspector.patch.
+  * Skip test failing on i386 prior Qt 5.7 (Closes: #826842).
+  * Enable verbose output when running tests.
+  * Enable all hardening flags during build.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Tue, 26 Jul 2016 09:35:26 +0200
+
+gammaray (2.4.0-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Refresh patches:
+    - debian-archs-fix-build.patch
+    - disable-qt4-objectvisualizer.patch
+    - fix-objectvisualizer-build.patch.
+  * Enable QtBluetooth and Qt5Positioning support.
+  * Enable build of KJob tracker plug-in for KDE Frameworks 5.
+  * Don't install extra license files.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Fri, 08 Jan 2016 00:52:03 +0100
+
+gammaray (2.3.0-3) unstable; urgency=medium
+
+  * Disable attachtest-gdb on s390x. It's unstable and hangs builds.
+
+ -- Felix Geyer <fgeyer@debian.org>  Sat, 29 Aug 2015 00:45:11 +0200
+
+gammaray (2.3.0-2) unstable; urgency=medium
+
+  * Build-depend on libvtk6-qt-dev only on architectures where it's actually
+    available.
+
+ -- Felix Geyer <fgeyer@debian.org>  Thu, 27 Aug 2015 17:21:49 +0200
+
+gammaray (2.3.0-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+  * Refresh use-empty-rpath.patch.
+  * Build-depend on the new libvtk6-qt-dev package. (Closes: #793604)
+  * Explicitly disable VTK for the Qt4 build. It throws errors but isn't
+    actually used.
+  * Add "Enhances: gammaray" to the plugins. (Closes: #791353)
+
+ -- Felix Geyer <fgeyer@debian.org>  Thu, 27 Aug 2015 12:53:08 +0200
+
+gammaray (2.2.1-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Refresh debian-archs-fix-build.patch and fix-objectvisualizer-build.patch.
+  * Install new signalmonitor and translatorinspector plugins.
+  * Update d/changelog with (re)moved files.
+  * Re-enable objectvisualizer plugin since Qt5-compatible VTK has become
+    available.
+  * Don't set RPATH in binaries; prevents binary-or-shlib-defines-rpath
+    lintian error.
+  * Disable build of Qt4 web inspector plugin since qtwebkit is to be removed
+    from the repository (Closes: #784466).
+  * Remove patches included upstream:
+    - gldouble.patch
+    - qsglayer.patch.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Thu, 02 Jul 2015 20:42:51 +0200
+
+gammaray (2.1.0-5) unstable; urgency=medium
+
+  * Apply changes from 2.1.0-3.1ubuntu2 by Dmitry Shachnev:
+    - Backport one more upstream patch, to fix build on armhf.
+    - Adapt to Qt 5.4 API changes (LP: #1395646).
+
+ -- Felix Geyer <fgeyer@debian.org>  Thu, 25 Jun 2015 19:32:55 +0200
+
+gammaray (2.1.0-4) unstable; urgency=medium
+
+  [ Felix Geyer ]
+  * Fix FTBFS on ppc64el (Closes: #765672).
+  * Let xvfb-run choose a free server number so it doesn't fail when one is
+    already taken.
+  * Update watch file.
+
+  [ Jakub Adam ]
+  * Drop build dependency on libqt4-private-dev (Closes: #763852)
+    - gammaray is the last package still using it and has the needed Qt4 private
+      headers already bundled with the source code. Dropping the dependency will
+      allow libqt4-private-dev to be removed from Debian.
+  * Bump Standards-Version to 3.9.6.
+
+ -- Felix Geyer <fgeyer@debian.org>  Tue, 26 May 2015 16:59:03 +0200
+
+gammaray (2.1.0-3.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Fix FTBFS on mips64(el), as on mips* platform, they use the same
+    e_machine value (Closes: #761805).
+
+ -- YunQiang Su <syq@debian.org>  Thu, 09 Oct 2014 13:24:02 +0800
+
+gammaray (2.1.0-3) unstable; urgency=medium
+
+  * Team upload.
+
+  [ Jakub Adam ]
+  * Force 24-bit color depth to Xvfb
+    - attempts to fix "Unsupported screen depth: 8" failures during
+      the test runs on some architectures.
+
+  [ Felix Geyer ]
+  * Fix FTBFS on mips64 kernel, ppc64 and arm64.
+  * Make testsuite non-fatal on kfreebsd due to bug #570805:
+    Wrong path in /proc/pid/maps when bind mounted.
+  * Run tests sequentially in the hope that it helps running them on
+    architectures with low resources.
+
+ -- Felix Geyer <fgeyer@debian.org>  Sun, 27 Jul 2014 17:22:50 +0200
+
+gammaray (2.1.0-2) unstable; urgency=medium
+
+  * Fix FTBFS on kFreeBSD, Hurd, mips, ppc, and s390x (Closes: #754986).
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Fri, 18 Jul 2014 18:26:51 +0200
+
+gammaray (2.1.0-1) unstable; urgency=medium
+
+  [ Felix Geyer ]
+  * Call dh_auto_clean for both build directories.
+
+  [ Jakub Adam ]
+  * New upstream release.
+  * Removed no longer needed use-empty-rpath.patch.
+  * Build-depend on qtdeclarative5-private-dev.
+  * Create gammaray-plugin-quickinspector binary package.
+  * Removed unused license paragraph from d/copyright.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Mon, 07 Jul 2014 21:38:05 +0200
+
+gammaray (2.0.2-1) unstable; urgency=medium
+
+  [ Jakub Adam ]
+  * New upstream release.
+  * Re-enable tests in Qt5 build.
+
+  [ Felix Geyer ]
+  * Make gammaray-dev depend on gammaray-probe-qt4 to fix broken symlinks.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Tue, 06 May 2014 23:01:05 +0200
+
+gammaray (2.0.1-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Refreshed d/patches/use-empty-rpath.patch.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Wed, 05 Mar 2014 19:28:40 +0100
+
+gammaray (2.0.0-1) unstable; urgency=low
+
+  * New upstream release.
+  * Refreshed d/patches/use-empty-rpath.patch.
+  * Removed no longer needed patches:
+    - widget-export-actions-location.patch
+    - harfbuzz-search-path.patch
+    - find-widget-export-actions-when-attaching.patch
+    - gammaray-probe-versioned-soname.patch.
+  * Use xz for orig tarball compression.
+  * Bump Standards-Version to 3.9.5.
+  * Enable build of Qt5 GUI and Qt5 + Qt4 probe libraries.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Tue, 21 Jan 2014 22:03:14 +0100
+
+gammaray (1.3.0-1) experimental; urgency=low
+
+  * New upstream release.
+  * Add dependency on VTK 5.10 and enable object visualizer plugin.
+  * Don't set RPATH in binaries; prevents binary-or-shlib-defines-rpath
+    lintian error.
+  * Refreshed d/patches/widget-export-actions-location.patch and
+    d/patches/gammaray-probe-versioned-soname.patch.
+  * Enable KJob tracker plugin.
+  * Updated d/copyright.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Mon, 04 Feb 2013 22:54:36 +0100
+
+gammaray (1.2.2-1) unstable; urgency=low
+
+  * New upstream release.
+  * Removed d/patches/dont-build-functionoverwriter.patch and
+    debian/patches/gnu-hurd-build-fix.patch (applied upstream).
+  * Refreshed d/patches/gammaray-probe-versioned-soname.patch.
+  * Bump Standards-Version to 3.9.4.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Sat, 22 Dec 2012 18:17:04 +0100
+
+gammaray (1.2.1-2) unstable; urgency=low
+
+  * Build-depend on libgraphviz-dev instead of dummy transitional
+    graphviz-dev.
+  * Fix build on GNU Hurd.
+  * Don't build core/hooking/*.cpp. Function overwriter is used only on
+    Windows and Mac, disabling it fixes building GammaRay on other archs
+    than i386 and amd64.
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Thu, 06 Sep 2012 15:45:25 +0200
+
+gammaray (1.2.1-1) unstable; urgency=low
+
+  * Initial release. (Closes: #654667)
+
+ -- Jakub Adam <jakub.adam@ktknet.cz>  Tue, 21 Aug 2012 10:48:10 +0200

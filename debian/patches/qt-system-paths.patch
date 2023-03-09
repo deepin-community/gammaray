@@ -1,0 +1,21 @@
+From: Dmitry Shachnev <mitya57@debian.org>
+Date: Mon, 26 Aug 2019 17:31:09 +0300
+Subject: Use system Qt installation paths
+
+Otherwise the mkspecs are installed to /usr/mkspecs, not to
+/usr/lib/*/qt5/mkspecs.
+---
+ CMakeLists.txt |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -105,7 +105,7 @@ include(CTest)
+ include(GammaRayMacros)
+ include(GammaRayMacrosInternal)
+ include(FeatureSummary)
+-set(KDE_INSTALL_USE_QT_SYS_PATHS OFF)
++set(KDE_INSTALL_USE_QT_SYS_PATHS ON)
+ include(ECMGeneratePriFile)
+ include(ECMEnableSanitizers)
+ include(GenerateExportHeader)

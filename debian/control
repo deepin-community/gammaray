@@ -1,15 +1,130 @@
-Source: template-repository
-Section: unknown
+Source: gammaray
 Priority: optional
-Maintainer: Tsic404 <liuheng@deepin.org>
-Build-Depends: debhelper (>= 11)
-Standards-Version: 4.1.3
-Homepage: https://github.com/deepin-community/template-repository
-#Vcs-Browser: https://salsa.debian.org/debian/deepin-community-template-repository
-#Vcs-Git: https://salsa.debian.org/debian/deepin-community-template-repository.git
+Section: devel
+Maintainer: Debian KDE Extras Team <pkg-kde-extras@lists.alioth.debian.org>
+Uploaders: Jakub Adam <jakub.adam@ktknet.cz>
+Build-Depends: cmake,
+               debhelper-compat (= 13),
+               gdb,
+               glslang-tools,
+               libgraphviz-dev,
+               libkf5coreaddons-dev,
+               libkf5syntaxhighlighting-dev,
+               libproj-dev,
+               libqt5svg5-dev,
+               libqt5waylandcompositor5-dev,
+               libwayland-dev (>= 1.12.0),
+               qml-module-qtqml,
+               qml-module-qtquick2,
+               qt3d-assimpsceneimport-plugin,
+               qt3d-defaultgeometryloader-plugin,
+               qt3d-gltfsceneio-plugin,
+               qt3d-scene2d-plugin,
+               qt3d5-dev (>= 5.14),
+               qtbase5-private-dev,
+               qtconnectivity5-dev,
+               qtdeclarative5-dev,
+               qtdeclarative5-dev-tools,
+               qtdeclarative5-private-dev,
+               qtlocation5-dev,
+               qtpositioning5-dev,
+               qtscript5-dev,
+               qttools5-dev,
+               qttools5-dev-tools,
+               qttranslations5-l10n,
+               qtwayland5,
+               qtwebengine5-dev [amd64 arm64 armhf i386 mips64el mipsel],
+               xauth,
+               xvfb
+Standards-Version: 4.6.2
+Vcs-Git: https://salsa.debian.org/qt-kde-team/extras/gammaray.git
+Vcs-Browser: https://salsa.debian.org/qt-kde-team/extras/gammaray
+Homepage: https://www.kdab.com/development-resources/qt-tools/gammaray/
 
-Package: template-repository
+Package: gammaray
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Pre-Depends: ${misc:Pre-Depends}
+Depends: qml-module-qt3d,
+         qml-module-qtquick-controls,
+         qml-module-qtquick-scene3d,
+         ${misc:Depends},
+         ${shlibs:Depends}
+Recommends: gdb
+Description: Tool for examining the internals of Qt application
+ GammaRay is a tool for examining the internals of a Qt application and
+ to some extent also manipulate it. GammaRay uses injection methods to
+ hook into an application at runtime and provide access to a wide variety
+ of interesting information. It provides easy ways of navigating through
+ the complex internal structures you find in some Qt frameworks, such as
+ QGraphicsView, model/view, QTextDocument, state machines and more.
+
+Package: gammaray-plugin-quickinspector
+Architecture: any
+Depends: gammaray (= ${binary:Version}),
+         qml-module-qtquick-controls,
+         qml-module-qtquick2,
+         ${misc:Depends},
+         ${shlibs:Depends}
+Enhances: gammaray
+Description: GammaRay plugin for inspecting QtQuick2 applications
+ This plugin provides the user with the following inspection and debugging
+ facilities:
+ .
+  * Tree view of all QQuickItems in the scene, marking invisible items
+    and items having focus.
+  * Object inspector allowing to see all the properties, inspect
+    signal-slot connections, and directly invoke slots and Q_INVOKABLE
+    methods.
+  * Live-preview of the QtQuick scene inside the GammaRay window.
+  * Qt Quick scene graph inspector.
+
+Package: gammaray-plugin-waylandinspector
+Architecture: any
+Depends: gammaray (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Enhances: gammaray
+Description: Wayland compositor inspector plugin for GammaRay
+ The Wayland compositor inspector allows one to browse QWaylandClient
+ instances and their associated resources, as well as observe Wayland
+ events.
+
+Package: gammaray-plugin-kjobtracker
+Architecture: any
+Depends: gammaray (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Enhances: gammaray
+Description: KJob tracker plugin for GammaRay
+ This plugin can be used to monitor KJob instances within a KDE-based
+ application.
+
+Package: gammaray-plugin-bluetooth
+Architecture: any
+Depends: gammaray (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Enhances: gammaray
+Description: QtBluetooth type support for GammaRay
+ This plugin adds support for QtBluetooth types into GammaRay.
+
+Package: gammaray-plugin-positioning
+Architecture: any
+Depends: gammaray (= ${binary:Version}),
+         qml-module-qtlocation,
+         qml-module-qtpositioning,
+         qml-module-qtquick2,
+         ${misc:Depends},
+         ${shlibs:Depends}
+Enhances: gammaray
+Description: Qt5Positioning type support for GammaRay
+ This plugin adds support for Qt5Positioning types into GammaRay.
+
+Package: gammaray-dev
+Architecture: any
+Section: libdevel
+Depends: gammaray (= ${binary:Version}), ${misc:Depends}
+Description: GammaRay plugin development files
+ GammaRay is a tool for examining the internals of a Qt application and
+ to some extent also manipulate it. GammaRay uses injection methods to
+ hook into an application at runtime and provide access to a wide variety
+ of interesting information. It provides easy ways of navigating through
+ the complex internal structures you find in some Qt frameworks, such as
+ QGraphicsView, model/view, QTextDocument, state machines and more.
+ .
+ This package contains header files used for building 3rd party GammaRay
+ plugins.

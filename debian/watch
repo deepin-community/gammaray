@@ -1,0 +1,4 @@
+version=4
+opts=searchmode=plain,pgpsigurlmangle=s/$/.asc/ \
+https://api.github.com/repos/KDAB/GammaRay/releases \
+https://github.com/KDAB/GammaRay/releases/download/v[\d.]+/gammaray-([\d.]+)\.tar\.gz

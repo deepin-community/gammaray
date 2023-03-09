@@ -1,0 +1,16 @@
+Description: increase test timeout to make tests less flaky
+Author: Dmitry Shachnev <mitya57@debian.org>
+Forwarded: no
+Last-Update: 2020-10-31
+
+--- a/tests/basequicktest.h
++++ b/tests/basequicktest.h
+@@ -95,7 +95,7 @@ protected:
+         }
+ 
+         // wait at least two frames so we have the final window size with all render loop/driver combinations...
+-        QTest::qWait(20);
++        QTest::qWait(100);
+         renderSpy.wait();
+         renderSpy.clear();
+         m_view->update();

@@ -1,0 +1,64 @@
+From: Jakub Adam <jakub.adam@ktknet.cz>
+Date: Wed, 16 Jul 2014 15:27:00 +0200
+Subject: debian-archs-fix-build
+
+---
+ cmake/GammaRayProbeABI.cmake           |   22 ++++++++++++++++++++++
+ launcher/core/probeabidetector_elf.cpp |    8 ++++++++
+ 2 files changed, 30 insertions(+)
+
+--- a/cmake/GammaRayProbeABI.cmake
++++ b/cmake/GammaRayProbeABI.cmake
+@@ -97,6 +97,24 @@ elseif(ANDROID OR CMAKE_SYSTEM_NAME MATC
+     message(FATAL_ERROR "Unsupported Android ABI ${ANDROID_ABI}.")
+   endif()
+ 
++# kFreeBSD reports i686 as i386 and x86_64 as amd64
++elseif(CMAKE_SYSTEM_NAME MATCHES "kFreeBSD")
++  if (CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
++    set(GAMMARAY_PROBE_ABI "${GAMMARAY_PROBE_ABI}-i686")
++  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "amd64")
++    set(GAMMARAY_PROBE_ABI "${GAMMARAY_PROBE_ABI}-x86_64")
++  else()
++    set(GAMMARAY_PROBE_ABI "${GAMMARAY_PROBE_ABI}-${CMAKE_SYSTEM_PROCESSOR}")
++  endif()
++
++# Debian GNU/Hurd reports unknown CPU; assume i686
++elseif(CMAKE_SYSTEM_NAME MATCHES "GNU")
++  if (CMAKE_SYSTEM_PROCESSOR MATCHES "unknown")
++    set(GAMMARAY_PROBE_ABI "${GAMMARAY_PROBE_ABI}-i686")
++  else()
++    set(GAMMARAY_PROBE_ABI "${GAMMARAY_PROBE_ABI}-${CMAKE_SYSTEM_PROCESSOR}")
++  endif()
++
+ else()
+   if(NOT CMAKE_SYSTEM_PROCESSOR)
+     message(FATAL_ERROR "Unknown target architecture. Make sure to specify CMAKE_SYSTEM_PROCESSOR in your toolchain file!")
+@@ -109,6 +127,10 @@ else()
+     else()
+       set(GAMMARAY_PROBE_ABI "${GAMMARAY_PROBE_ABI}-arm")
+     endif()
++  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "mips64")
++    set(GAMMARAY_PROBE_ABI "${GAMMARAY_PROBE_ABI}-mips")
++  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc64le")
++    set(GAMMARAY_PROBE_ABI "${GAMMARAY_PROBE_ABI}-ppc64")
+   else()
+     if(CMAKE_SYSTEM_PROCESSOR MATCHES "i[3456]86" OR CMAKE_SYSTEM_PROCESSOR MATCHES "x86" OR CMAKE_SYSTEM_PROCESSOR MATCHES "corei" OR CMAKE_SYSTEM_PROCESSOR MATCHES "amd64")
+       if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+--- a/launcher/core/probeabidetector_elf.cpp
++++ b/launcher/core/probeabidetector_elf.cpp
+@@ -153,6 +153,14 @@ static QString archFromELFHeader(const u
+     case EM_AARCH64:
+         return QStringLiteral("aarch64");
+ #endif
++    case EM_MIPS:
++        return QStringLiteral("mips");
++    case EM_PPC:
++        return QStringLiteral("ppc");
++    case EM_S390:
++        return QStringLiteral("s390x");
++    case EM_PPC64:
++        return QStringLiteral("ppc64");
+     }
+ 
+     qWarning() << "Unsupported ELF machine type:" << hdr->e_machine;

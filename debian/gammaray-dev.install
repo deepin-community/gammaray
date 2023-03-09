@@ -1,0 +1,11 @@
+usr/include
+usr/lib/${DEB_HOST_MULTIARCH}/cmake/
+usr/lib/${DEB_HOST_MULTIARCH}/libgammaray_client.so
+usr/lib/${DEB_HOST_MULTIARCH}/libgammaray_common-qt5*.so
+usr/lib/${DEB_HOST_MULTIARCH}/libgammaray_core-qt*.so
+usr/lib/${DEB_HOST_MULTIARCH}/libgammaray_kitemmodels-qt5*.so
+usr/lib/${DEB_HOST_MULTIARCH}/libgammaray_kuserfeedback.so
+usr/lib/${DEB_HOST_MULTIARCH}/libgammaray_launcher.so
+usr/lib/${DEB_HOST_MULTIARCH}/libgammaray_launcher_ui.so
+usr/lib/${DEB_HOST_MULTIARCH}/libgammaray_ui-qt5*.so
+usr/lib/${DEB_HOST_MULTIARCH}/qt5/mkspecs/modules/

@@ -1,4 +1,35 @@
 #!/usr/bin/make -f
 
+.PHONY: override_dh_auto_configure override_dh_auto_test override_dh_auto_install override_dh_installdocs
+
+export DEB_BUILD_MAINT_OPTIONS=hardening=+all
+export QT_SELECT=5
+
+# Give the build more time to finish the test suite.
+# Timeouts have been appearing on buildd machines for some architectures.
+export GAMMARAY_LAUNCHER_TIMEOUT=240
+
+DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+
 %:
 	dh $@
+
+override_dh_auto_configure:
+	dh_auto_configure -- -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=FALSE
+
+override_dh_auto_test:
+ifneq (,$(filter $(DEB_HOST_ARCH), amd64 arm64 i386))
+	xvfb-run -a -s "-screen 0 640x480x24" dh_auto_test --max-parallel=1 -- ARGS="-V"
+# attachtest-gdb is unstable on s390x and hangs builds
+else ifeq ($(DEB_HOST_ARCH), s390x)
+	-xvfb-run -a -s "-screen 0 640x480x24" dh_auto_test --max-parallel=1 -- ARGS="-V -E attachtest-gdb"
+else
+	-xvfb-run -a -s "-screen 0 640x480x24" dh_auto_test --max-parallel=1 -- ARGS="-V"
+endif
+
+override_dh_auto_install:
+	dh_auto_install
+	rm -f debian/tmp/usr/share/doc/gammaray/LICENSE.*
+
+override_dh_installdocs:
+	dh_installdocs --link-doc=gammaray
