@@ -1,0 +1,2 @@
+usr/lib/${DEB_HOST_MULTIARCH}/gammaray/*/qt*/gammaray_positioning*
+usr/lib/${DEB_HOST_MULTIARCH}/gammaray/*/qt5*/target/position/libgammaray_geopositioninfosource.so

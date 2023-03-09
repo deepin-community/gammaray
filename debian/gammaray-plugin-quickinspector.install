@@ -1,0 +1,3 @@
+usr/lib/${DEB_HOST_MULTIARCH}/gammaray/*/qt5*/gammaray_qmlsupport.so
+usr/lib/${DEB_HOST_MULTIARCH}/gammaray/*/qt5*/gammaray_quickinspector*
+usr/lib/${DEB_HOST_MULTIARCH}/gammaray/*/qt5*/gammaray_quickwidgetsupport*
