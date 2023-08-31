@@ -1,3 +1,9 @@
+gammaray (2.11.3-3deepin) unstable; urgency=medium
+
+  * Bump package version to trigger rebuild.
+
+ -- Wang Zichong <wangzichong@deepin.org>  Thu, 14 Apr 2023 14:19:00 +0800
+
 gammaray (2.11.3-3) unstable; urgency=medium
 
   * Team upload.
