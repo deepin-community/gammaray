@@ -1,27 +1,14 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  quickinspectortest.cpp
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "basequicktest.h"
@@ -36,11 +23,10 @@
 #include <core/propertyfilter.h>
 #include <core/toolmanager.h>
 
-#include <3rdparty/qt/modeltest.h>
-
+#include <QAbstractItemModelTester>
 #include <QItemSelectionModel>
 #include <QSortFilterProxyModel>
-#include <QRegExp>
+#include <QRegularExpression>
 
 #include <QQuickItem>
 #include <private/qquickitem_p.h>
@@ -68,7 +54,7 @@ private:
     }
 
 private slots:
-    void initTestCase()
+    static void initTestCase()
     {
         qRegisterMetaType<QItemSelection>();
     }
@@ -79,11 +65,11 @@ private slots:
 
         itemModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.QuickItemModel"));
         QVERIFY(itemModel);
-        new ModelTest(itemModel, view());
+        new QAbstractItemModelTester(itemModel, view());
 
         sgModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.QuickSceneGraphModel"));
         QVERIFY(sgModel);
-        new ModelTest(sgModel, view());
+        new QAbstractItemModelTester(sgModel, view());
 
         inspector = ObjectBroker::object<QuickInspectorInterface *>();
         QVERIFY(inspector);
@@ -125,10 +111,11 @@ private slots:
 
         itemModel->setProperty("filterKeyColumn", -1);
         itemModel->setProperty("filterRegExp",
-                               QRegExp("Rect", Qt::CaseInsensitive, QRegExp::FixedString));
+                               QRegularExpression("Rect", QRegularExpression::CaseInsensitiveOption));
+
         sgModel->setProperty("filterKeyColumn", -1);
         sgModel->setProperty("filterRegExp",
-                             QRegExp("Transform", Qt::CaseInsensitive, QRegExp::FixedString));
+                             QRegularExpression("Transform", QRegularExpression::CaseInsensitiveOption));
         QVERIFY(itemModel->rowCount() > 0);
         QVERIFY(sgModel->rowCount() > 0);
 
@@ -137,8 +124,9 @@ private slots:
             QTest::keyClick(view(), Qt::Key_Down);
         QTest::qWait(20);
 
-        itemModel->setProperty("filterRegExp", QRegExp());
-        sgModel->setProperty("filterRegExp", QRegExp());
+        itemModel->setProperty("filterRegExp", QRegularExpression());
+        sgModel->setProperty("filterRegExp", QRegularExpression());
+
         QTest::qWait(20);
     }
 
@@ -152,12 +140,12 @@ private slots:
 
         auto itemSelectionModel = ObjectBroker::selectionModel(itemModel);
         QVERIFY(itemSelectionModel);
-        QSignalSpy itemSpy(itemSelectionModel, SIGNAL(selectionChanged(QItemSelection,QItemSelection)));
+        QSignalSpy itemSpy(itemSelectionModel, &QItemSelectionModel::selectionChanged);
         QVERIFY(itemSpy.isValid());
 
         auto sgSelectionModel = ObjectBroker::selectionModel(sgModel);
         QVERIFY(sgModel);
-        QSignalSpy sgSpy(sgSelectionModel, SIGNAL(selectionChanged(QItemSelection,QItemSelection)));
+        QSignalSpy sgSpy(sgSelectionModel, &QItemSelectionModel::selectionChanged);
         QVERIFY(sgSpy.isValid());
 
         // auto center-click is broken before https://codereview.qt-project.org/141085/
@@ -184,10 +172,10 @@ private slots:
         QVERIFY(remoteView);
         remoteView->setViewActive(true);
 
-        QSignalSpy renderSpy(view(), SIGNAL(frameSwapped()));
+        QSignalSpy renderSpy(view(), &QQuickWindow::frameSwapped);
         QVERIFY(renderSpy.isValid());
 
-        QSignalSpy gotFrameSpy(remoteView, SIGNAL(frameUpdated(GammaRay::RemoteViewFrame)));
+        QSignalSpy gotFrameSpy(remoteView, &RemoteViewInterface::frameUpdated);
         QVERIFY(gotFrameSpy.isValid());
 
         QVERIFY(showSource(QStringLiteral("qrc:/manual/rotationinvariant.qml")));
@@ -196,19 +184,21 @@ private slots:
         if (!isViewExposed())
             return;
 
-        QVERIFY(waitForSignal(&gotFrameSpy, true));
+        QVERIFY(gotFrameSpy.wait() || gotFrameSpy.size() >= 1);
 
         QVERIFY(!renderSpy.isEmpty());
         QVERIFY(!gotFrameSpy.isEmpty());
-        const auto frame = gotFrameSpy.at(0).at(0).value<RemoteViewFrame>();
+        // take the last frame
+        const auto last = gotFrameSpy.size() - 1;
+        const auto frame = gotFrameSpy.at(last).at(0).value<RemoteViewFrame>();
         QImage img = frame.image();
         QTransform transform = frame.transform();
 
         img = img.transformed(transform);
 
         QVERIFY(!img.isNull());
-        QCOMPARE(img.width(), static_cast<int>(view()->width() *view()->devicePixelRatio()));
-        QCOMPARE(img.height(), static_cast<int>(view()->height() *view()->devicePixelRatio()));
+        QCOMPARE(img.width(), static_cast<int>(view()->width() * view()->devicePixelRatio()));
+        QCOMPARE(img.height(), static_cast<int>(view()->height() * view()->devicePixelRatio()));
 
         // Grabbed stuff seems to alter colors depending the monitor color profile, let use plain QColor for comparison.
         QCOMPARE(QColor(img.pixel(1 * view()->devicePixelRatio(), 1 * view()->devicePixelRatio())), QColor(255, 0, 0));
@@ -221,14 +211,13 @@ private slots:
 
     void testCustomRenderModes()
     {
-        QSignalSpy featureSpy(inspector, SIGNAL(features(
-                                                    GammaRay::QuickInspectorInterface::Features)));
+        QSignalSpy featureSpy(inspector, &QuickInspectorInterface::features);
         QVERIFY(featureSpy.isValid());
         inspector->checkFeatures();
         QCOMPARE(featureSpy.size(), 1);
         auto features = featureSpy.at(0).at(0).value<GammaRay::QuickInspectorInterface::Features>();
 
-        QSignalSpy renderSpy(view(), SIGNAL(frameSwapped()));
+        QSignalSpy renderSpy(view(), &QQuickWindow::frameSwapped);
         QVERIFY(renderSpy.isValid());
 
         QVERIFY(showSource(QStringLiteral("qrc:/manual/reparenttest.qml")));
@@ -285,8 +274,8 @@ private slots:
 
         QVERIFY(showSource(QStringLiteral("qrc:/manual/anchorspropertyfiltertest.qml")));
 
-        auto rectWithoutAnchors = view()->rootObject()->findChild<QQuickItem*>("rectWithoutAnchors");
-        auto rectWithAnchors = view()->rootObject()->findChild<QQuickItem*>("rectWithAnchors");
+        auto rectWithoutAnchors = view()->rootObject()->findChild<QQuickItem *>("rectWithoutAnchors");
+        auto rectWithAnchors = view()->rootObject()->findChild<QQuickItem *>("rectWithAnchors");
 
         auto rectWithoutAnchorsPriv = QQuickItemPrivate::get(rectWithoutAnchors);
         auto rectWithAnchorsPriv = QQuickItemPrivate::get(rectWithAnchors);
@@ -305,14 +294,14 @@ private slots:
         QVERIFY(propertyModel->rowCount());
         QCOMPARE(anchorsFilterModel.rowCount(), 1);
         auto rectWithoutAnchorsAnchorsValue = anchorsFilterModel.data(anchorsFilterModel.index(0, 1), Qt::EditRole);
-        QVERIFY(rectWithoutAnchorsAnchorsValue.canConvert<QObject*>());
-        QVERIFY(rectWithoutAnchorsAnchorsValue.value<QObject*>() == nullptr);
+        QVERIFY(rectWithoutAnchorsAnchorsValue.canConvert<QObject *>());
+        QVERIFY(rectWithoutAnchorsAnchorsValue.value<QObject *>() == nullptr);
 
         Probe::instance()->selectObject(rectWithAnchors);
         QCOMPARE(anchorsFilterModel.rowCount(), 1);
         auto rectWithAnchorsAnchorsValue = anchorsFilterModel.data(anchorsFilterModel.index(0, 1), Qt::EditRole);
-        QVERIFY(rectWithAnchorsAnchorsValue.canConvert<QObject*>());
-        QVERIFY(rectWithAnchorsAnchorsValue.value<QObject*>() != nullptr);
+        QVERIFY(rectWithAnchorsAnchorsValue.canConvert<QObject *>());
+        QVERIFY(rectWithAnchorsAnchorsValue.value<QObject *>() != nullptr);
 
 
         Probe::instance()->selectObject(rectWithoutAnchors);
@@ -329,14 +318,14 @@ private slots:
         QTest::qWait(10);
 
         rectWithoutAnchorsAnchorsValue = anchorsFilterModel.data(anchorsFilterModel.index(0, 1), Qt::EditRole);
-        QVERIFY(rectWithoutAnchorsAnchorsValue.canConvert<QObject*>());
-        QVERIFY(rectWithoutAnchorsAnchorsValue.value<QObject*>() == nullptr);
+        QVERIFY(rectWithoutAnchorsAnchorsValue.canConvert<QObject *>());
+        QVERIFY(rectWithoutAnchorsAnchorsValue.value<QObject *>() == nullptr);
     }
 
     void testProblemReporting()
     {
-        //TODO using this qml-file as testcase might stop working if qt decides to be
-        // smarter with out of view items in ListViews
+        // TODO using this qml-file as testcase might stop working if qt decides to be
+        //  smarter with out of view items in ListViews
         QVERIFY(showSource(QStringLiteral("qrc:/manual/quickitemcreatedestroytest.qml")));
 
         QVERIFY(ProblemCollector::instance()->isCheckerRegistered("com.kdab.GammaRay.QuickItemChecker"));
@@ -348,13 +337,12 @@ private slots:
 
         const auto &problems = ProblemCollector::instance()->problems();
         QVERIFY(std::any_of(problems.begin(), problems.end(),
-            [&](const Problem &p){
-                return p.problemId.startsWith("com.kdab.GammaRay.QuickItemChecker")
-                    && !p.object.isNull()
-                    && p.description.contains("out of view")
-                    && p.locations.size() > 0;
-            }
-        ));
+                            [&](const Problem &p) {
+                                return p.problemId.startsWith("com.kdab.GammaRay.QuickItemChecker")
+                                    && !p.object.isNull()
+                                    && p.description.contains("out of view")
+                                    && p.locations.size() > 0;
+                            }));
     }
 
 private:

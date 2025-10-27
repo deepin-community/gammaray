@@ -1,29 +1,14 @@
 /*
   signalmonitorwidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Mathias Hasselmann <mathias.hasselmann@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "signalmonitorwidget.h"
@@ -40,10 +25,17 @@
 #include <common/objectbroker.h>
 
 #include <QMenu>
+#include <QSortFilterProxyModel>
 
 #include <cmath>
 
 using namespace GammaRay;
+
+SignalHistoryFavoritesView::SignalHistoryFavoritesView(QWidget *parent)
+    : Super(parent)
+{
+    setRootIsDecorated(false);
+}
 
 static QObject *signalMonitorClientFactory(const QString &, QObject *parent)
 {
@@ -63,8 +55,7 @@ SignalMonitorWidget::SignalMonitorWidget(QWidget *parent)
     ui->setupUi(this);
     ui->pauseButton->setIcon(qApp->style()->standardIcon(QStyle::SP_MediaPause));
 
-    QAbstractItemModel * const signalHistory
-        = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.SignalHistoryModel"));
+    QAbstractItemModel *const signalHistory = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.SignalHistoryModel"));
     auto *signalHistoryProxyModel = new ClientDecorationIdentityProxyModel(this);
     signalHistoryProxyModel->setSourceModel(signalHistory);
     new SearchLineController(ui->objectSearchLine, signalHistoryProxyModel);
@@ -87,6 +78,13 @@ SignalMonitorWidget::SignalMonitorWidget(QWidget *parent)
 
     m_stateManager.setDefaultSizes(ui->objectTreeView->header(),
                                    UISizeVector() << 200 << 200 << -1);
+
+    // favorites
+    ui->favoritesObjectsTreeView->setSourceView(ui->objectTreeView);
+    ui->favoritesObjectsTreeView->header()->setObjectName("favoritesObjectsTreeViewHeader");
+    ui->favoritesObjectsTreeView->setEventScrollBar(ui->eventScrollBar);
+    m_stateManager.setDefaultSizes(ui->favoritesObjectsTreeView->header(),
+                                   UISizeVector() << 200 << 200 << -1);
 }
 
 SignalMonitorWidget::~SignalMonitorWidget() = default;
@@ -96,6 +94,12 @@ void SignalMonitorWidget::intervalScaleValueChanged(int value)
     // FIXME: Define a more reasonable formula.
     qint64 i = 5000 / std::pow(1.07, value);
     ui->objectTreeView->eventDelegate()->setVisibleInterval(i);
+    ui->favoritesObjectsTreeView->eventDelegate()->setVisibleInterval(i);
+}
+
+QSlider *SignalMonitorWidget::zoomSlider()
+{
+    return ui->intervalScale;
 }
 
 void SignalMonitorWidget::adjustEventScrollBarSize()
@@ -104,8 +108,8 @@ void SignalMonitorWidget::adjustEventScrollBarSize()
     // widget manage layouts of this widget would be nasty. Still I also I don't
     // feel like hooking a custom scrollbar into QTreeView. Sleeping between a
     // rock and a hard place.
-    const QWidget * const scrollBar = ui->objectTreeView->verticalScrollBar();
-    const QWidget * const viewport = ui->objectTreeView->viewport();
+    const QWidget *const scrollBar = ui->objectTreeView->verticalScrollBar();
+    const QWidget *const viewport = ui->objectTreeView->viewport();
 
     const int eventColumnLeft = ui->objectTreeView->eventColumnPosition();
     const int scrollBarLeft = scrollBar->mapTo(this, scrollBar->pos()).x();
@@ -121,6 +125,7 @@ void SignalMonitorWidget::adjustEventScrollBarSize()
 void SignalMonitorWidget::pauseAndResume(bool pause)
 {
     ui->objectTreeView->eventDelegate()->setActive(!pause);
+    ui->favoritesObjectsTreeView->eventDelegate()->setActive(!pause);
 }
 
 void SignalMonitorWidget::eventDelegateIsActiveChanged(bool active)
@@ -141,11 +146,12 @@ void SignalMonitorWidget::contextMenu(QPoint pos)
 
     QMenu menu;
     ContextMenuExtension ext(objectId);
+    ext.setCanFavoriteItems(true);
     ext.populateMenu(&menu);
     menu.exec(ui->objectTreeView->viewport()->mapToGlobal(pos));
 }
 
-void SignalMonitorWidget::selectionChanged(const QItemSelection& selection)
+void SignalMonitorWidget::selectionChanged(const QItemSelection &selection)
 {
     if (selection.isEmpty())
         return;

@@ -1,29 +1,14 @@
 /*
   materialshadermodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2017-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "materialshadermodel.h"
@@ -36,32 +21,7 @@
 
 using namespace GammaRay;
 
-#define S(x) { QOpenGLShader:: x, #x }
-static const MetaEnum::Value<QOpenGLShader::ShaderTypeBit> qopengl_shader_type[] = {
-    S(Vertex),
-    S(Fragment),
-    S(Geometry),
-    S(TessellationControl),
-    S(TessellationEvaluation),
-    S(Compute)
-};
-#undef S
-
-class SGMaterialShaderThief : public QSGMaterialShader
-{
-public:
-    using QSGMaterialShader::vertexShader;
-    using QSGMaterialShader::fragmentShader;
-
-    const QHash<QOpenGLShader::ShaderType, QStringList>& getShaderSources()
-    {
-        return d_func()->m_sourceFiles;
-    }
-};
-
-
-
-MaterialShaderModel::MaterialShaderModel(QObject* parent)
+MaterialShaderModel::MaterialShaderModel(QObject *parent)
     : QAbstractListModel(parent)
     , m_shader(nullptr)
     , m_shaderFileCount(0)
@@ -70,7 +30,7 @@ MaterialShaderModel::MaterialShaderModel(QObject* parent)
 
 MaterialShaderModel::~MaterialShaderModel() = default;
 
-void MaterialShaderModel::setMaterialShader(QSGMaterialShader* shader)
+void MaterialShaderModel::setMaterialShader(QSGMaterialShader *shader)
 {
     if (m_shader) {
         beginRemoveRows(QModelIndex(), 0, rowCount() - 1);
@@ -92,12 +52,6 @@ QByteArray MaterialShaderModel::shaderForRow(int row) const
         return QByteArray();
 
     if (m_shaderFileCount == 0) {
-        switch (row) {
-            case 0:
-                return reinterpret_cast<SGMaterialShaderThief*>(m_shader)->vertexShader();
-            case 1:
-                return reinterpret_cast<SGMaterialShaderThief*>(m_shader)->fragmentShader();
-        }
         return QByteArray();
     }
 
@@ -108,29 +62,41 @@ QByteArray MaterialShaderModel::shaderForRow(int row) const
     return shaderFile.readAll();
 }
 
-int MaterialShaderModel::rowCount(const QModelIndex& parent) const
+int MaterialShaderModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid() || !m_shader)
         return 0;
     return m_shaderFileCount == 0 ? 2 : m_shaderFileCount;
 }
 
-QVariant MaterialShaderModel::data(const QModelIndex& index, int role) const
+QVariant MaterialShaderModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid() || !m_shader || role != Qt::DisplayRole)
         return QVariant();
 
-    if (m_shaderFileCount > 0) {
-        const auto &files = reinterpret_cast<SGMaterialShaderThief*>(m_shader)->getShaderSources();
-        int idx = index.row();
-        for (auto it = files.begin(); it != files.end(); ++it) {
-            if (idx < it.value().size())
-                return QString(MetaEnum::flagsToString(it.key(), qopengl_shader_type) + QLatin1String(": ") + it.value().at(idx));
-            idx -= it.value().size();
+    if (QSGMaterialShaderPrivate *p = QSGMaterialShaderPrivate::get(m_shader)) {
+        int i = 0;
+        const auto &shaderFiles = p->shaderFileNames;
+        for (auto it = shaderFiles.cbegin(); it != shaderFiles.cend(); ++it) {
+            auto type = it.key();
+            if (i == index.row()) {
+                switch (type) {
+                case QShader::VertexStage:
+                    return QString::fromLatin1("Vertex");
+                case QShader::TessellationControlStage:
+                    return QString::fromLatin1("TessellationControlStage");
+                case QShader::TessellationEvaluationStage:
+                    return QString::fromLatin1("TessellationEvaluationStage");
+                case QShader::GeometryStage:
+                    return QString::fromLatin1("GeometryStage");
+                case QShader::FragmentStage:
+                    return QString::fromLatin1("FragmentStage");
+                case QShader::ComputeStage:
+                    return QString::fromLatin1("ComputeStage");
+                }
+            }
+            i++;
         }
-        Q_ASSERT(false);
-    } else {
-        return MetaEnum::flagsToString((1 << index.row()), qopengl_shader_type);
     }
 
     return QVariant();
@@ -139,10 +105,10 @@ QVariant MaterialShaderModel::data(const QModelIndex& index, int role) const
 int MaterialShaderModel::shaderFileCount(QSGMaterialShader *shader)
 {
     Q_ASSERT(shader);
-    const auto &files = reinterpret_cast<SGMaterialShaderThief*>(shader)->getShaderSources();
     int fileCount = 0;
-    for (auto it = files.begin(); it != files.end(); ++it)
-        fileCount += it.value().size();
+    if (QSGMaterialShaderPrivate *p = QSGMaterialShaderPrivate::get(shader)) {
+        return p->shaderFileNames.size();
+    }
     return fileCount;
 }
 
@@ -152,11 +118,15 @@ QString MaterialShaderModel::shaderFileForRow(int row) const
     Q_ASSERT(m_shaderFileCount > 0);
     Q_ASSERT(row < m_shaderFileCount);
 
-    const auto &files = reinterpret_cast<SGMaterialShaderThief*>(m_shader)->getShaderSources();
-    for (auto it = files.begin(); it != files.end(); ++it) {
-        if (row < it.value().size())
-            return it.value().at(row);
-        row -= it.value().size();
+    if (QSGMaterialShaderPrivate *p = QSGMaterialShaderPrivate::get(m_shader)) {
+        const auto &shaderFiles = p->shaderFileNames;
+        int i = 0;
+        for (const auto &sf : shaderFiles) {
+            if (i == row)
+                return sf;
+            i++;
+        }
+        return {};
     }
 
     Q_ASSERT(false);

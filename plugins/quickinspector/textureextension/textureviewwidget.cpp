@@ -1,29 +1,14 @@
 /*
   textureviewwidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2017-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "textureviewwidget.h"
@@ -50,10 +35,9 @@ TextureViewWidget::~TextureViewWidget() = default;
 
 void TextureViewWidget::drawPixelWasteDecoration(QPainter *p) const
 {
-    //Draw Warning if more than 30% or 1KB are wasted
+    // Draw Warning if more than 30% or 1KB are wasted
     const auto hasTextureWasteProblem =
-        (m_pixelWasteInPercent > transparencyWasteLimitInPercent ||
-         m_pixelWasteInBytes > transparencyWasteLimitInBytes);
+        (m_pixelWasteInPercent > transparencyWasteLimitInPercent || m_pixelWasteInBytes > transparencyWasteLimitInBytes);
     if (!hasTextureWasteProblem)
         return;
 
@@ -61,7 +45,7 @@ void TextureViewWidget::drawPixelWasteDecoration(QPainter *p) const
     auto scaleTransform = QTransform::fromScale(zoom(), zoom());
     p->setTransform(scaleTransform, true);
 
-    //Draw Wasted Area
+    // Draw Wasted Area
     QPen pen(Qt::red);
     pen.setCosmetic(true);
     p->setPen(pen);
@@ -104,7 +88,7 @@ void TextureViewWidget::drawBorderImageCutouts(QPainter *p) const
 
 void TextureViewWidget::drawActiveAtlasTile(QPainter *p) const
 {
-    auto rect = frame().data().toRect();
+    auto rect = frame().data.toRect();
     if (!rect.isValid())
         return;
 
@@ -120,7 +104,7 @@ void TextureViewWidget::drawActiveAtlasTile(QPainter *p) const
 
 void TextureViewWidget::drawDecoration(QPainter *p)
 {
-    if (m_visualizeTextureProblems){
+    if (m_visualizeTextureProblems) {
         drawBorderImageCutouts(p);
         drawPixelWasteDecoration(p);
     }
@@ -147,8 +131,8 @@ void TextureViewWidget::analyzeImageFlaws()
     QImage analyzedTexture;
     QRect analyzedRect;
     int atlasTextureOffset = 0; // atlas textures are 1 pixel bigger
-    auto atlasSubTile = frame().data().toRect();
-    if (atlasSubTile.isValid()) { //Atlas-Case
+    auto atlasSubTile = frame().data.toRect();
+    if (atlasSubTile.isValid()) { // Atlas-Case
         analyzedTexture = frame().image().copy(atlasSubTile);
         analyzedRect = atlasSubTile;
         analyzedRect = analyzedRect.adjusted(-1, -1, 1, 1);
@@ -170,10 +154,10 @@ void TextureViewWidget::analyzeImageFlaws()
             auto pixel = analyzedTexture.pixel(x, y);
 
             if (Q_UNLIKELY(imageFlags.testFlag(Unicolor)) && (possibleSingularColor != pixel))
-                imageFlags &=~ Unicolor;
+                imageFlags &= ~Unicolor;
 
             if (qAlpha(pixel) != 0) {
-                imageFlags &=~ FullyTransparent;
+                imageFlags &= ~FullyTransparent;
                 top = std::min(top, y);
                 bottom = std::max(bottom, y);
                 left = std::min(left, x);
@@ -193,7 +177,8 @@ void TextureViewWidget::analyzeImageFlaws()
     // Emit all possible Problems so far
     auto hasTextureWasteProblem = (m_pixelWasteInPercent > transparencyWasteLimitInPercent || m_pixelWasteInBytes > transparencyWasteLimitInBytes);
     emit textureWasteFound(hasTextureWasteProblem, m_pixelWasteInPercent, m_pixelWasteInBytes);
-    if (hasTextureWasteProblem) imageFlags |= TextureWaste;
+    if (hasTextureWasteProblem)
+        imageFlags |= TextureWaste;
     emit textureIsUnicolor(imageFlags.testFlag(Unicolor));
     emit textureIsFullyTransparent(imageFlags.testFlag(FullyTransparent));
 
@@ -254,18 +239,22 @@ void TextureViewWidget::analyzeImageFlaws()
     m_verticalBorderRectMidCut = QRect(0, upperRow + atlasTextureOffset, analyzedRect.width(), lowerRow - upperRow + 1);
 
     auto overallSavingsInPercent = 0;
-    auto area = [](const QRect &r){ return r.width() * r.height(); };
+    auto area = [](const QRect &r) { return r.width() * r.height(); };
     const auto hs = (m_horizontalBorderImageSavingsInPercent > minimumBorderImageSavingsPercent);
     const auto vs = (m_verticalBorderImageSavings > minimumBorderImageSavingsPercent);
-    if (!hs && !vs) overallSavingsInPercent = 0;
-    if ( hs && !vs) overallSavingsInPercent = m_horizontalBorderImageSavingsInPercent;
-    if (!hs &&  vs) overallSavingsInPercent = m_verticalBorderImageSavings;
-    if ( hs &&  vs) {
+    if (!hs && !vs)
+        overallSavingsInPercent = 0;
+    if (hs && !vs)
+        overallSavingsInPercent = m_horizontalBorderImageSavingsInPercent;
+    if (!hs && vs)
+        overallSavingsInPercent = m_verticalBorderImageSavings;
+    if (hs && vs) {
         const auto overlapRect = m_horizontalBorderRectMidCut.intersected(m_verticalBorderRectMidCut);
         overallSavingsInPercent = area(m_horizontalBorderRectMidCut) + area(m_verticalBorderRectMidCut) - area(overlapRect);
-        overallSavingsInPercent = qRound(overallSavingsInPercent / ((float) area(m_analyzedRect)) * 100);
+        overallSavingsInPercent = qRound(overallSavingsInPercent / (( float )area(m_analyzedRect)) * 100);
     }
-    if (overallSavingsInPercent > minimumBorderImageSavingsPercent) imageFlags |= BorderImageCandidate;
+    if (overallSavingsInPercent > minimumBorderImageSavingsPercent)
+        imageFlags |= BorderImageCandidate;
     auto overallSavingsInBytes = overallSavingsInPercent / 100.0f * area(m_analyzedRect) * frame().image().depth() / 8;
     emit textureHasBorderImageSavings((overallSavingsInPercent > minimumBorderImageSavingsPercent), overallSavingsInPercent, overallSavingsInBytes);
 

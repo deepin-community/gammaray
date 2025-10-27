@@ -1,29 +1,14 @@
 /*
   codeeditor.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "codeeditor.h"
@@ -50,10 +35,10 @@ using namespace GammaRay;
 KSyntaxHighlighting::Repository *CodeEditor::s_repository = nullptr;
 #endif
 
-CodeEditor::CodeEditor(QWidget *parent) :
-    QPlainTextEdit(parent),
-    m_sideBar(new CodeEditorSidebar(this)),
-    m_highlighter(nullptr)
+CodeEditor::CodeEditor(QWidget *parent)
+    : QPlainTextEdit(parent)
+    , m_sideBar(new CodeEditorSidebar(this))
+    , m_highlighter(nullptr)
 {
     setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
 
@@ -97,7 +82,7 @@ int CodeEditor::sidebarWidth() const
         ++digits;
         count /= 10;
     }
-    return 4 + fontMetrics().width(QLatin1Char('9')) * digits + foldingBarWidth();
+    return 4 + fontMetrics().horizontalAdvance(QLatin1Char('9')) * digits + foldingBarWidth();
 }
 
 int CodeEditor::foldingBarWidth() const
@@ -257,14 +242,12 @@ void CodeEditor::ensureHighlighterExists()
 #ifdef HAVE_SYNTAX_HIGHLIGHTING
     if (!s_repository) {
         s_repository = new KSyntaxHighlighting::Repository;
-        qAddPostRoutine([](){ delete s_repository; });
+        qAddPostRoutine([]() { delete s_repository; });
     }
 
     if (!m_highlighter) {
         m_highlighter = new KSyntaxHighlighting::SyntaxHighlighter(document());
-        m_highlighter->setTheme(palette().color(QPalette::Base).lightness() < 128 ?
-                                s_repository->defaultTheme(KSyntaxHighlighting::Repository::DarkTheme) :
-                                s_repository->defaultTheme(KSyntaxHighlighting::Repository::LightTheme));
+        m_highlighter->setTheme(palette().color(QPalette::Base).lightness() < 128 ? s_repository->defaultTheme(KSyntaxHighlighting::Repository::DarkTheme) : s_repository->defaultTheme(KSyntaxHighlighting::Repository::LightTheme));
     }
 #endif
 }
@@ -298,7 +281,7 @@ bool CodeEditor::isFoldable(const QTextBlock &block) const
 #endif
 }
 
-bool CodeEditor::isFolded(const QTextBlock &block) const
+bool CodeEditor::isFolded(const QTextBlock &block)
 {
     if (!block.isValid())
         return false;

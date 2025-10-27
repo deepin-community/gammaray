@@ -1,29 +1,14 @@
 /*
   util.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -35,8 +20,6 @@
 #include "varianthandler.h"
 #include "objectdataprovider.h"
 #include "enumutil.h"
-
-#include <compat/qasconst.h>
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -57,12 +40,14 @@ using namespace std;
 QString Util::displayString(const QObject *object)
 {
     if (!object)
-        return QStringLiteral("QObject(0x0)");
+        return QStringLiteral("0x0 (QObject)");
     const auto name = ObjectDataProvider::name(object);
     if (name.isEmpty())
-        return QStringLiteral("%1[this=%2]").arg(object->metaObject()->className(),
-                                                 addressToString(object));
-    return name;
+        return QStringLiteral("%1 (%2)").arg(addressToString(object), object->metaObject()->className());
+    const auto typeName = ObjectDataProvider::typeName(object);
+    if (name == typeName)
+        return name;
+    return QStringLiteral("%1 (%2)").arg(ObjectDataProvider::typeName(object), name);
 }
 
 QString Util::shortDisplayString(const QObject *object)
@@ -73,13 +58,6 @@ QString Util::shortDisplayString(const QObject *object)
     if (name.isEmpty())
         return addressToString(object);
     return name;
-}
-
-QString Util::addressToString(const void *p)
-{
-    char buf[20];
-    qsnprintf(buf, sizeof(buf), "0x%llx", reinterpret_cast<quint64>(p));
-    return QString::fromLatin1(buf);
 }
 
 QString Util::enumToString(const QVariant &value, const char *typeName, const QObject *object)
@@ -119,8 +97,7 @@ namespace GammaRay {
 static QString stringifyProperty(const QObject *obj, const QString &propName)
 {
     const QVariant value = obj->property(propName.toLatin1());
-    const QMetaProperty mp
-        = obj->metaObject()->property(
+    const QMetaProperty mp = obj->metaObject()->property(
         obj->metaObject()->indexOfProperty(propName.toLatin1()));
     if (mp.isValid()) {
         const QString enumStr = EnumUtil::enumToString(value, mp.typeName(), obj->metaObject());
@@ -134,7 +111,8 @@ struct IconCacheEntry
 {
     explicit IconCacheEntry(const QByteArray &className_ = QByteArray())
         : className(className_)
-    {}
+    {
+    }
 
     /// note: this member's data is being referenced by the database's key
     QByteArray className;
@@ -184,7 +162,7 @@ static IconDatabase readIconData()
             propString.chop(4);
             const QStringList props = propString.split(';');
             IconCacheEntry::PropertyMap propertyMap;
-            for (const QString &prop : qAsConst(props)) {
+            for (const QString &prop : std::as_const(props)) {
                 const QStringList keyValue = prop.split(QLatin1Char('='));
                 if (keyValue.size() != 2)
                     continue;
@@ -204,10 +182,10 @@ static int iconIdForObject(const QMetaObject *mo, const QObject *obj)
 
     auto it = iconDataBase.constFind(QLatin1String(mo->className()));
     if (it != iconDataBase.end()) {
-        for (const auto &propertyIcon : qAsConst(it->propertyIcons)) {
+        for (const auto &propertyIcon : std::as_const(it->propertyIcons)) {
             bool allMatch = true;
             Q_ASSERT(!propertyIcon.second.isEmpty());
-            for (const IconCacheEntry::PropertyPair &keyValue : qAsConst(propertyIcon.second)) {
+            for (const IconCacheEntry::PropertyPair &keyValue : std::as_const(propertyIcon.second)) {
                 if (stringifyProperty(obj, keyValue.first) != keyValue.second) {
                     allMatch = false;
                     break;
@@ -235,17 +213,16 @@ int Util::iconIdForObject(const QObject *object)
 
 QString Util::tooltipForObject(const QObject *object)
 {
-    return qApp->translate("GammaRay::Util",
-        "<p style='white-space:pre'>Object name: %1 (Address: %2)\nType: %3\nParent: %4 (Address: %5)\nNumber of children: %6</p>")
-           .arg(
+    static const auto tip = qApp->translate("GammaRay::Util",
+                                            "<p style='white-space:pre'>Object name: %1 (Address: %2)\nType: %3\nParent: %4 (Address: %5)\nNumber of children: %6</p>");
+
+    return tip.arg(
         object->objectName().isEmpty() ? QStringLiteral("&lt;Not set&gt;") : object->objectName(),
         Util::addressToString(object),
         object->metaObject()->className(),
-        object->parent() ? object->parent()->metaObject()->className() : QStringLiteral(
-            "<No parent>"),
+        object->parent() ? object->parent()->metaObject()->className() : QStringLiteral("<No parent>"),
         Util::addressToString(object->parent()),
-        QString::number(object->children().size())
-        );
+        QString::number(object->children().size()));
 }
 
 void Util::drawTransparencyPattern(QPainter *painter, const QRect &rect, int squareSize)

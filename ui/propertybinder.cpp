@@ -1,34 +1,17 @@
 /*
   propertybinder.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "propertybinder.h"
-
-#include <compat/qasconst.h>
 
 #include <QDebug>
 #include <QMetaProperty>
@@ -71,7 +54,8 @@ void PropertyBinder::add(const char *sourceProp, const char *destProp)
     b.sourceProperty = m_source->metaObject()->property(sourceIndex);
     Q_ASSERT(b.sourceProperty.isValid());
     Q_ASSERT(b.sourceProperty.hasNotifySignal());
-    connect(m_source, QByteArray("2") + b.sourceProperty.notifySignal().methodSignature(), this, SLOT(syncSourceToDestination()));
+    const QByteArray sig1 = QByteArray("2") + b.sourceProperty.notifySignal().methodSignature();
+    connect(m_source, sig1, this, SLOT(syncSourceToDestination()));
 
     const auto destIndex = m_destination->metaObject()->indexOfProperty(destProp);
     b.destinationProperty = m_destination->metaObject()->property(destIndex);
@@ -84,7 +68,8 @@ void PropertyBinder::add(const char *sourceProp, const char *destProp)
     if (!b.destinationProperty.hasNotifySignal() || !b.sourceProperty.isWritable())
         return;
 
-    connect(m_destination, QByteArray("2") + b.destinationProperty.notifySignal().methodSignature(), this, SLOT(syncDestinationToSource()));
+    const QByteArray sig2 = QByteArray("2") + b.destinationProperty.notifySignal().methodSignature();
+    connect(m_destination, sig2, this, SLOT(syncDestinationToSource()));
 }
 
 void PropertyBinder::syncSourceToDestination()
@@ -93,7 +78,7 @@ void PropertyBinder::syncSourceToDestination()
         return;
 
     m_lock = true;
-    for (const auto &b : qAsConst(m_properties))
+    for (const auto &b : std::as_const(m_properties))
         b.destinationProperty.write(m_destination, b.sourceProperty.read(m_source));
     m_lock = false;
 }
@@ -104,7 +89,7 @@ void PropertyBinder::syncDestinationToSource()
         return;
 
     m_lock = true;
-    for (const auto &b : qAsConst(m_properties)) {
+    for (const auto &b : std::as_const(m_properties)) {
         if (!b.sourceProperty.isWritable())
             continue;
         b.sourceProperty.write(m_source, b.destinationProperty.read(m_destination));

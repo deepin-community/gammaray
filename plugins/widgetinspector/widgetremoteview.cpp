@@ -1,42 +1,25 @@
 /*
   widgetremoteview.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2017-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "widgetremoteview.h"
 #include "widgetinspectorinterface.h"
-
-#include <compat/qasconst.h>
 
 #include <QPainter>
 #include <QVector2D>
 
 using namespace GammaRay;
 
-WidgetRemoteView::WidgetRemoteView(QWidget* parent)
+WidgetRemoteView::WidgetRemoteView(QWidget *parent)
     : RemoteViewWidget(parent)
     , m_tabFocusEnabled(false)
 {
@@ -54,7 +37,7 @@ static void drawArrow(QPainter *p, QPointF first, QPointF second)
 {
     p->drawLine(first, second);
     QPointF vector(second - first);
-    QMatrix m;
+    QTransform m;
     m.rotate(30);
     QVector2D v1 = QVector2D(m.map(vector)).normalized() * 10;
     m.rotate(-60);
@@ -63,12 +46,12 @@ static void drawArrow(QPainter *p, QPointF first, QPointF second)
     p->drawLine(second, second - v2.toPointF());
 }
 
-void WidgetRemoteView::drawDecoration(QPainter* p)
+void WidgetRemoteView::drawDecoration(QPainter *p)
 {
     if (!m_tabFocusEnabled)
         return;
 
-    const auto data = frame().data().value<WidgetFrameData>();
+    const auto data = frame().data.value<WidgetFrameData>();
     if (data.tabFocusRects.size() < 2)
         return;
 
@@ -85,9 +68,9 @@ void WidgetRemoteView::drawDecoration(QPainter* p)
 
         p->setPen(Qt::green);
         QLineF l(r1.center(), r2.center());
-        for (const auto &prevLine : qAsConst(lines)) {
+        for (const auto &prevLine : std::as_const(lines)) {
             QPointF pnt;
-            if (l.intersect(prevLine, &pnt) == QLineF::BoundedIntersection && pnt != l.p1() && pnt != l.p2()) {
+            if (l.intersects(prevLine, &pnt) == QLineF::BoundedIntersection && pnt != l.p1() && pnt != l.p2()) {
                 p->setPen(Qt::red);
                 break;
             }

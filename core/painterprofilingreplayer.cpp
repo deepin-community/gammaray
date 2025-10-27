@@ -1,29 +1,14 @@
 /*
   painterprofilingreplayer.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2017-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -62,17 +47,13 @@ PainterProfilingReplayer::PainterProfilingReplayer() = default;
 
 PainterProfilingReplayer::~PainterProfilingReplayer() = default;
 
-void PainterProfilingReplayer::profile(const PaintBuffer& buffer)
+void PainterProfilingReplayer::profile(const PaintBuffer &buffer)
 {
     const auto sourceSize = buffer.boundingRect().size().toSize();
     if (sourceSize.width() <= 0 || sourceSize.height() <= 0)
         return;
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0)
     const auto ratio = buffer.devicePixelRatioF();
-#else
-    const auto ratio = buffer.devicePixelRatio();
-#endif
     QImage image(sourceSize * ratio, QImage::Format_ARGB32); // TODO use the right format, this has considerable impact on performance!
     image.setDevicePixelRatio(ratio);
     image.fill(Qt::transparent);
@@ -95,8 +76,8 @@ void PainterProfilingReplayer::profile(const PaintBuffer& buffer)
 
     m_costs.reserve(cmdSize);
     for (int i = 0; i < cmdSize; ++i) {
-        std::nth_element(samples.get() + i * runs, samples.get() + i * runs + runs/2, samples.get() + i * runs + runs);
-        m_costs.push_back(samples[i * runs + runs/2]);
+        std::nth_element(samples.get() + i * runs, samples.get() + i * runs + runs / 2, samples.get() + i * runs + runs);
+        m_costs.push_back(samples[i * runs + runs / 2]);
     }
     const auto sum = std::accumulate(m_costs.constBegin(), m_costs.constEnd(), 0.0);
     std::for_each(m_costs.begin(), m_costs.end(), [sum](double &c) { c = 100.0 * c / sum; });

@@ -1,29 +1,14 @@
 /*
   geopositioninfosourcefactory.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "geopositioninfosourcefactory.h"
@@ -37,9 +22,9 @@
 
 using namespace GammaRay;
 
-GeoPositionInfoSourceFactory::GeoPositionInfoSourceFactory(QObject* parent):
-    QObject(parent),
-    m_factoryLoader(new QFactoryLoader("org.qt-project.qt.position.sourcefactory/5.0", QStringLiteral("/position")))
+GeoPositionInfoSourceFactory::GeoPositionInfoSourceFactory(QObject *parent)
+    : QObject(parent)
+    , m_factoryLoader(new QFactoryLoader("org.qt-project.qt.position.sourcefactory/5.0", QStringLiteral("/position")))
 {
 }
 
@@ -48,7 +33,7 @@ GeoPositionInfoSourceFactory::~GeoPositionInfoSourceFactory()
     delete m_factoryLoader;
 }
 
-QGeoPositionInfoSource* GeoPositionInfoSourceFactory::positionInfoSource(QObject *parent)
+QGeoPositionInfoSource *GeoPositionInfoSourceFactory::positionInfoSource(QObject *parent, const QVariantMap & /*parameters*/)
 {
     auto proxy = new GeoPositionInfoSource(parent);
 
@@ -59,7 +44,7 @@ QGeoPositionInfoSource* GeoPositionInfoSourceFactory::positionInfoSource(QObject
 
     // filter anything not applicable
     for (auto it = indexes.begin(); it != indexes.end();) {
-        const auto data = metaData.at(*it).value(QStringLiteral("MetaData")).toObject();
+        const auto data = metaData.at(*it).toCbor();
         const auto correctType = data.value(QStringLiteral("Position")).toBool();
         const auto isGammaray = data.value(QStringLiteral("Provider")).toString() == QLatin1String("gammaray");
 
@@ -71,15 +56,15 @@ QGeoPositionInfoSource* GeoPositionInfoSourceFactory::positionInfoSource(QObject
 
     // sort by priority
     std::sort(indexes.begin(), indexes.end(), [metaData](int lhs, int rhs) {
-        const auto lData = metaData.at(lhs).value(QStringLiteral("MetaData")).toObject();
-        const auto rData = metaData.at(rhs).value(QStringLiteral("MetaData")).toObject();
-        return lData.value(QStringLiteral("Priority")).toInt() > rData.value(QStringLiteral("Priority")).toInt();
+        const auto lData = metaData.at(lhs).toCbor();
+        const auto rData = metaData.at(rhs).toCbor();
+        return lData.value(QStringLiteral("Priority")).toInteger() > rData.value(QStringLiteral("Priority")).toInteger();
     });
 
     // actually try the plugins
     QGeoPositionInfoSource *source = nullptr;
     for (auto it = indexes.constBegin(); it != indexes.constEnd(); ++it) {
-        const auto data = metaData.at(*it).value(QStringLiteral("MetaData")).toObject();
+        const auto data = metaData.at(*it).toCbor();
         const auto provider = data.value(QStringLiteral("Provider")).toString();
         if (provider.isEmpty())
             continue;
@@ -93,13 +78,13 @@ QGeoPositionInfoSource* GeoPositionInfoSourceFactory::positionInfoSource(QObject
     return proxy;
 }
 
-QGeoSatelliteInfoSource* GeoPositionInfoSourceFactory::satelliteInfoSource(QObject *parent)
+QGeoSatelliteInfoSource *GeoPositionInfoSourceFactory::satelliteInfoSource(QObject *parent, const QVariantMap & /*parameters*/)
 {
     Q_UNUSED(parent);
     return nullptr;
 }
 
-QGeoAreaMonitorSource* GeoPositionInfoSourceFactory::areaMonitor(QObject *parent)
+QGeoAreaMonitorSource *GeoPositionInfoSourceFactory::areaMonitor(QObject *parent, const QVariantMap & /*parameters*/)
 {
     Q_UNUSED(parent);
     return nullptr;

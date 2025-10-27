@@ -1,29 +1,14 @@
 /*
-  qmlsupport.h
+  quickinspector.h
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #ifndef GAMMARAY_QUICKINSPECTOR_QUICKINSPECTOR_H
@@ -108,7 +93,7 @@ public slots:
     void selectWindow(int index) override;
 
     void setCustomRenderMode(GammaRay::QuickInspectorInterface::RenderMode customRenderMode)
-    override;
+        override;
 
     void checkFeatures() override;
 
@@ -117,7 +102,7 @@ public slots:
     void checkOverlaySettings() override;
 
     void requestElementsAt(const QPoint &pos, GammaRay::RemoteViewInterface::RequestMode mode);
-    void pickElementId(const GammaRay::ObjectId& id);
+    void pickElementId(const GammaRay::ObjectId &id);
 
     void sendRenderedScene(const GammaRay::GrabbedFrame &grabbedFrame);
 
@@ -145,15 +130,16 @@ private:
     void selectWindow(QQuickWindow *window);
     void selectItem(QQuickItem *item);
     void selectSGNode(QSGNode *node);
-    void registerMetaTypes();
-    void registerVariantHandlers();
-    void registerPCExtensions();
+    static void registerMetaTypes();
+    static void registerVariantHandlers();
+    static void registerPCExtensions();
     QString findSGNodeType(QSGNode *node) const;
     static void scanForProblems();
 
+    QRectF combinedChildrenRect(QQuickItem *object) const;
     GammaRay::ObjectIds recursiveItemsAt(QQuickItem *parent, const QPointF &pos,
                                          GammaRay::RemoteViewInterface::RequestMode mode,
-                                         int& bestCandidate, bool parentIsGoodCandidate = true) const;
+                                         int &bestCandidate, bool parentIsGoodCandidate = true) const;
 
     Probe *m_probe;
     std::unique_ptr<AbstractScreenGrabber> m_overlay;
@@ -170,12 +156,12 @@ private:
     RemoteViewServer *m_remoteView;
     RenderModeRequest *m_pendingRenderMode;
     QuickInspectorInterface::RenderMode m_renderMode;
-    PaintAnalyzer* m_paintAnalyzer;
+    PaintAnalyzer *m_paintAnalyzer;
     bool m_slowDownEnabled;
 };
 
 class QuickInspectorFactory : public QObject,
-    public StandardToolFactory<QQuickWindow, QuickInspector>
+                              public StandardToolFactory<QQuickWindow, QuickInspector>
 {
     Q_OBJECT
     Q_INTERFACES(GammaRay::ToolFactory)

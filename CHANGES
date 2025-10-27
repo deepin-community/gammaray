@@ -1,6 +1,64 @@
 Release Highlights
 ==================
 
+Version 3.3.0
+-------------
+ * Drop Qt 5 support, minimum is 6.5 now
+ * Add support for LLVM MinGW on Windows
+ * Fix GammaRay UI not appearing sometimes on Windows
+ * Update LZ4 to v1.10.0
+ * Fix build with Qt 6.10
+
+Version 3.2.1
+-------------
+ * Fix infinite in loop QuickSceneGraphModel::itemForSgNode() (#1070)
+
+Version 3.2.0
+-------------
+ * Source tarballs no longer ship 60MB of KDStateMachineEditor/Graphviz Windows dll binaries
+   If you're a packager using source tarballs then package and add KDStateMachineEditor as optional dependency.
+   If you're not a packager, then build from git, which has the submodule.
+ * Bump KDStateMachineEditor submodule from 2.0.0 to 2.1.0
+ * Build fixes regarding Qt 6.9
+ * Build fixes regarding new Windows SDK versions
+ * Support for Qt versions upto Qt 6.9
+ * Improved ux for small window size by making better use of available space
+ * FreeBSD support
+ * Re-enable ability to switch render modes under Qt 6
+
+Version 3.1.0
+-------------
+ * Qt5 versions less than 5.15 are no longer supported
+ * Qt6 versions less that 6.3 are no longer supported
+ * Qt IVI is no longer supported
+ * Fix inspection of graphics scenes with nested items
+ * Fix QQuickWidget support for Qt6
+ * Support 3rdparty submodules for KDStateMachineEditor (with graphviz)
+ * Support inspection of QSplitter properties
+ * Support introspection of Qt PySide apps
+ * Show more font properties in the font browser, and allow searching for fonts
+ * Show all timezone name variants in the timezone browser
+ * Make probe settings configurable via AndroidManifest.xml
+
+Version 3.0.0
+-------------
+ * Port to Qt6.
+ * Network operations now optionally allow capturing HTTP response body.
+ * Objects can now be favorited via context menu. A favorited object appears in a separate item view above the main itemview
+ * Add support for modifying QMargins in properties
+ * Allow zooming with mouse wheel in Signals view
+ * Filtering for an object now automatically expands the tree and selects the object
+ * Fix a crash when an object is reparented
+ * Improved performance of signals view
+ * Improved performance when target application triggers massive object destructions/constructions
+ * Remove the KDAB commercial license.
+ * Remove the 3D Widget Inspector View.
+ * Remove the experimental VTK-based Object Visualizer.
+ * Update 3rdparty/backward-cpp to version 1.6.
+ * Update 3rdparty/lz4 to version 1.9.4.
+ * Update 3rdparty/StackWalker.
+ * Increase CMake requirement to version 3.16.0.
+
 Version 2.11.3
 --------------
  * Increase CMake requirement to version 3.4.0 (reflecting reality).

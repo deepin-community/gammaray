@@ -1,30 +1,14 @@
 /*
   fontbrowserwidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Stephen Kelly <stephen.kelly@kdab.com>
-  Author: Milian Wolff <milian.wolff@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "fontbrowserwidget.h"
@@ -33,8 +17,10 @@
 #include "fontbrowserclient.h"
 
 #include <common/objectbroker.h>
+#include <ui/searchlinecontroller.h>
 
 #include <QAbstractItemModel>
+#include <QSortFilterProxyModel>
 #include <QDebug>
 
 using namespace GammaRay;
@@ -57,8 +43,7 @@ FontBrowserWidget::FontBrowserWidget(QWidget *parent)
 
     ui->setupUi(this);
 
-    m_selectedFontModel
-        = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.SelectedFontModel"));
+    m_selectedFontModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.SelectedFontModel"));
 
     ui->selectedFontsView->header()->setObjectName("selectedFontsViewHeader");
     ui->selectedFontsView->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
@@ -73,16 +58,22 @@ FontBrowserWidget::FontBrowserWidget(QWidget *parent)
             m_fontBrowser, &FontBrowserInterface::toggleItalicFont);
     connect(ui->underlineBox, &QAbstractButton::toggled,
             m_fontBrowser, &FontBrowserInterface::toggleUnderlineFont);
-    connect(ui->pointSize, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+    connect(ui->pointSize, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             m_fontBrowser, &FontBrowserInterface::setPointSize);
 
     QAbstractItemModel *fontModel = ObjectBroker::model(QStringLiteral(
-                                                            "com.kdab.GammaRay.FontModel"));
+        "com.kdab.GammaRay.FontModel"));
+    auto proxy = new QSortFilterProxyModel(this);
+    proxy->setSourceModel(fontModel);
+    proxy->setRecursiveFilteringEnabled(true);
+    proxy->setFilterRole(FontBrowserInterface::FontSearchRole);
+    proxy->setSortRole(FontBrowserInterface::SortRole);
+    new SearchLineController(ui->fontSearchLine, proxy);
     ui->fontTree->header()->setObjectName("fontTreeHeader");
     ui->fontTree->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
     ui->fontTree->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    ui->fontTree->setModel(fontModel);
-    ui->fontTree->setSelectionModel(ObjectBroker::selectionModel(fontModel));
+    ui->fontTree->setModel(proxy);
+    ui->fontTree->setSelectionModel(ObjectBroker::selectionModel(proxy));
 
     ui->pointSize->setValue(font().pointSize());
 
@@ -93,7 +84,8 @@ FontBrowserWidget::FontBrowserWidget(QWidget *parent)
     m_fontBrowser->toggleUnderlineFont(ui->underlineBox->isChecked());
     m_fontBrowser->setPointSize(ui->pointSize->value());
 
-    m_stateManager.setDefaultSizes(ui->mainSplitter, UISizeVector() << "50%" << "50%");
+    m_stateManager.setDefaultSizes(ui->mainSplitter, UISizeVector() << "50%"
+                                                                    << "50%");
     QMetaObject::invokeMethod(this, "delayedInit", Qt::QueuedConnection);
 }
 
@@ -101,6 +93,6 @@ FontBrowserWidget::~FontBrowserWidget() = default;
 
 void FontBrowserWidget::delayedInit()
 {
-    m_fontBrowser->setColors(palette().color(QPalette::Foreground),
+    m_fontBrowser->setColors(palette().color(QPalette::WindowText),
                              palette().color(QPalette::Base));
 }

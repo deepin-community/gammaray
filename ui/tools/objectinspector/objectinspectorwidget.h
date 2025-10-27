@@ -1,29 +1,14 @@
 /*
-  objectinspector.h
+  objectinspectorwidget.h
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #ifndef GAMMARAY_OBJECTINSPECTOR_OBJECTINSPECTORWIDGET_H
@@ -47,6 +32,8 @@
 #include <common/objectbroker.h>
 
 #include <ui/uistatemanager.h>
+#include <ui/deferredtreeview.h>
+#include <ui/favoritesitemview.h>
 
 QT_BEGIN_NAMESPACE
 class QItemSelection;
@@ -84,8 +71,14 @@ class ObjectInspectorFactory : public QObject, public ToolUiFactory
 {
     Q_OBJECT
 public:
-    QString id() const override { return QStringLiteral("GammaRay::ObjectInspector"); }
-    QString name() const override { return tr("Objects"); }
+    QString id() const override
+    {
+        return QStringLiteral("GammaRay::ObjectInspector");
+    }
+    QString name() const override
+    {
+        return tr("Objects");
+    }
     QWidget *createWidget(QWidget *parentWidget) override
     {
         return new ObjectInspectorWidget(
@@ -105,15 +98,14 @@ public:
                                                     PropertyWidgetTabPriority::Basic - 1);
         ObjectBroker::registerClientObjectFactoryCallback<ConnectionsExtensionInterface *>(
             createExtension<ConnectionsExtensionClient>);
-        PropertyWidget::registerTab<EnumsTab>(QStringLiteral("enums"), tr(
-                                                  "Enums"), PropertyWidgetTabPriority::Exotic - 1);
+        PropertyWidget::registerTab<EnumsTab>(QStringLiteral("enums"), tr("Enums"), PropertyWidgetTabPriority::Exotic - 1);
         PropertyWidget::registerTab<ClassInfoTab>(QStringLiteral("classInfo"), tr("Class Info"),
                                                   PropertyWidgetTabPriority::Exotic - 1);
         PropertyWidget::registerTab<ApplicationAttributeTab>(QStringLiteral("applicationAttributes"),
                                                              tr("Attributes"),
-            PropertyWidgetTabPriority::Advanced);
+                                                             PropertyWidgetTabPriority::Advanced);
         PropertyWidget::registerTab<BindingTab>(QStringLiteral("bindings"), tr("Bindings"),
-                                               PropertyWidgetTabPriority::Advanced);
+                                                PropertyWidgetTabPriority::Advanced);
         PropertyWidget::registerTab<StackTraceTab>(QStringLiteral("stackTrace"), tr("Stack Trace"),
                                                    PropertyWidgetTabPriority::Exotic);
     }

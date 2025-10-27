@@ -1,29 +1,14 @@
 /*
   pefile.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "pefile.h"
@@ -90,14 +75,12 @@ bool PEFile::parse()
         return false;
 
     // optional headers (for import descriptor)
-    const IMAGE_OPTIONAL_HEADER32 *optHdr32
-        = reinterpret_cast<const IMAGE_OPTIONAL_HEADER32 *>(data);
+    const IMAGE_OPTIONAL_HEADER32 *optHdr32 = reinterpret_cast<const IMAGE_OPTIONAL_HEADER32 *>(data);
     if (optHdr32->Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
         data = rvaToFile(m_fileHeader,
                          optHdr32->DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
     } else {
-        const IMAGE_OPTIONAL_HEADER64 *optHdr64
-            = reinterpret_cast<const IMAGE_OPTIONAL_HEADER64 *>(data);
+        const IMAGE_OPTIONAL_HEADER64 *optHdr64 = reinterpret_cast<const IMAGE_OPTIONAL_HEADER64 *>(data);
         if (optHdr64->Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC)
             return false;
         data = rvaToFile(m_fileHeader,
@@ -138,8 +121,7 @@ QStringList PEFile::imports() const
 
     auto importDesc = m_importDesc;
     while (importDesc->Name) {
-        const char *libraryName
-            = reinterpret_cast<const char *>(rvaToFile(m_fileHeader, importDesc->Name));
+        const char *libraryName = reinterpret_cast<const char *>(rvaToFile(m_fileHeader, importDesc->Name));
         if (libraryName)
             libs.push_back(QString::fromLatin1(libraryName));
         importDesc++;
@@ -168,11 +150,10 @@ const IMAGE_SECTION_HEADER *PEFile::sectionForRVA(const IMAGE_FILE_HEADER *hdr, 
     Q_ASSERT(m_end);
 
     const uchar *data = reinterpret_cast<const uchar *>(hdr);
-    auto sectionHdr
-        = reinterpret_cast<const IMAGE_SECTION_HEADER *>(data + sizeof(IMAGE_FILE_HEADER)
-                                                         + hdr->SizeOfOptionalHeader);
+    auto sectionHdr = reinterpret_cast<const IMAGE_SECTION_HEADER *>(data + sizeof(IMAGE_FILE_HEADER)
+                                                                     + hdr->SizeOfOptionalHeader);
     for (int i = 0; i < hdr->NumberOfSections; ++i, ++sectionHdr) {
-        if (reinterpret_cast<const uchar *>(sectionHdr +1) >= m_end)
+        if (reinterpret_cast<const uchar *>(sectionHdr + 1) >= m_end)
             return nullptr;
         if (rva >= sectionHdr->VirtualAddress
             && rva < sectionHdr->VirtualAddress + sectionHdr->Misc.VirtualSize)

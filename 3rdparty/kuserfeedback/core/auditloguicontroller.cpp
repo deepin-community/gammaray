@@ -1,24 +1,7 @@
 /*
-    Copyright (C) 2017 Volker Krause <vkrause@kde.org>
+    SPDX-FileCopyrightText: 2017 Volker Krause <vkrause@kde.org>
 
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be included
-    in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+    SPDX-License-Identifier: MIT
 */
 
 #include "auditloguicontroller.h"
@@ -82,7 +65,7 @@ void AuditLogEntryModel::reload()
     beginResetModel();
     m_entries.clear();
 
-    foreach (auto e, QDir(m_path).entryList(QDir::Files | QDir::Readable)) {
+    for (auto &e : QDir(m_path).entryList(QDir::Files | QDir::Readable)) {
         if (!e.endsWith(QLatin1String(".log")))
             continue;
         e.chop(4);
@@ -127,7 +110,7 @@ AuditLogUiController::AuditLogUiController(QObject* parent)
     : QObject(parent)
     , d(new AuditLogUiControllerPrivate)
 {
-    d->path = QStandardPaths::writableLocation(QStandardPaths::DataLocation) + QStringLiteral("/kuserfeedback/audit/");
+    d->path = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + QStringLiteral("/kuserfeedback/audit/");
     d->logEntryModel = new AuditLogEntryModel(d->path, this);
 
     connect(d->logEntryModel, &QAbstractItemModel::modelReset, this, &AuditLogUiController::logEntryCountChanged);
@@ -220,8 +203,9 @@ QString AuditLogUiController::logEntry(const QDateTime &dt) const
 void AuditLogUiController::clear()
 {
     QDir dir(d->path);
-    foreach (auto e, dir.entryList(QDir::Files | QDir::Readable)) {
-        if (!e.endsWith(QLatin1String(".log")))
+    const auto readableFiles = dir.entryList(QDir::Files | QDir::Readable);
+    for (const auto &e :  readableFiles) {
+        if (!e.endsWith(u".log"))
             continue;
         dir.remove(e);
     }

@@ -1,29 +1,14 @@
 /*
   timezoneoffsetdatamodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2017-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "timezoneoffsetdatamodel.h"
@@ -32,14 +17,14 @@
 
 using namespace GammaRay;
 
-TimezoneOffsetDataModel::TimezoneOffsetDataModel(QObject* parent)
+TimezoneOffsetDataModel::TimezoneOffsetDataModel(QObject *parent)
     : QAbstractTableModel(parent)
 {
 }
 
 TimezoneOffsetDataModel::~TimezoneOffsetDataModel() = default;
 
-void TimezoneOffsetDataModel::setTimezone(const QTimeZone& tz)
+void TimezoneOffsetDataModel::setTimezone(const QTimeZone &tz)
 {
     if (!m_offsets.isEmpty()) {
         beginRemoveRows(QModelIndex(), 0, m_offsets.size() - 1);
@@ -70,42 +55,42 @@ void TimezoneOffsetDataModel::setTimezone(const QTimeZone& tz)
 
     if (!offsets.isEmpty()) {
         beginInsertRows(QModelIndex(), 0, offsets.size() - 1);
-        m_offsets = offsets;
+        m_offsets = std::move(offsets);
         endInsertRows();
     }
 }
 
-int TimezoneOffsetDataModel::columnCount(const QModelIndex& parent) const
+int TimezoneOffsetDataModel::columnCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
     return 5;
 }
 
-int TimezoneOffsetDataModel::rowCount(const QModelIndex& parent) const
+int TimezoneOffsetDataModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return 0;
     return m_offsets.size();
 }
 
-QVariant TimezoneOffsetDataModel::data(const QModelIndex& index, int role) const
+QVariant TimezoneOffsetDataModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid())
         return QVariant();
 
     if (role == Qt::DisplayRole) {
-        const auto offset = m_offsets.at(index.row());
+        const auto &offset = m_offsets.at(index.row());
         switch (index.column()) {
-            case 0:
-                return offset.atUtc;
-            case 1:
-                return offset.offsetFromUtc;
-            case 2:
-                return offset.standardTimeOffset;
-            case 3:
-                return offset.daylightTimeOffset;
-            case 4:
-                return offset.abbreviation;
+        case 0:
+            return offset.atUtc;
+        case 1:
+            return offset.offsetFromUtc;
+        case 2:
+            return offset.standardTimeOffset;
+        case 3:
+            return offset.daylightTimeOffset;
+        case 4:
+            return offset.abbreviation;
         }
     }
 

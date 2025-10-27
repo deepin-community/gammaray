@@ -1,29 +1,14 @@
 /*
   qt3dinspectorwidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "qt3dinspectorwidget.h"
@@ -62,7 +47,7 @@ Qt3DInspectorWidget::Qt3DInspectorWidget(QWidget *parent)
 
     ui->setupUi(this);
     ui->engineComboBox->setModel(ObjectBroker::model(QStringLiteral(
-                                                         "com.kdab.GammaRay.Qt3DInspector.engineModel")));
+        "com.kdab.GammaRay.Qt3DInspector.engineModel")));
     connect(ui->engineComboBox, SIGNAL(currentIndexChanged(int)), m_interface,
             SLOT(selectEngine(int)));
 
@@ -80,7 +65,7 @@ Qt3DInspectorWidget::Qt3DInspectorWidget(QWidget *parent)
     new TreeExpander(ui->sceneTreeView);
 
     ui->scenePropertyWidget->setObjectBaseName(QStringLiteral(
-                                                   "com.kdab.GammaRay.Qt3DInspector.entityPropertyController"));
+        "com.kdab.GammaRay.Qt3DInspector.entityPropertyController"));
 
     auto frameGraphModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.Qt3DInspector.frameGraphModel"));
     auto *clientFrameGraphModel = new ClientDecorationIdentityProxyModel(this);
@@ -96,7 +81,7 @@ Qt3DInspectorWidget::Qt3DInspectorWidget(QWidget *parent)
     new TreeExpander(ui->frameGraphView);
 
     ui->frameGraphNodePropertyWidget->setObjectBaseName(QStringLiteral(
-                                                            "com.kdab.GammaRay.Qt3DInspector.frameGraphPropertyController"));
+        "com.kdab.GammaRay.Qt3DInspector.frameGraphPropertyController"));
 
     connect(ui->tabWidget, &QTabWidget::currentChanged, ui->stack,
             &QStackedWidget::setCurrentIndex);
@@ -117,8 +102,7 @@ void Qt3DInspectorWidget::entityContextMenu(QPoint pos)
     const auto objectId = index.data(ObjectModel::ObjectIdRole).value<ObjectId>();
     QMenu menu(tr("Entity @ %1").arg(QLatin1String("0x") + QString::number(objectId.id(), 16)));
     ContextMenuExtension ext(objectId);
-    ext.setLocation(ContextMenuExtension::Creation, index.data(
-                        ObjectModel::CreationLocationRole).value<SourceLocation>());
+    ext.setLocation(ContextMenuExtension::Creation, index.data(ObjectModel::CreationLocationRole).value<SourceLocation>());
     ext.setLocation(ContextMenuExtension::Declaration,
                     index.data(ObjectModel::DeclarationLocationRole).value<SourceLocation>());
     ext.populateMenu(&menu);
@@ -133,11 +117,9 @@ void Qt3DInspectorWidget::frameGraphContextMenu(QPoint pos)
         return;
 
     const auto objectId = index.data(ObjectModel::ObjectIdRole).value<ObjectId>();
-    QMenu menu(tr("Frame Graph Node @ %1").arg(QLatin1String("0x") + QString::number(
-                                                   objectId.id(), 16)));
+    QMenu menu(tr("Frame Graph Node @ %1").arg(QLatin1String("0x") + QString::number(objectId.id(), 16)));
     ContextMenuExtension ext(objectId);
-    ext.setLocation(ContextMenuExtension::Creation, index.data(
-                        ObjectModel::CreationLocationRole).value<SourceLocation>());
+    ext.setLocation(ContextMenuExtension::Creation, index.data(ObjectModel::CreationLocationRole).value<SourceLocation>());
     ext.setLocation(ContextMenuExtension::Declaration,
                     index.data(ObjectModel::DeclarationLocationRole).value<SourceLocation>());
     ext.populateMenu(&menu);
@@ -181,5 +163,5 @@ void Qt3DInspectorUiFactory::initUi()
     ObjectBroker::registerClientObjectFactoryCallback<Qt3DGeometryExtensionInterface *>(
         createGeometryExtension);
     PropertyWidget::registerTab<Qt3DGeometryTab>(QStringLiteral("qt3dGeometry"),
-        tr("Geometry"), PropertyWidgetTabPriority::Advanced);
+                                                 tr("Geometry"), PropertyWidgetTabPriority::Advanced);
 }

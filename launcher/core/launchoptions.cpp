@@ -1,29 +1,14 @@
 /*
   launchoptions.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "launchoptions.h"
@@ -43,13 +28,14 @@ class LaunchOptionsPrivate : public QSharedData
 public:
     LaunchOptionsPrivate()
         : env(QProcessEnvironment::systemEnvironment())
-    {}
+    {
+    }
 
     QStringList launchArguments;
     QString injectorType;
     QString injectorTypeExecutableOverride;
     ProbeABI probeABI;
-    int pid = -1;
+    qint64 pid = -1;
     LaunchOptions::UiMode uiMode = LaunchOptions::OutOfProcessUi;
     QHash<QByteArray, QByteArray> probeSettings;
     QProcessEnvironment env;
@@ -112,12 +98,12 @@ QString LaunchOptions::absoluteExecutablePath() const
     return d->launchArguments.first();
 }
 
-int LaunchOptions::pid() const
+qint64 LaunchOptions::pid() const
 {
     return d->pid;
 }
 
-void LaunchOptions::setPid(int pid)
+void LaunchOptions::setPid(qint64 pid)
 {
     d->pid = pid;
     Q_ASSERT(d->pid <= 0 || d->launchArguments.isEmpty());
@@ -200,17 +186,17 @@ QString LaunchOptions::workingDirectory() const
 void LaunchOptions::setProbeSetting(const QString &key, const QVariant &value)
 {
     QByteArray v;
-    switch (value.type()) {
-    case QVariant::String:
+    switch (value.typeId()) {
+    case QMetaType::QString:
         v = value.toString().toUtf8();
         break;
-    case QVariant::Bool:
+    case QMetaType::Bool:
         v = value.toBool() ? "true" : "false";
         break;
-    case QVariant::Int:
-    case QVariant::UInt:
-    case QVariant::LongLong:
-    case QVariant::ULongLong:
+    case QMetaType::Int:
+    case QMetaType::UInt:
+    case QMetaType::LongLong:
+    case QMetaType::ULongLong:
         v = QByteArray::number(value.toInt());
         break;
     default:
@@ -220,7 +206,7 @@ void LaunchOptions::setProbeSetting(const QString &key, const QVariant &value)
     d->probeSettings.insert(key.toUtf8(), v);
 }
 
-QHash< QByteArray, QByteArray > LaunchOptions::probeSettings() const
+QHash<QByteArray, QByteArray> LaunchOptions::probeSettings() const
 {
     return d->probeSettings;
 }

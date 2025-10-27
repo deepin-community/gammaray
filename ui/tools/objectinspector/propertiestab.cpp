@@ -1,29 +1,14 @@
 /*
   propertiestab.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Anton Kreuzkamp <anton.kreuzkamp@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "propertiestab.h"
@@ -45,6 +30,7 @@
 #include <QSortFilterProxyModel>
 #include <QMenu>
 #include <QDebug>
+#include <QClipboard>
 
 using namespace GammaRay;
 
@@ -88,7 +74,7 @@ void PropertiesTab::setObjectBaseName(const QString &baseName)
     proxy->setSourceModel(typesModel);
     proxy->sort(0);
     m_ui->newPropertyType->setModel(proxy);
-    connect(m_ui->newPropertyType, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(m_ui->newPropertyType, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &PropertiesTab::updateNewPropertyValueEditor);
     updateNewPropertyValueEditor();
     connect(m_ui->newPropertyName, &QLineEdit::textChanged,
@@ -118,7 +104,7 @@ void PropertiesTab::updateNewPropertyValueEditor()
     const PropertyEditorFactory::TypeId type = selectedTypeId(m_ui->newPropertyType);
 
     m_newPropertyValue = PropertyEditorFactory::instance()->createEditor(type, this);
-    static_cast<QHBoxLayout *>(m_ui->newPropertyBar->layout())->insertWidget(5, m_newPropertyValue);
+    static_cast<QHBoxLayout *>(m_ui->newPropertyBar->layout())->insertWidget(3, m_newPropertyValue);
     m_ui->newPropertyValueLabel->setBuddy(m_newPropertyValue);
 }
 
@@ -134,16 +120,39 @@ void PropertiesTab::propertyContextMenu(const QPoint &pos)
     if (!index.isValid())
         return;
 
+    auto getPropertyNameAndValue = [](const QModelIndex &idx) {
+        if (!idx.isValid())
+            return QString();
+        const auto nameIdx = idx.sibling(idx.row(), PropertyModel::PropertyColumn);
+        const auto valIdx = idx.sibling(idx.row(), PropertyModel::ValueColumn);
+        const QString value = valIdx.data().toString();
+        if (value.isEmpty())
+            return QString();
+        QString ret = nameIdx.data().toString() + QStringLiteral(": ") + value;
+        return ret;
+    };
+
     const int actions = index.data(PropertyModel::ActionRole).toInt();
     const auto objectId = index.data(PropertyModel::ObjectIdRole).value<ObjectId>();
     ContextMenuExtension ext(objectId);
+    const QString property = getPropertyNameAndValue(index);
+
     const bool canShow = actions != PropertyModel::NoAction
-                         || ext.discoverPropertySourceLocation(ContextMenuExtension::GoTo, index);
+        || ext.discoverPropertySourceLocation(ContextMenuExtension::GoTo, index)
+        || !property.isEmpty();
 
     if (!canShow)
         return;
 
     QMenu contextMenu;
+
+    if (!property.isEmpty()) {
+#ifndef QT_NO_CLIPBOARD
+        contextMenu.addAction(tr("Copy"), this, [property] {
+            qApp->clipboard()->setText(property);
+        });
+#endif
+    }
 
     if (actions & PropertyModel::Delete) {
         QAction *action = contextMenu.addAction(tr("Remove"));
@@ -173,8 +182,7 @@ void PropertiesTab::addNewProperty()
     Q_ASSERT(m_interface->canAddProperty());
     const PropertyEditorFactory::TypeId type = selectedTypeId(m_ui->newPropertyType);
 
-    const QByteArray editorPropertyName
-        = PropertyEditorFactory::instance()->valuePropertyName(type);
+    const QByteArray editorPropertyName = PropertyEditorFactory::instance()->valuePropertyName(type);
     const QVariant value = m_newPropertyValue->property(editorPropertyName);
     m_interface->setProperty(m_ui->newPropertyName->text(), value);
 

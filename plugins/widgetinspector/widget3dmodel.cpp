@@ -1,29 +1,14 @@
 /*
   widget3dmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2011-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2011 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Daniel Vrátil <daniel.vratil@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "widget3dmodel.h"
@@ -69,7 +54,7 @@ Widget3DWidget::Widget3DWidget(QWidget *qWidget, const QPersistentModelIndex &mo
     Widget3DWidget *w = this;
     while (w && !isWindow()) {
         ++mDepth;
-        w = qobject_cast<Widget3DWidget*>(w->parent());
+        w = qobject_cast<Widget3DWidget *>(w->parent());
     }
     if (!isWindow()) {
         --mDepth;
@@ -103,7 +88,7 @@ bool Widget3DWidget::isWindow() const
     // Those are technically windows, but we don't want them listed in the window
     // list
     // TODO: any more exceptions?
-    if (qobject_cast<QMenu*>(mQWidget)
+    if (qobject_cast<QMenu *>(mQWidget)
         || qstrcmp(mQWidget->metaObject()->className(), "QTipLabel") == 0) {
         return false;
     }
@@ -116,7 +101,7 @@ bool Widget3DWidget::eventFilter(QObject *obj, QEvent *ev)
     if (obj == mQWidget) {
         switch (ev->type()) {
         case QEvent::Resize: {
-            QResizeEvent *re = static_cast<QResizeEvent*>(ev);
+            QResizeEvent *re = static_cast<QResizeEvent *>(ev);
             if (re->oldSize() != re->size()) {
                 mMetaData[QStringLiteral("geometry")] = mQWidget->geometry();
                 mGeomDirty = true;
@@ -357,7 +342,7 @@ Widget3DWidget *Widget3DModel::widgetForObject(QObject *obj, const QModelIndex &
         if (obj->parent() && idx.parent().isValid()) {
             parent = widgetForObject(obj->parent(), idx.parent(), createWhenMissing);
         }
-        widget = new Widget3DWidget(qobject_cast<QWidget*>(obj), idx, parent);
+        widget = new Widget3DWidget(qobject_cast<QWidget *>(obj), idx, parent);
         connect(widget, &Widget3DWidget::changed,
                 this, &Widget3DModel::onWidgetChanged);
         connect(obj, &QObject::destroyed,
@@ -369,23 +354,23 @@ Widget3DWidget *Widget3DModel::widgetForObject(QObject *obj, const QModelIndex &
 
 Widget3DWidget *Widget3DModel::widgetForIndex(const QModelIndex &idx, bool createWhenMissing) const
 {
-   QObject *obj = this->QSortFilterProxyModel::data(idx, ObjectModel::ObjectRole).value<QObject*>();
-   Q_ASSERT(obj); // bug in model?
-   Q_ASSERT(obj->isWidgetType()); // this should be already filtered out by filterAcceptsRow()
+    QObject *obj = this->QSortFilterProxyModel::data(idx, ObjectModel::ObjectRole).value<QObject *>();
+    Q_ASSERT(obj); // bug in model?
+    Q_ASSERT(obj->isWidgetType()); // this should be already filtered out by filterAcceptsRow()
 
-   return widgetForObject(obj, idx, createWhenMissing);
+    return widgetForObject(obj, idx, createWhenMissing);
 }
 
 bool Widget3DModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
 {
     const QModelIndex sourceIdx = sourceModel()->index(source_row, 0, source_parent);
-    QObject *sourceObj = sourceModel()->data(sourceIdx, ObjectModel::ObjectRole).value<QObject*>();
+    QObject *sourceObj = sourceModel()->data(sourceIdx, ObjectModel::ObjectRole).value<QObject *>();
     return qobject_cast<QWidget *>(sourceObj);
 }
 
 void Widget3DModel::onWidgetChanged(const QVector<int> &roles)
 {
-    const auto widget = qobject_cast<Widget3DWidget*>(sender());
+    const auto widget = qobject_cast<Widget3DWidget *>(sender());
     Q_ASSERT(widget);
 
     const QModelIndex idx = widget->modelIndex();

@@ -1,29 +1,14 @@
 /*
   propertyeditorfactory.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2011-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2011 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "propertyeditorfactory.h"
@@ -36,6 +21,7 @@
 #include "propertymatrixeditor.h"
 #include "propertytexteditor.h"
 #include "propertyrecteditor.h"
+#include "propertymargineditor.h"
 
 #include <QItemEditorFactory>
 
@@ -47,26 +33,28 @@ PropertyEditorFactory::PropertyEditorFactory()
 {
     initBuiltInTypes();
 
-    addEditor(QVariant::Color, new QStandardItemEditorCreator<PropertyColorEditor>());
-    addEditor(QVariant::ByteArray, new QStandardItemEditorCreator<PropertyByteArrayEditor>(), true);
-    addEditor(QVariant::Font, new QStandardItemEditorCreator<PropertyFontEditor>());
-    addEditor(QVariant::Palette, new QStandardItemEditorCreator<PropertyPaletteEditor>(), true);
-    addEditor(QVariant::Point, new QStandardItemEditorCreator<PropertyPointEditor>());
-    addEditor(QVariant::PointF, new QStandardItemEditorCreator<PropertyPointFEditor>());
-    addEditor(QVariant::Rect, new QStandardItemEditorCreator<PropertyRectEditor>());
-    addEditor(QVariant::RectF, new QStandardItemEditorCreator<PropertyRectFEditor>());
-    addEditor(QVariant::Size, new QStandardItemEditorCreator<PropertySizeEditor>());
-    addEditor(QVariant::SizeF, new QStandardItemEditorCreator<PropertySizeFEditor>());
-    addEditor(QVariant::String, new QStandardItemEditorCreator<PropertyTextEditor>(), true);
-    addEditor(QVariant::Transform, new QStandardItemEditorCreator<PropertyMatrixEditor>());
-    addEditor(QVariant::Matrix, new QStandardItemEditorCreator<PropertyMatrixEditor>());
-    addEditor(QVariant::Matrix4x4, new QStandardItemEditorCreator<PropertyMatrixEditor>());
-    addEditor(QVariant::Vector2D, new QStandardItemEditorCreator<PropertyMatrixEditor>());
-    addEditor(QVariant::Vector3D, new QStandardItemEditorCreator<PropertyMatrixEditor>());
-    addEditor(QVariant::Vector4D, new QStandardItemEditorCreator<PropertyMatrixEditor>());
-    addEditor(QVariant::Quaternion, new QStandardItemEditorCreator<PropertyMatrixEditor>());
+    addEditor(QMetaType::QColor, new QStandardItemEditorCreator<PropertyColorEditor>());
+    addEditor(QMetaType::QByteArray, new QStandardItemEditorCreator<PropertyByteArrayEditor>(), true);
+    addEditor(QMetaType::QFont, new QStandardItemEditorCreator<PropertyFontEditor>());
+    addEditor(QMetaType::QPalette, new QStandardItemEditorCreator<PropertyPaletteEditor>(), true);
+    addEditor(QMetaType::QPoint, new QStandardItemEditorCreator<PropertyPointEditor>());
+    addEditor(QMetaType::QPointF, new QStandardItemEditorCreator<PropertyPointFEditor>());
+    addEditor(QMetaType::QRect, new QStandardItemEditorCreator<PropertyRectEditor>());
+    addEditor(QMetaType::QRectF, new QStandardItemEditorCreator<PropertyRectFEditor>());
+    addEditor(QMetaType::QSize, new QStandardItemEditorCreator<PropertySizeEditor>());
+    addEditor(QMetaType::QSizeF, new QStandardItemEditorCreator<PropertySizeFEditor>());
+    addEditor(QMetaType::QString, new QStandardItemEditorCreator<PropertyTextEditor>(), true);
+    addEditor(QMetaType::QTransform, new QStandardItemEditorCreator<PropertyMatrixEditor>());
+    addEditor(QMetaType::QMatrix4x4, new QStandardItemEditorCreator<PropertyMatrixEditor>());
+    addEditor(QMetaType::QVector2D, new QStandardItemEditorCreator<PropertyMatrixEditor>());
+    addEditor(QMetaType::QVector3D, new QStandardItemEditorCreator<PropertyMatrixEditor>());
+    addEditor(QMetaType::QVector4D, new QStandardItemEditorCreator<PropertyMatrixEditor>());
+    addEditor(QMetaType::QQuaternion, new QStandardItemEditorCreator<PropertyMatrixEditor>());
 
     registerEditor(static_cast<TypeId>(qMetaTypeId<EnumValue>()), new QStandardItemEditorCreator<PropertyEnumEditor>());
+
+    registerEditor(static_cast<TypeId>(qMetaTypeId<QMargins>()), new QStandardItemEditorCreator<PropertyMarginsEditor>());
+    registerEditor(static_cast<TypeId>(qMetaTypeId<QMarginsF>()), new QStandardItemEditorCreator<PropertyMarginsFEditor>());
 }
 
 PropertyEditorFactory *PropertyEditorFactory::instance()
@@ -79,7 +67,7 @@ QWidget *PropertyEditorFactory::createEditor(TypeId type, QWidget *parent) const
 {
     if (type == QMetaType::Float) {
         /* coverity[mixed_enums] */
-        type = QVariant::Double;
+        type = QMetaType::Double;
     }
 
     QWidget *w = QItemEditorFactory::createEditor(type, parent);
@@ -88,10 +76,11 @@ QWidget *PropertyEditorFactory::createEditor(TypeId type, QWidget *parent) const
 
     // the read-only view is still in the background usually, so transparency is not a good choice here
     w->setAutoFillBackground(true);
+    w->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
     return w;
 }
 
-QVector< int > PropertyEditorFactory::supportedTypes()
+QVector<int> PropertyEditorFactory::supportedTypes()
 {
     return instance()->m_supportedTypes;
 }
@@ -99,13 +88,13 @@ QVector< int > PropertyEditorFactory::supportedTypes()
 void PropertyEditorFactory::initBuiltInTypes()
 {
     m_supportedTypes
-        << QVariant::Bool
-        << QVariant::Double
-        << QVariant::Int
-        << QVariant::UInt
-        << QVariant::Date
-        << QVariant::DateTime
-        << QVariant::Time;
+        << QMetaType::Bool
+        << QMetaType::Double
+        << QMetaType::Int
+        << QMetaType::UInt
+        << QMetaType::QDate
+        << QMetaType::QDateTime
+        << QMetaType::QTime;
 
     m_supportedTypes << QMetaType::Float;
 }

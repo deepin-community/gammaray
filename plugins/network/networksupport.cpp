@@ -1,34 +1,18 @@
 /*
   networksupport.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "networksupport.h"
 #include "networkinterfacemodel.h"
-#include "networkconfigurationmodel.h"
 #include "networkreplymodel.h"
 #include "cookies/cookieextension.h"
 
@@ -42,16 +26,12 @@
 
 #include <QAbstractNetworkCache>
 #include <QHostAddress>
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
 #include <QHstsPolicy>
-#endif
 #include <QLocalSocket>
 #include <QNetworkAccessManager>
-#include <QNetworkConfiguration>
-#include <QNetworkConfigurationManager>
 #include <QNetworkCookieJar>
+#include <QNetworkInterface>
 #include <QNetworkProxy>
-#include <QNetworkSession>
 #include <QSocketNotifier>
 #include <QSslCertificateExtension>
 #include <QSslCipher>
@@ -67,31 +47,13 @@ using namespace GammaRay;
 
 Q_DECLARE_METATYPE(QAbstractSocket::PauseModes)
 Q_DECLARE_METATYPE(QHostAddress)
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
 Q_DECLARE_METATYPE(QHstsPolicy)
-#endif
 Q_DECLARE_METATYPE(QLocalSocket::LocalSocketError)
 Q_DECLARE_METATYPE(QLocalSocket::LocalSocketState)
-Q_DECLARE_METATYPE(QNetworkAccessManager::NetworkAccessibility)
-#if QT_VERSION < QT_VERSION_CHECK(5, 6, 0)
-Q_DECLARE_METATYPE(QNetworkAddressEntry)
-#endif
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
 Q_DECLARE_METATYPE(QNetworkAddressEntry::DnsEligibilityStatus)
-#endif
-Q_DECLARE_METATYPE(QNetworkConfiguration::BearerType)
-Q_DECLARE_METATYPE(QNetworkConfigurationManager::Capabilities)
-#if QT_VERSION < QT_VERSION_CHECK(5, 6, 0)
-Q_DECLARE_METATYPE(QNetworkInterface)
-#endif
-#if QT_VERSION < QT_VERSION_CHECK(5, 11, 0)
-Q_DECLARE_METATYPE(QNetworkInterface::InterfaceFlags)
-#endif
 Q_DECLARE_METATYPE(QNetworkProxy::Capabilities)
 Q_DECLARE_METATYPE(QNetworkProxy::ProxyType)
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-Q_DECLARE_METATYPE(QSocketNotifier::Type)
-#endif
+
 #ifndef QT_NO_SSL
 Q_DECLARE_METATYPE(QSsl::KeyAlgorithm)
 Q_DECLARE_METATYPE(QSsl::KeyType)
@@ -106,19 +68,15 @@ Q_DECLARE_METATYPE(QSslSocket::SslMode)
 #endif // QT_NO_SSL
 
 NetworkSupport::NetworkSupport(Probe *probe, QObject *parent)
-    : QObject(parent)
+    : NetworkSupportInterface(parent)
 {
     registerMetaTypes();
     registerVariantHandler();
 
     probe->registerModel(QStringLiteral("com.kdab.GammaRay.NetworkInterfaceModel"), new NetworkInterfaceModel(this));
 
-    auto configProxy = new ServerProxyModel<QSortFilterProxyModel>(this);
-    configProxy->setSourceModel(new NetworkConfigurationModel(this));
-    configProxy->addRole(NetworkConfigurationModelRoles::DefaultConfigRole);
-    probe->registerModel(QStringLiteral("com.kdab.GammaRay.NetworkConfigurationModel"), configProxy);
-
     auto replyModel = new NetworkReplyModel(this);
+    connect(this, &NetworkSupportInterface::captureResponseChanged, replyModel, &NetworkReplyModel::setCaptureResponse);
     connect(probe, &Probe::objectCreated, replyModel, &NetworkReplyModel::objectCreated);
     probe->registerModel(QStringLiteral("com.kdab.GammaRay.NetworkReplyModel"), replyModel);
 
@@ -151,19 +109,15 @@ void NetworkSupport::registerMetaTypes()
 
     MO_ADD_METAOBJECT0(QHostAddress);
     MO_ADD_PROPERTY_RO(QHostAddress, isLoopback);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0)
     MO_ADD_PROPERTY_RO(QHostAddress, isMulticast);
-#endif
     MO_ADD_PROPERTY_RO(QHostAddress, isNull);
     MO_ADD_PROPERTY_RO(QHostAddress, protocol);
     MO_ADD_PROPERTY(QHostAddress, scopeId, setScopeId);
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
     MO_ADD_METAOBJECT0(QHstsPolicy);
-    MO_ADD_PROPERTY   (QHstsPolicy, expiry, setExpiry);
+    MO_ADD_PROPERTY(QHstsPolicy, expiry, setExpiry);
     MO_ADD_PROPERTY_LD(QHstsPolicy, host, [](QHstsPolicy *policy) { return policy->host(); });
-    MO_ADD_PROPERTY   (QHstsPolicy, includesSubDomains, setIncludesSubDomains);
-#endif
+    MO_ADD_PROPERTY(QHstsPolicy, includesSubDomains, setIncludesSubDomains);
 
     MO_ADD_METAOBJECT1(QLocalSocket, QIODevice);
     MO_ADD_PROPERTY_RO(QLocalSocket, error);
@@ -174,54 +128,26 @@ void NetworkSupport::registerMetaTypes()
     MO_ADD_PROPERTY_RO(QLocalSocket, state);
 
     MO_ADD_METAOBJECT1(QNetworkAccessManager, QObject);
-    MO_ADD_PROPERTY_RO(QNetworkAccessManager, activeConfiguration);
     MO_ADD_PROPERTY_RO(QNetworkAccessManager, cache);
-    MO_ADD_PROPERTY   (QNetworkAccessManager, configuration, setConfiguration);
     MO_ADD_PROPERTY_RO(QNetworkAccessManager, cookieJar);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
-    MO_ADD_PROPERTY   (QNetworkAccessManager, isStrictTransportSecurityEnabled, setStrictTransportSecurityEnabled);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
+    MO_ADD_PROPERTY(QNetworkAccessManager, isStrictTransportSecurityEnabled, setStrictTransportSecurityEnabled);
     MO_ADD_PROPERTY_RO(QNetworkAccessManager, isStrictTransportSecurityStoreEnabled);
-#endif
-    MO_ADD_PROPERTY   (QNetworkAccessManager, proxy, setProxy);
-    MO_ADD_PROPERTY   (QNetworkAccessManager, redirectPolicy, setRedirectPolicy);
+    MO_ADD_PROPERTY(QNetworkAccessManager, proxy, setProxy);
+    MO_ADD_PROPERTY(QNetworkAccessManager, redirectPolicy, setRedirectPolicy);
     MO_ADD_PROPERTY_RO(QNetworkAccessManager, strictTransportSecurityHosts);
-#endif
     MO_ADD_PROPERTY_RO(QNetworkAccessManager, supportedSchemes);
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
     MO_ADD_METAOBJECT0(QNetworkAddressEntry);
-    MO_ADD_PROPERTY   (QNetworkAddressEntry, broadcast, setBroadcast);
-    MO_ADD_PROPERTY   (QNetworkAddressEntry, dnsEligibility, setDnsEligibility);
-    MO_ADD_PROPERTY   (QNetworkAddressEntry, ip, setIp);
+    MO_ADD_PROPERTY(QNetworkAddressEntry, broadcast, setBroadcast);
+    MO_ADD_PROPERTY(QNetworkAddressEntry, dnsEligibility, setDnsEligibility);
+    MO_ADD_PROPERTY(QNetworkAddressEntry, ip, setIp);
     MO_ADD_PROPERTY_RO(QNetworkAddressEntry, isLifetimeKnown);
     MO_ADD_PROPERTY_RO(QNetworkAddressEntry, isPermanent);
     MO_ADD_PROPERTY_RO(QNetworkAddressEntry, isTemporary);
-    MO_ADD_PROPERTY   (QNetworkAddressEntry, netmask, setNetmask);
-    //MO_ADD_PROPERTY_RO(QNetworkAddressEntry, preferredLifetime);
-    MO_ADD_PROPERTY   (QNetworkAddressEntry, prefixLength, setPrefixLength);
-    //MO_ADD_PROPERTY_RO(QNetworkAddressEntry, validityLifetime);
-#endif
-
-    MO_ADD_METAOBJECT0(QNetworkConfiguration);
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, bearerType);
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, bearerTypeFamily);
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, bearerTypeName);
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, children);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, connectTimeout);
-#endif
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, identifier);
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, isRoamingAvailable);
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, isValid);
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, name);
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, purpose);
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, state);
-    MO_ADD_PROPERTY_RO(QNetworkConfiguration, type);
-
-    MO_ADD_METAOBJECT1(QNetworkConfigurationManager, QObject);
-    MO_ADD_PROPERTY_RO(QNetworkConfigurationManager, capabilities);
-    MO_ADD_PROPERTY_RO(QNetworkConfigurationManager, isOnline);
+    MO_ADD_PROPERTY(QNetworkAddressEntry, netmask, setNetmask);
+    // MO_ADD_PROPERTY_RO(QNetworkAddressEntry, preferredLifetime);
+    MO_ADD_PROPERTY(QNetworkAddressEntry, prefixLength, setPrefixLength);
+    // MO_ADD_PROPERTY_RO(QNetworkAddressEntry, validityLifetime);
 
     MO_ADD_METAOBJECT0(QNetworkInterface);
     MO_ADD_PROPERTY_RO(QNetworkInterface, addressEntries);
@@ -231,37 +157,21 @@ void NetworkSupport::registerMetaTypes()
     MO_ADD_PROPERTY_RO(QNetworkInterface, hardwareAddress);
     MO_ADD_PROPERTY_RO(QNetworkInterface, index);
     MO_ADD_PROPERTY_RO(QNetworkInterface, isValid);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
     MO_ADD_PROPERTY_RO(QNetworkInterface, maximumTransmissionUnit);
-#endif
     MO_ADD_PROPERTY_RO(QNetworkInterface, name);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
     MO_ADD_PROPERTY_RO(QNetworkInterface, type);
-#endif
 
     MO_ADD_METAOBJECT0(QNetworkProxy);
     MO_ADD_PROPERTY_ST(QNetworkProxy, applicationProxy);
-    MO_ADD_PROPERTY   (QNetworkProxy, capabilities, setCapabilities);
-    MO_ADD_PROPERTY   (QNetworkProxy, hostName, setHostName);
+    MO_ADD_PROPERTY(QNetworkProxy, capabilities, setCapabilities);
+    MO_ADD_PROPERTY(QNetworkProxy, hostName, setHostName);
     MO_ADD_PROPERTY_RO(QNetworkProxy, isCachingProxy);
     MO_ADD_PROPERTY_RO(QNetworkProxy, isTransparentProxy);
-    MO_ADD_PROPERTY   (QNetworkProxy, password, setPassword);
-    MO_ADD_PROPERTY   (QNetworkProxy, port, setPort);
-    //MO_ADD_PROPERTY_RO(QNetworkProxy, rawHeaderList);
-    MO_ADD_PROPERTY   (QNetworkProxy, type, setType);
-    MO_ADD_PROPERTY   (QNetworkProxy, user, setUser);
-
-    MO_ADD_METAOBJECT1(QNetworkSession, QObject);
-    MO_ADD_PROPERTY_RO(QNetworkSession, activeTime);
-    MO_ADD_PROPERTY_RO(QNetworkSession, bytesReceived);
-    MO_ADD_PROPERTY_RO(QNetworkSession, bytesWritten);
-    MO_ADD_PROPERTY_RO(QNetworkSession, configuration);
-    MO_ADD_PROPERTY_RO(QNetworkSession, error);
-    MO_ADD_PROPERTY_RO(QNetworkSession, errorString);
-    MO_ADD_PROPERTY_RO(QNetworkSession, interface);
-    MO_ADD_PROPERTY_RO(QNetworkSession, isOpen);
-    MO_ADD_PROPERTY_RO(QNetworkSession, state);
-    MO_ADD_PROPERTY_RO(QNetworkSession, usagePolicies);
+    MO_ADD_PROPERTY(QNetworkProxy, password, setPassword);
+    MO_ADD_PROPERTY(QNetworkProxy, port, setPort);
+    // MO_ADD_PROPERTY_RO(QNetworkProxy, rawHeaderList);
+    MO_ADD_PROPERTY(QNetworkProxy, type, setType);
+    MO_ADD_PROPERTY(QNetworkProxy, user, setUser);
 
     MO_ADD_METAOBJECT1(QTcpServer, QObject);
     MO_ADD_PROPERTY_RO(QTcpServer, isListening);
@@ -314,9 +224,7 @@ void NetworkSupport::registerMetaTypes()
     MO_ADD_PROPERTY(QSslConfiguration, caCertificates, setCaCertificates);
     MO_ADD_PROPERTY(QSslConfiguration, ciphers, setCiphers);
     // TODO 5.5 ellipticCurves
-#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
     MO_ADD_PROPERTY_RO(QSslConfiguration, ephemeralServerKey);
-#endif
     MO_ADD_PROPERTY_RO(QSslConfiguration, isNull);
     MO_ADD_PROPERTY(QSslConfiguration, localCertificate, setLocalCertificate);
     MO_ADD_PROPERTY(QSslConfiguration, localCertificateChain, setLocalCertificateChain);
@@ -355,7 +263,7 @@ void NetworkSupport::registerMetaTypes()
     MO_ADD_PROPERTY_RO(QSslSocket, sessionProtocol);
     MO_ADD_PROPERTY_RO(QSslSocket, sessionCipher);
     MO_ADD_PROPERTY(QSslSocket, sslConfiguration, setSslConfiguration);
-    MO_ADD_PROPERTY_RO(QSslSocket, sslErrors);
+    MO_ADD_PROPERTY_RO(QSslSocket, sslHandshakeErrors);
 #endif // QT_NO_SSL
 
     MO_ADD_METAOBJECT1(QSocketNotifier, QObject);
@@ -364,24 +272,21 @@ void NetworkSupport::registerMetaTypes()
     MO_ADD_PROPERTY(QSocketNotifier, isEnabled, setEnabled);
 }
 
-#define E(x) { QAbstractSocket:: x, #x }
+#define E(x)                   \
+    {                          \
+        QAbstractSocket::x, #x \
+    }
 static const MetaEnum::Value<QAbstractSocket::PauseMode> socket_pause_mode_table[] = {
     E(PauseNever),
     E(PauseOnSslErrors),
 };
 #undef E
 
-#define E(x) { QNetworkAccessManager:: x, #x }
-static const MetaEnum::Value<QNetworkAccessManager::NetworkAccessibility>
-network_accessibility_table[] = {
-    E(UnknownAccessibility),
-    E(NotAccessible),
-    E(Accessible)
-};
-#undef E
-
 #ifndef QT_NO_SSL
-#define E(x) { QSslSocket:: x, #x }
+#define E(x)              \
+    {                     \
+        QSslSocket::x, #x \
+    }
 static const MetaEnum::Value<QSslSocket::SslMode> ssl_mode_table[] = {
     E(UnencryptedMode),
     E(SslClientMode),
@@ -389,7 +294,10 @@ static const MetaEnum::Value<QSslSocket::SslMode> ssl_mode_table[] = {
 };
 #undef E
 
-#define E(x) { QSslSocket:: x, #x }
+#define E(x)              \
+    {                     \
+        QSslSocket::x, #x \
+    }
 static const MetaEnum::Value<QSslSocket::PeerVerifyMode> ssl_peer_verify_mode_table[] = {
     E(VerifyNone),
     E(QueryPeer),
@@ -398,7 +306,10 @@ static const MetaEnum::Value<QSslSocket::PeerVerifyMode> ssl_peer_verify_mode_ta
 };
 #undef E
 
-#define E(x) { QSsl:: x, #x }
+#define E(x)        \
+    {               \
+        QSsl::x, #x \
+    }
 static const MetaEnum::Value<QSsl::KeyAlgorithm> ssl_key_algorithm_table[] = {
     E(Opaque),
     E(Rsa),
@@ -407,25 +318,24 @@ static const MetaEnum::Value<QSsl::KeyAlgorithm> ssl_key_algorithm_table[] = {
 };
 #undef E
 
-#define E(x) { QSsl:: x, #x }
+#define E(x)        \
+    {               \
+        QSsl::x, #x \
+    }
 static const MetaEnum::Value<QSsl::KeyType> ssl_key_type_table[] = {
     E(PrivateKey),
     E(PublicKey)
 };
 #undef E
 
-#define E(x) { QSsl:: x, #x }
+#define E(x)        \
+    {               \
+        QSsl::x, #x \
+    }
 static const MetaEnum::Value<QSsl::SslProtocol> ssl_protocol_table[] = {
-    E(SslV3),
-    E(SslV2),
-    E(TlsV1_0),
-    E(TlsV1_1),
     E(TlsV1_2),
     E(AnyProtocol),
-    E(TlsV1SslV3),
     E(SecureProtocols),
-    E(TlsV1_0OrLater),
-    E(TlsV1_1OrLater),
     E(TlsV1_2OrLater),
     E(UnknownProtocol)
 };
@@ -440,69 +350,21 @@ static QString sslCertificateToString(const QSslCertificate &cert)
 
 #endif // QT_NO_SSL
 
-#define E(x) { QNetworkConfiguration:: x, #x }
-static const MetaEnum::Value<QNetworkConfiguration::BearerType> network_config_bearer_type_table[] = {
-    E(BearerUnknown),
-    E(BearerEthernet),
-    E(BearerWLAN),
-    E(Bearer2G),
-    E(Bearer3G),
-    E(Bearer4G),
-    E(BearerCDMA2000),
-    E(BearerWCDMA),
-    E(BearerHSPA),
-    E(BearerBluetooth),
-    E(BearerWiMAX),
-    E(BearerEVDO),
-    E(BearerLTE)
-};
-
-static const MetaEnum::Value<QNetworkConfiguration::Purpose> network_config_purpose_table[] = {
-    E(UnknownPurpose),
-    E(PublicPurpose),
-    E(PrivatePurpose),
-    E(ServiceSpecificPurpose)
-};
-
-static const MetaEnum::Value<QNetworkConfiguration::StateFlag> network_config_state_table[] = {
-    E(Undefined),
-    E(Defined),
-    E(Discovered),
-    E(Active)
-};
-
-static const MetaEnum::Value<QNetworkConfiguration::Type> network_config_type_table[] = {
-    E(InternetAccessPoint),
-    E(ServiceNetwork),
-    E(UserChoice),
-    E(Invalid)
-};
-#undef E
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
-#define E(x) { QNetworkAddressEntry:: x, #x }
+#define E(x)                        \
+    {                               \
+        QNetworkAddressEntry::x, #x \
+    }
 static const MetaEnum::Value<QNetworkAddressEntry::DnsEligibilityStatus> network_address_entry_dns_eligibility_table[] = {
     E(DnsEligibilityUnknown),
     E(DnsEligible),
     E(DnsIneligible)
 };
 #undef E
-#endif
 
-#define E(x) { QNetworkConfigurationManager:: x, #x }
-static const MetaEnum::Value<QNetworkConfigurationManager::Capabilities> network_config_manager_capabilities_table[] = {
-    E(CanStartAndStopInterfaces),
-    E(DirectConnectionRouting),
-    E(SystemSessionSupport),
-    E(ApplicationLevelRoaming),
-    E(ForcedRoaming),
-    E(DataStatistics),
-    E(NetworkSessionRequired)
-};
-#undef E
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
-#define E(x) { QNetworkRequest:: x, #x }
+#define E(x)                   \
+    {                          \
+        QNetworkRequest::x, #x \
+    }
 static const MetaEnum::Value<QNetworkRequest::RedirectPolicy> network_redirect_policy_table[] = {
     E(ManualRedirectPolicy),
     E(NoLessSafeRedirectPolicy),
@@ -510,19 +372,19 @@ static const MetaEnum::Value<QNetworkRequest::RedirectPolicy> network_redirect_p
     E(UserVerifiedRedirectPolicy)
 };
 #undef E
-#endif
 
-#define E(x) { QNetworkProxy:: x, #x }
+#define E(x)                 \
+    {                        \
+        QNetworkProxy::x, #x \
+    }
 static const MetaEnum::Value<QNetworkProxy::Capability> network_proxy_capabilitiy_table[] = {
     E(TunnelingCapability),
     E(ListeningCapability),
     E(UdpTunnelingCapability),
     E(CachingCapability),
     E(HostNameLookupCapability),
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     E(SctpTunnelingCapability),
     E(SctpListeningCapability)
-#endif
 };
 
 static const MetaEnum::Value<QNetworkProxy::ProxyType> network_proxy_type_table[] = {
@@ -535,31 +397,6 @@ static const MetaEnum::Value<QNetworkProxy::ProxyType> network_proxy_type_table[
 };
 #undef E
 
-#define E(x) { QNetworkSession:: x, #x }
-static const MetaEnum::Value<QNetworkSession::SessionError> network_session_error_table[] = {
-    E(UnknownSessionError),
-    E(SessionAbortedError),
-    E(RoamingError),
-    E(OperationNotSupportedError),
-    E(InvalidConfigurationError)
-};
-
-static const MetaEnum::Value<QNetworkSession::State> network_session_state_table[] = {
-    E(Invalid),
-    E(NotAvailable),
-    E(Connecting),
-    E(Connected),
-    E(Closing),
-    E(Disconnected),
-    E(Roaming)
-};
-
-static const MetaEnum::Value<QNetworkSession::UsagePolicies> network_session_usage_policy_table[] = {
-    E(NoPolicy),
-    E(NoBackgroundTrafficPolicy)
-};
-#undef E
-
 static QString proxyToString(const QNetworkProxy &proxy)
 {
     return VariantHandler::displayString(proxy.type());
@@ -569,7 +406,7 @@ void NetworkSupport::registerVariantHandler()
 {
     ER_REGISTER_FLAGS(QAbstractSocket, PauseModes, socket_pause_mode_table);
     VariantHandler::registerStringConverter<QHostAddress>(std::mem_fn(&QHostAddress::toString));
-    ER_REGISTER_ENUM(QNetworkAccessManager, NetworkAccessibility, network_accessibility_table);
+
 #ifndef QT_NO_SSL
     ER_REGISTER_ENUM(QSslSocket, PeerVerifyMode, ssl_peer_verify_mode_table);
     ER_REGISTER_ENUM(QSslSocket, SslMode, ssl_mode_table);
@@ -582,30 +419,15 @@ void NetworkSupport::registerVariantHandler()
     VariantHandler::registerStringConverter<QSslError>(std::mem_fn(&QSslError::errorString));
 #endif
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
     ER_REGISTER_ENUM(QNetworkAddressEntry, DnsEligibilityStatus, network_address_entry_dns_eligibility_table);
-#endif
-
-    ER_REGISTER_ENUM(QNetworkConfiguration, BearerType, network_config_bearer_type_table);
-    ER_REGISTER_ENUM(QNetworkConfiguration, Purpose, network_config_purpose_table);
-    ER_REGISTER_FLAGS(QNetworkConfiguration, StateFlags, network_config_state_table);
-    ER_REGISTER_ENUM(QNetworkConfiguration, Type, network_config_type_table);
-    VariantHandler::registerStringConverter<QNetworkConfiguration>(std::mem_fn(&QNetworkConfiguration::name));
-    ER_REGISTER_FLAGS(QNetworkConfigurationManager, Capabilities, network_config_manager_capabilities_table);
 
     VariantHandler::registerStringConverter<QNetworkInterface>(std::mem_fn(&QNetworkInterface::name));
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
     ER_REGISTER_ENUM(QNetworkRequest, RedirectPolicy, network_redirect_policy_table);
-#endif
 
     ER_REGISTER_FLAGS(QNetworkProxy, Capabilities, network_proxy_capabilitiy_table);
     ER_REGISTER_ENUM(QNetworkProxy, ProxyType, network_proxy_type_table);
     VariantHandler::registerStringConverter<QNetworkProxy>(proxyToString);
-
-    ER_REGISTER_ENUM(QNetworkSession, SessionError, network_session_error_table);
-    ER_REGISTER_ENUM(QNetworkSession, State, network_session_state_table);
-    ER_REGISTER_FLAGS(QNetworkSession, UsagePolicies, network_session_usage_policy_table);
 }
 
 NetworkSupportFactory::NetworkSupportFactory(QObject *parent)

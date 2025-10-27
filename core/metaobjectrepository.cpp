@@ -1,33 +1,19 @@
 /*
   metaobjectrepository.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2011-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2011 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "metaobjectrepository.h"
 #include "metaobject.h"
+#include "enumrepositoryserver.h"
 
 #include <common/metatypedeclarations.h>
 
@@ -38,6 +24,9 @@
 #include <QFile>
 #include <QObject>
 #include <private/qobject_p.h>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#include <private/qcoreevent_p.h>
+#endif
 #include <QSortFilterProxyModel>
 #include <QStringList>
 #include <QThread>
@@ -73,13 +62,29 @@ void MetaObjectRepository::initBuiltInTypes()
 
 Q_DECLARE_METATYPE(QThread::Priority)
 
+#define E(x)           \
+    {                  \
+        QThread::x, #x \
+    }
+static const MetaEnum::Value<QThread::Priority> qthread_priority_enum_table[] = {
+    E(IdlePriority),
+    E(LowestPriority),
+    E(LowPriority),
+    E(NormalPriority),
+    E(HighPriority),
+    E(HighestPriority),
+    E(TimeCriticalPriority),
+    E(InheritPriority),
+};
+#undef E
+
 void MetaObjectRepository::initQObjectTypes()
 {
     MetaObject *mo = nullptr;
     MO_ADD_METAOBJECT0(QMetaObject);
     MO_ADD_PROPERTY_RO(QMetaObject, classInfoCount);
     MO_ADD_PROPERTY_RO(QMetaObject, classInfoOffset);
-// MO_ADD_PROPERTY_RO(QMetaObject, className);
+    // MO_ADD_PROPERTY_RO(QMetaObject, className);
     MO_ADD_PROPERTY_RO(QMetaObject, constructorCount);
     MO_ADD_PROPERTY_RO(QMetaObject, enumeratorCount);
     MO_ADD_PROPERTY_RO(QMetaObject, enumeratorOffset);
@@ -130,11 +135,17 @@ void MetaObjectRepository::initQObjectTypes()
     MO_ADD_PROPERTY_RO(QDateTime, isNull);
     MO_ADD_PROPERTY_RO(QDateTime, isValid);
     MO_ADD_PROPERTY_RO(QDateTime, offsetFromUtc);
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
     MO_ADD_PROPERTY(QDateTime, timeZone, setTimeZone);
+#endif
 
     MO_ADD_METAOBJECT0(QTimeZone);
     MO_ADD_PROPERTY_RO(QTimeZone, comment);
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
     MO_ADD_PROPERTY_RO(QTimeZone, country);
+#else
+    MO_ADD_PROPERTY_RO(QTimeZone, territory);
+#endif
     MO_ADD_PROPERTY_RO(QTimeZone, hasDaylightTime);
     MO_ADD_PROPERTY_RO(QTimeZone, hasTransitions);
     MO_ADD_PROPERTY_RO(QTimeZone, id);
@@ -145,6 +156,8 @@ void MetaObjectRepository::initQObjectTypes()
     MO_ADD_PROPERTY(QEasingCurve, overshoot, setOvershoot);
     MO_ADD_PROPERTY(QEasingCurve, period, setPeriod);
     MO_ADD_PROPERTY(QEasingCurve, type, setType);
+
+    ER_REGISTER_ENUM(QThread, Priority, qthread_priority_enum_table);
 }
 
 Q_DECLARE_METATYPE(QIODevice::OpenMode)
@@ -178,13 +191,13 @@ void MetaObjectRepository::initIOTypes()
     MO_ADD_PROPERTY_RO(QFileDevice, permissions);
 
     MO_ADD_METAOBJECT1(QFile, QFileDevice);
-    MO_ADD_PROPERTY_RO(QFile, exists);
+    mo->addProperty(GammaRay::MetaPropertyFactory::makeProperty<QFile, bool>("exists", &QFile::exists));
     MO_ADD_PROPERTY_RO(QFile, symLinkTarget);
 
     MO_ADD_METAOBJECT1(QSaveFile, QFileDevice);
 }
 
-Q_DECLARE_METATYPE(const QObject*)
+Q_DECLARE_METATYPE(const QObject *)
 
 void MetaObjectRepository::initQEventTypes()
 {
@@ -211,7 +224,7 @@ void MetaObjectRepository::initQEventTypes()
 
     MO_ADD_METAOBJECT1(QMetaCallEvent, QEvent);
     MO_ADD_PROPERTY_RO(QMetaCallEvent, id);
-    MO_ADD_PROPERTY_RO(QMetaCallEvent, sender);  // problematic because type is const QObject*
+    MO_ADD_PROPERTY_RO(QMetaCallEvent, sender); // problematic because type is const QObject*
     MO_ADD_PROPERTY_RO(QMetaCallEvent, signalId);
 }
 
@@ -243,13 +256,13 @@ MetaObject *MetaObjectRepository::metaObject(const QString &typeName) const
     return m_metaObjects.value(typeName_);
 }
 
-MetaObject* MetaObjectRepository::metaObject(const QString& typeName, void *&obj) const
+MetaObject *MetaObjectRepository::metaObject(const QString &typeName, void *&obj) const
 {
     auto mo = metaObject(typeName);
     return metaObject(mo, obj);
 }
 
-MetaObject* MetaObjectRepository::metaObject(MetaObject *mo, void *&obj) const
+MetaObject *MetaObjectRepository::metaObject(MetaObject *mo, void *&obj) const
 {
     if (!mo || !mo->isPolymorphic())
         return mo;

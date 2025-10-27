@@ -1,29 +1,14 @@
 /*
   sgwireframewidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Anton Kreuzkamp <anton.kreuzkamp@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "sgwireframewidget.h"
@@ -81,7 +66,7 @@ void SGWireframeWidget::paintEvent(QPaintEvent *)
             drawHighlightedFace(&painter, QVector<int>() << index << m_adjacencyList[i - 1] << m_adjacencyList.first());
         }
 
-#ifndef QT_OPENGL_ES_2
+#if !QT_CONFIG(opengles2)
         else if ((m_drawingMode == GL_QUADS || m_drawingMode == GL_QUAD_STRIP) && i % 4 == 3) {
             drawHighlightedFace(&painter,
                                 QVector<int>() << index << m_adjacencyList[i - 1] << m_adjacencyList[i - 2] << m_adjacencyList[i - 3]);
@@ -103,27 +88,29 @@ void SGWireframeWidget::paintEvent(QPaintEvent *)
              || (m_drawingMode == GL_TRIANGLES && i % 3)
              || m_drawingMode == GL_TRIANGLE_STRIP
              || m_drawingMode == GL_TRIANGLE_FAN
-#ifndef QT_OPENGL_ES_2
+#if !QT_CONFIG(opengles2)
              || (m_drawingMode == GL_QUADS && i % 4 != 0)
              || (m_drawingMode == GL_QUAD_STRIP && i % 2)
              || m_drawingMode == GL_POLYGON
 #endif
-             ) && i > 0) {
+             )
+            && i > 0) {
             drawWire(&painter, index, m_adjacencyList[i - 1]);
         }
 
         // Draw a connection to the second previous vertex
         if ((m_drawingMode == GL_TRIANGLE_STRIP
              || (m_drawingMode == GL_TRIANGLES && i % 3 == 2)
-#ifndef QT_OPENGL_ES_2
+#if !QT_CONFIG(opengles2)
              || m_drawingMode == GL_QUAD_STRIP
 #endif
-             ) && i > 1) {
+             )
+            && i > 1) {
             drawWire(&painter, index, m_adjacencyList[i - 2]);
         }
 
         // draw a connection to the third previous vertex
-#ifndef QT_OPENGL_ES_2
+#if !QT_CONFIG(opengles2)
         if (m_drawingMode == GL_QUADS && i % 4 == 3) {
             drawWire(&painter, index, m_adjacencyList[i - 3]);
         }
@@ -132,7 +119,7 @@ void SGWireframeWidget::paintEvent(QPaintEvent *)
 
         // Draw a connection to the very first vertex
         if ((m_drawingMode == GL_LINE_LOOP && i == m_adjacencyList.size() - 1)
-#ifndef QT_OPENGL_ES_2
+#if !QT_CONFIG(opengles2)
             || (m_drawingMode == GL_POLYGON && i == m_adjacencyList.size() - 1)
 #endif
             || m_drawingMode == GL_TRIANGLE_FAN)
@@ -165,20 +152,24 @@ void SGWireframeWidget::paintEvent(QPaintEvent *)
 
     // Paint hint about which draw mode is used
     QString drawingMode = m_drawingMode == GL_POINTS ? QStringLiteral("GL_POINTS")
-                          : m_drawingMode == GL_LINES ? QStringLiteral("GL_LINES")
-                          : m_drawingMode == GL_LINE_STRIP ? QStringLiteral("GL_LINE_STRIP")
-                          : m_drawingMode == GL_LINE_LOOP ? QStringLiteral("GL_LINE_LOOP") :
-#ifndef QT_OPENGL_ES_2
-                          m_drawingMode == GL_POLYGON ? QStringLiteral("GL_POLYGON")
-                          : m_drawingMode == GL_QUADS ? QStringLiteral("GL_QUADS")
-                          : m_drawingMode == GL_QUAD_STRIP ? QStringLiteral("GL_QUAD_STRIP") :
+        : m_drawingMode == GL_LINES                  ? QStringLiteral("GL_LINES")
+        : m_drawingMode == GL_LINE_STRIP             ? QStringLiteral("GL_LINE_STRIP")
+        : m_drawingMode == GL_LINE_LOOP              ? QStringLiteral("GL_LINE_LOOP")
+        :
+#if !QT_CONFIG(opengles2)
+        m_drawingMode == GL_POLYGON      ? QStringLiteral("GL_POLYGON")
+        : m_drawingMode == GL_QUADS      ? QStringLiteral("GL_QUADS")
+        : m_drawingMode == GL_QUAD_STRIP ? QStringLiteral("GL_QUAD_STRIP")
+        :
 #endif
-                          m_drawingMode == GL_TRIANGLES ? QStringLiteral("GL_TRIANGLES")
-                          : m_drawingMode == GL_TRIANGLE_STRIP ? QStringLiteral("GL_TRIANGLE_STRIP")
-                          : m_drawingMode
-                          == GL_TRIANGLE_FAN ? QStringLiteral("GL_TRIANGLE_FAN") : tr("Unknown");
+        m_drawingMode == GL_TRIANGLES        ? QStringLiteral("GL_TRIANGLES")
+        : m_drawingMode == GL_TRIANGLE_STRIP ? QStringLiteral("GL_TRIANGLE_STRIP")
+        : m_drawingMode
+            == GL_TRIANGLE_FAN
+        ? QStringLiteral("GL_TRIANGLE_FAN")
+        : tr("Unknown");
     QString text = tr("Drawing mode: %1").arg(drawingMode);
-    painter.drawText(contentsRect().width() - painter.fontMetrics().width(text),
+    painter.drawText(contentsRect().width() - painter.fontMetrics().horizontalAdvance(text),
                      contentsRect().height() - painter.fontMetrics().height(), text);
 }
 
@@ -291,7 +282,7 @@ void SGWireframeWidget::onAdjacencyModelRowsInserted(const QModelIndex &parent, 
 }
 
 void SGWireframeWidget::onVertexModelDataChanged(const QModelIndex &topLeft,
-                                           const QModelIndex &bottomRight)
+                                                 const QModelIndex &bottomRight)
 {
     if (!topLeft.isValid()
         || !bottomRight.isValid()
@@ -303,7 +294,7 @@ void SGWireframeWidget::onVertexModelDataChanged(const QModelIndex &topLeft,
 }
 
 void SGWireframeWidget::onAdjacencyModelDataChanged(const QModelIndex &topLeft,
-                                           const QModelIndex &bottomRight)
+                                                    const QModelIndex &bottomRight)
 {
     if (!topLeft.isValid()
         || !bottomRight.isValid()
@@ -320,7 +311,8 @@ void SGWireframeWidget::fetchVertices()
     if (m_positionColumn == -1) {
         for (int j = 0; j < m_vertexModel->columnCount(); j++) {
             if (m_vertexModel->data(m_vertexModel->index(0, j),
-                                SGVertexModel::IsCoordinateRole).toBool()) {
+                                    SGVertexModel::IsCoordinateRole)
+                    .toBool()) {
                 m_positionColumn = j;
                 break;
             }

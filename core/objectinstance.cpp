@@ -1,29 +1,14 @@
 /*
   objectinstance.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "objectinstance.h"
@@ -65,8 +50,9 @@ ObjectInstance::ObjectInstance(const QVariant &value)
             m_type = QtObject;
         }
     } else {
-        if (QMetaType::typeFlags(value.userType()) & QMetaType::IsGadget) {
-            m_metaObj = QMetaType::metaObjectForType(value.userType());
+        auto mt = QMetaType(value.userType());
+        if (mt.flags() & QMetaType::IsGadget) {
+            m_metaObj = mt.metaObject();
             if (m_metaObj)
                 m_type = QtGadgetValue;
         } else {
@@ -192,7 +178,7 @@ void ObjectInstance::unpackVariant()
 {
     const auto mo = MetaObjectRepository::instance()->metaObject(m_variant.typeName());
     if (mo && strstr(m_variant.typeName(), "*") != nullptr) { // pointer types
-        QMetaType::construct(m_variant.userType(), &m_obj, m_variant.constData());
+        QMetaType(m_variant.userType()).construct(&m_obj, m_variant.constData());
         if (!Util::isNullish(m_obj)) {
             m_type = Object;
             m_typeName = m_variant.typeName();
@@ -205,18 +191,18 @@ void ObjectInstance::unpackVariant()
 
     if (!m_variant.isNull() && strstr(m_variant.typeName(), "*") != nullptr) { // pointer to gadget
         QByteArray normalizedTypeName = m_variant.typeName();
-        //krazy:cond=doublequote_chars
+        // krazy:cond=doublequote_chars
         normalizedTypeName.replace('*', "");
         normalizedTypeName.replace('&', "");
         normalizedTypeName.replace("const ", "");
         normalizedTypeName.replace(" const", "");
         normalizedTypeName.replace(' ', "");
-        //krazy:endcond=doublequote_chars
+        // krazy:endcond=doublequote_chars
 
-        const auto typeId = QMetaType::type(normalizedTypeName);
-        if (typeId != QMetaType::UnknownType && (QMetaType::typeFlags(typeId) & QMetaType::IsGadget)) {
-            QMetaType::construct(m_variant.userType(), &m_obj, m_variant.constData());
-            m_metaObj = QMetaType::metaObjectForType(typeId);
+        const auto typeId = QMetaType::fromName(normalizedTypeName).id();
+        if (typeId != QMetaType::UnknownType && (QMetaType(typeId).flags() & QMetaType::IsGadget)) {
+            QMetaType(m_variant.userType()).construct(&m_obj, m_variant.constData());
+            m_metaObj = QMetaType(typeId).metaObject();
             if (m_obj && m_metaObj) {
                 m_type = QtGadgetPointer;
                 m_typeName = m_variant.typeName();

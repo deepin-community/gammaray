@@ -1,3 +1,138 @@
+gammaray (3.3.0-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+  * Update the build dependencies:
+    - drop not needed or implicitly pulled (and not explicitly needed):
+      glslang-tools, qml6-module-qtqml, qml6-module-qtqml-workerscript,
+      qml6-module-qtquick, qml6-module-qtquick-controls,
+      qml6-module-qtquick-templates, qml6-module-qtquick-window,
+      qt6-3d-assimpsceneimport-plugin, qt6-3d-defaultgeometryloader-plugin,
+      qt6-3d-gltfsceneio-plugin, qt6-3d-scene2d-plugin,
+      qt6-declarative-dev-tools, qt6-tools-dev-tools, qt6-wayland
+    - mark test-only ones as <!nocheck>: gdb, qt6-translations-l10n, xauth, xvfb
+  * Drop -Wno-deprecated -Wno-deprecated-declarations from the CXXFLAGS,
+    as there should be way less deprecated functions (if any).
+  * Update the patches:
+    - upstream_tests-Fix-translatortest-not-working-in-6.10.patch: drop,
+      backported from upstream
+    - debian-archs-fix-build.patch: refresh
+    - qt-system-paths.patch: refresh
+    - disable-flaky-tests.patch: refresh
+
+ -- Pino Toscano <pino@debian.org>  Thu, 02 Oct 2025 10:33:47 +0200
+
+gammaray (3.2.2-2) unstable; urgency=medium
+
+  * Team upload.
+
+  [ Pino Toscano ]
+  * Backport upstream commit e73e854c6edfef0f544f0adb0c2aacc78917a893 to fix
+    translatortest with Qt 6.9 and 6.10; patch
+    upstream_tests-Fix-translatortest-not-working-in-6.10.patch.
+    (Closes: #1116299)
+  * Use execute_after_dh_auto_install to avoid invoking dh_auto_install
+    manually.
+  * Add the libdw-dev build dependency to read DWARF debug information.
+  * Drop the libgraphviz-dev build dependency, not actually used.
+  * Append -Wno-deprecated -Wno-deprecated-declarations to the CXXFLAGS,
+    as there are lots of deprecation warnings that make build logs bigger.
+
+  [ Adrian Bunk ]
+  * Don't build with -Wl,--fatal-warnings. (Closes: #1116277)
+
+ -- Pino Toscano <pino@debian.org>  Fri, 26 Sep 2025 08:19:49 +0200
+
+gammaray (3.2.2-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+
+ -- Pino Toscano <pino@debian.org>  Fri, 29 Aug 2025 07:22:14 +0200
+
+gammaray (3.2.1-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+  * Upstream dropped the embedded copy of KDStateMachineEditor, which embedded
+    a copy of graphiz:
+    - drop the +ds version suffix, and all the repacking machinery
+    - drop all the references to KDStateMachineEditor from debian/copyright
+
+ -- Pino Toscano <pino@debian.org>  Sun, 24 Aug 2025 14:58:50 +0200
+
+gammaray (3.1.0+ds-3) unstable; urgency=medium
+
+  * Team upload.
+  * Make it possible to build on non-Linux architectures:
+    - limit the libwayland-dev, qt6-connectivity-dev, qt6-wayland, and
+      qt6-wayland-dev build dependencies as linux-any
+    - limit the gammaray-plugin-waylandinspector, and gammaray-plugin-bluetooth
+      binary packages as linux-any
+  * Remove the unneeded libproj-dev build dependency. (Closes: #1050765)
+  * Simplify debian-archs-fix-build.patch for GNU/Hurd: accept the x86 string
+    with the AT386 suffix as i686.
+  * Add the configuration for the CI on salsa.
+  * Bump Standards-Version to 4.7.2, no changes required.
+
+ -- Pino Toscano <pino@debian.org>  Sat, 05 Apr 2025 10:56:31 +0200
+
+gammaray (3.1.0+ds-2) unstable; urgency=medium
+
+  * Team upload.
+
+  [ Dmitry Shachnev ]
+  * Drop disable-qmllint.patch. Instead, add qml6-module-qtquick-templates
+    to build-dependencies; this makes qmllint not crash.
+
+  [ Santiago Vila ]
+  * Disable flaky tests. Closes: #1017144.
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Mon, 23 Sep 2024 13:00:22 +0300
+
+gammaray (3.1.0+ds-1) unstable; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+  * Repack upstream tarball to exclude bundled copy of graphviz.
+    This reduces the tarball size from 60 MB to 11 MB.
+  * Refresh patches for the new release.
+  * Update debian/copyright.
+  * Export LC_ALL=C.UTF-8 in debian/rules.
+  * Build-depend on qml6-module-qtquick-{controls,window}.
+  * Add a patch to not run qmllint on quick-event-handling.qml.
+  * Stop installing gammaray_qtivi_ui.so.
+  * Upload to unstable.
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Sun, 22 Sep 2024 20:11:18 +0300
+
+gammaray (3.0.0-1) experimental; urgency=medium
+
+  * Team upload.
+  * New upstream release.
+  * Update Build-Depends and Depends from Qt 5 to Qt 6.
+  * Remove "export QT_SELECT=5" from debian/rules.
+  * Drop increase-test-timeout.patch, applied upstream.
+  * Refresh and rebase other patches.
+    - Drop GNU/kFreeBSD support from debian-archs-fix-build.patch.
+  * Update install files for switch to Qt 6.
+  * Disable plugins which are not available:
+    - codecbrowser, statemachineviewer, scriptenginedebugger (Qt 5 only).
+    - objectvisualizer (removed in the new release).
+  * Install the new openglsupport plugin.
+  * Update debian/copyright.
+  * Update the command to remove licenses from /usr/share/doc/gammaray.
+  * Bump Standards-Version to 4.7.0, no changes needed.
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Sat, 15 Jun 2024 23:04:21 +0300
+
+gammaray (2.11.3-4) unstable; urgency=medium
+
+  * Team upload.
+  * Stop depending on qtwebengine5-dev on mipsel (closes: #1041265).
+
+ -- Dmitry Shachnev <mitya57@debian.org>  Sun, 16 Jul 2023 19:33:07 +0300
+
 gammaray (2.11.3-3) unstable; urgency=medium
 
   * Team upload.

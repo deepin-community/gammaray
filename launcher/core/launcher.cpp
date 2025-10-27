@@ -1,29 +1,14 @@
 /*
   launcher.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "launcher.h"
@@ -38,8 +23,6 @@
 #include <common/message.h>
 #include <common/paths.h>
 
-#include <compat/qasconst.h>
-
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QDebug>
@@ -53,7 +36,8 @@
 #include <iostream>
 
 namespace GammaRay {
-enum State {
+enum State
+{
     Initial = 0,
     InjectorFinished = 1,
     InjectorFailed = 2,
@@ -69,7 +53,8 @@ struct LauncherPrivate
         , socket(nullptr)
         , state(Initial)
         , exitCode(0)
-    {}
+    {
+    }
 
     AbstractInjector::Ptr createInjector(QStringList *errorStrings = nullptr) const
     {
@@ -105,7 +90,7 @@ Launcher::Launcher(const LaunchOptions &options, QObject *parent)
 {
     Q_ASSERT(options.isValid());
 
-    const auto timeout = qgetenv("GAMMARAY_LAUNCHER_TIMEOUT").toInt();
+    const auto timeout = qEnvironmentVariableIntValue("GAMMARAY_LAUNCHER_TIMEOUT");
     d->safetyTimer.setInterval(std::max(60, timeout) * 1000);
     d->safetyTimer.setSingleShot(true);
     connect(&d->safetyTimer, &QTimer::timeout, this, &Launcher::timeout);
@@ -134,16 +119,12 @@ void Launcher::stop()
 
 static QProcessEnvironment addTargetPluginPaths(QProcessEnvironment env, const ProbeABI &abi)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0)
     QString qtPluginPath = env.value(QStringLiteral("QT_PLUGIN_PATH"));
     if (!qtPluginPath.isEmpty()) {
         qtPluginPath.append(QDir::listSeparator());
     }
     qtPluginPath.append(Paths::targetPluginPaths(abi.id()).join(QDir::listSeparator()));
     env.insert(QStringLiteral("QT_PLUGIN_PATH"), qtPluginPath);
-#else
-    Q_UNUSED(abi);
-#endif
     return env;
 }
 
@@ -166,8 +147,8 @@ bool Launcher::start()
     if (!d->injector) {
         Q_ASSERT(!errorStrings.isEmpty());
         std::cerr << "Potential errors:" << std::endl;
-        for (const QString &errorString : qAsConst(errorStrings)) {
-            std::cerr << "  Error: " << qPrintable(errorString) << std::endl;
+        for (const QString &errorString : std::as_const(errorStrings)) {
+            injectorError(-1, errorString);
         }
         std::cerr << std::endl;
 
@@ -182,6 +163,8 @@ bool Launcher::start()
         } else {
             injectorError(-1, tr("Injector %1 not found.").arg(d->options.injectorType()));
         }
+        std::cerr << "See <https://github.com/KDAB/GammaRay/wiki/Known-Issues> for troubleshooting"
+                  << std::endl;
         return false;
     }
 
@@ -214,8 +197,7 @@ bool Launcher::start()
     if (!success) {
         QString errorMessage;
         if (d->options.isLaunch()) {
-            errorMessage = tr("Failed to launch target '%1'.").
-                arg(d->options.launchArguments().join(QStringLiteral(" ")));
+            errorMessage = tr("Failed to launch target '%1'.").arg(d->options.launchArguments().join(QStringLiteral(" ")));
         }
         if (d->options.isAttach()) {
             errorMessage = tr("Failed to attach to target with PID %1.").arg(d->options.pid());
@@ -224,6 +206,8 @@ bool Launcher::start()
             errorMessage += tr("\nError: %1").arg(d->injector->errorString());
         }
         injectorError(d->injector->exitCode() ? d->injector->exitCode() : 1, errorMessage);
+        std::cerr << "See <https://github.com/KDAB/GammaRay/wiki/Known-Issues> for troubleshooting"
+                  << std::endl;
         return false;
     }
     return true;
@@ -268,9 +252,7 @@ void Launcher::printAllAvailableIPs()
               << std::endl;
 
     foreach (const QNetworkInterface &inter, QNetworkInterface::allInterfaces()) {
-        if (!(inter.flags() & QNetworkInterface::IsUp) ||
-            !(inter.flags() & QNetworkInterface::IsRunning) ||
-            (inter.flags() & QNetworkInterface::IsLoopBack)) {
+        if (!(inter.flags() & QNetworkInterface::IsUp) || !(inter.flags() & QNetworkInterface::IsRunning) || (inter.flags() & QNetworkInterface::IsLoopBack)) {
             continue;
         }
 
@@ -313,12 +295,11 @@ void Launcher::injectorFinished()
 void Launcher::injectorError(int exitCode, const QString &errorMessage)
 {
     d->exitCode = exitCode;
-    d->errorMessage = errorMessage;
+    d->errorMessage += errorMessage + "\n\n";
 
     d->state |= InjectorFailed;
     std::cerr << qPrintable(errorMessage) << std::endl;
-    std::cerr << "See <https://github.com/KDAB/GammaRay/wiki/Known-Issues> for troubleshooting"
-              <<  std::endl;
+
     checkDone();
 }
 
@@ -328,7 +309,7 @@ void Launcher::timeout()
 
     std::cerr << "Target not responding - timeout. Try setting the env variable GAMMARAY_LAUNCHER_TIMEOUT to a bigger value (in seconds)." << std::endl;
     std::cerr << "See <https://github.com/KDAB/GammaRay/wiki/Known-Issues> for troubleshooting"
-              <<  std::endl;
+              << std::endl;
     checkDone();
 }
 
@@ -374,27 +355,27 @@ void Launcher::newConnection()
 
 void Launcher::readyRead()
 {
-    while (Message::canReadMessage(d->socket)) {
-        const auto msg = Message::readMessage(d->socket);
-        switch (msg.type()) {
-        case Protocol::ServerAddress:
-        {
-            msg >> d->serverAddress;
-            break;
-        }
-        case Protocol::ServerLaunchError:
-        {
-            QString reason;
-            msg >> reason;
-            std::cerr << "Failed to start server: " << qPrintable(reason)
-                      << std::endl;
-            // TODO emit error signal to also notify qtcreator, etc
-            break;
-        }
-        default:
-            continue;
-        }
+    if (!Message::canReadMessage(d->socket)) {
+        // it's a partial write, wait for rest of message
+        return;
     }
+
+    const auto msg = Message::readMessage(d->socket);
+    switch (msg.type()) {
+    case Protocol::ServerAddress: {
+        msg >> d->serverAddress;
+        break;
+    }
+    case Protocol::ServerLaunchError: {
+        QString reason;
+        msg >> reason;
+        std::cerr << "Failed to start server: " << qPrintable(reason)
+                  << std::endl;
+        // TODO emit error signal to also notify qtcreator, etc
+        break;
+    }
+    }
+
 
     if (d->serverAddress.isEmpty())
         return;

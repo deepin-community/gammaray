@@ -1,29 +1,14 @@
 /*
   cameracontroller.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "cameracontroller.h"
@@ -58,18 +43,17 @@ CameraController::CameraController(Qt3DCore::QNode *parent)
     // LMB for first person control
     auto mouseDevice = new Qt3DInput::QMouseDevice(this);
     auto leftMouseButtonInput = new Qt3DInput::QActionInput(this);
-    leftMouseButtonInput->setButtons({Qt3DInput::QMouseEvent::LeftButton});
+    leftMouseButtonInput->setButtons({ Qt3DInput::QMouseEvent::LeftButton });
     leftMouseButtonInput->setSourceDevice(mouseDevice);
     m_leftMouseButtonAction->addInput(leftMouseButtonInput);
 
     // MMB for orbit control
     auto midMouseButtonInput = new Qt3DInput::QActionInput(this);
-    midMouseButtonInput->setButtons({Qt3DInput::QMouseEvent::MiddleButton});
+    midMouseButtonInput->setButtons({ Qt3DInput::QMouseEvent::MiddleButton });
     midMouseButtonInput->setSourceDevice(mouseDevice);
     m_midMouseButtonAction->addInput(midMouseButtonInput);
 
     // mouse wheel zoom/strafe
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     auto xWheelInput = new Qt3DInput::QAnalogAxisInput(this);
     xWheelInput->setAxis(Qt3DInput::QMouseDevice::WheelX);
     xWheelInput->setSourceDevice(mouseDevice);
@@ -78,7 +62,6 @@ CameraController::CameraController(Qt3DCore::QNode *parent)
     yWheelInput->setAxis(Qt3DInput::QMouseDevice::WheelY);
     yWheelInput->setSourceDevice(mouseDevice);
     m_axis[TZ]->addInput(yWheelInput);
-#endif
 
     // TODO: shift for slow motion, ctrl for fast motion
 
@@ -141,7 +124,8 @@ void CameraController::frameActionTriggered(float dt)
         return;
     m_camera->translate(QVector3D(m_axis[TX]->value() * m_linearSpeed,
                                   m_axis[TY]->value() * m_linearSpeed,
-                                  m_axis[TZ]->value() * m_linearSpeed) * dt);
+                                  m_axis[TZ]->value() * m_linearSpeed)
+                        * dt);
     if (m_leftMouseButtonAction->isActive()) {
         m_camera->pan(m_axis[RX]->value() * m_lookSpeed * dt, QVector3D(0.0f, 1.0f, 0.0f));
         m_camera->tilt(m_axis[RY]->value() * m_lookSpeed * dt);
@@ -154,7 +138,7 @@ void CameraController::frameActionTriggered(float dt)
 void CameraController::addKeyboardInput(Axis axis, Qt::Key key, float scale)
 {
     auto keyboardInput = new Qt3DInput::QButtonAxisInput;
-    keyboardInput->setButtons({key});
+    keyboardInput->setButtons({ key });
     keyboardInput->setScale(scale);
     keyboardInput->setSourceDevice(m_keyboardDevice);
     m_axis[axis]->addInput(keyboardInput);

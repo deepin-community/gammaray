@@ -1,29 +1,14 @@
 /*
   propertyenumeditor.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "propertyenumeditor.h"
@@ -61,15 +46,14 @@ public:
 
 
 private:
-
     EnumValue m_value;
     EnumDefinition m_def;
 };
 
 }
 
-PropertyEnumEditorModel::PropertyEnumEditorModel(QObject *parent) :
-    QAbstractListModel(parent)
+PropertyEnumEditorModel::PropertyEnumEditorModel(QObject *parent)
+    : QAbstractListModel(parent)
 {
 }
 
@@ -84,7 +68,7 @@ void PropertyEnumEditorModel::setValue(const EnumValue &value)
 {
     beginResetModel();
     m_value = value;
-    auto repo = ObjectBroker::object<EnumRepository*>();
+    auto repo = ObjectBroker::object<EnumRepository *>();
     m_def = repo->definition(value.id());
     endResetModel();
 }
@@ -124,7 +108,7 @@ QVariant PropertyEnumEditorModel::data(const QModelIndex &index, int role) const
     if (role == Qt::DisplayRole) {
         return m_def.elements().at(index.row()).name();
     } else if (role == Qt::CheckStateRole && m_def.isFlag()) {
-        const auto elem = m_def.elements().at(index.row());
+        const auto &elem = m_def.elements().at(index.row());
         if (elem.value() == 0)
             return m_value.value() == 0 ? Qt::Checked : Qt::Unchecked;
         return (elem.value() & m_value.value()) == elem.value() ? Qt::Checked : Qt::Unchecked;
@@ -147,29 +131,32 @@ bool PropertyEnumEditorModel::setData(const QModelIndex &index, const QVariant &
         return false;
 
     if (role == Qt::CheckStateRole) {
-        const auto elem = m_def.elements().at(index.row());
+        const auto &elem = m_def.elements().at(index.row());
         if (value.toInt() == Qt::Checked)
             m_value.setValue(m_value.value() | elem.value());
         else if (value.toInt() == Qt::Unchecked)
             m_value.setValue(m_value.value() & ~elem.value());
-        emit dataChanged(this->index(0,0), this->index(rowCount() - 1, 0)); // mask flags can change multiple rows
+
+        emit dataChanged(this->index(0, 0), this->index(rowCount() - 1, 0)); // mask flags can change multiple rows
         return true;
     }
     return QAbstractListModel::setData(index, value, role);
 }
 
-PropertyEnumEditor::PropertyEnumEditor(QWidget* parent) :
-    QComboBox(parent),
-    m_model(new PropertyEnumEditorModel(this))
+PropertyEnumEditor::PropertyEnumEditor(QWidget *parent)
+    : QComboBox(parent)
+    , m_model(new PropertyEnumEditorModel(this))
 {
     setModel(m_model);
-    connect(m_model, SIGNAL(dataChanged(QModelIndex,QModelIndex)), this, SLOT(update())); // FIXME: Clazy says 4 overloads for update, but I find not a single one...
+    connect(m_model, &PropertyEnumEditorModel::dataChanged, this, [this] {
+        update();
+    });
 
-    auto repo = ObjectBroker::object<EnumRepository*>();
+    auto repo = ObjectBroker::object<EnumRepository *>();
     connect(repo, &EnumRepository::definitionChanged, this, &PropertyEnumEditor::definitionChanged);
 
     setEnabled(false);
-    connect(this, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(this, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             this, &PropertyEnumEditor::slotCurrentIndexChanged);
 }
 
@@ -180,7 +167,7 @@ EnumValue PropertyEnumEditor::enumValue() const
     return m_model->value();
 }
 
-void PropertyEnumEditor::setEnumValue(const EnumValue& value)
+void PropertyEnumEditor::setEnumValue(const EnumValue &value)
 {
     m_model->setValue(value);
     updateCurrentIndex();
@@ -192,7 +179,7 @@ void PropertyEnumEditor::definitionChanged(int id)
     if (!m_model->value().isValid() || id != m_model->value().id())
         return;
 
-    auto repo = ObjectBroker::object<EnumRepository*>();
+    auto repo = ObjectBroker::object<EnumRepository *>();
     const auto def = repo->definition(id);
     m_model->setDefinition(def);
     updateCurrentIndex();
@@ -239,7 +226,7 @@ void PropertyEnumEditor::slotCurrentIndexChanged(int index)
     m_model->updateValue(def.elements().at(index).value());
 }
 
-void PropertyEnumEditor::paintEvent(QPaintEvent* event)
+void PropertyEnumEditor::paintEvent(QPaintEvent *event)
 {
     const auto def = m_model->definition();
 

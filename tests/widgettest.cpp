@@ -1,35 +1,22 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  widgettest.cpp
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "baseprobetest.h"
 
 #include <common/objectbroker.h>
+#include <core/paintbuffer.h>
 
-#include <3rdparty/qt/modeltest.h>
-
+#include <QAbstractItemModelTester>
 #include <QAbstractItemModel>
 #include <QWidget>
 
@@ -39,7 +26,7 @@ class WidgetTest : public BaseProbeTest
 {
     Q_OBJECT
 private:
-    int visibleRowCount(QAbstractItemModel *model)
+    static int visibleRowCount(QAbstractItemModel *model)
     {
         int count = 0;
         for (int i = 0; i < model->rowCount(); ++i) {
@@ -56,41 +43,48 @@ private slots:
         createProbe();
 
         // we need one widget for the plugin to activate, otherwise the model will not be available
-        auto w1 = new QWidget;
+        std::unique_ptr<QWidget> w1(new QWidget);
         QTest::qWait(1); // event loop re-entry
 
         auto *model = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.WidgetTree"));
         QVERIFY(model);
-        ModelTest modelTest(model);
+        QAbstractItemModelTester modelTest(model);
 
-        auto w2 = new QWidget;
+        std::unique_ptr<QWidget> w2(new QWidget);
         QTest::qWait(1); // event loop re-entry
         QCOMPARE(visibleRowCount(model), 2);
 
-        w2->setParent(w1);
+        w2->setParent(w1.get());
         QTest::qWait(1); // event loop re-entry
         QCOMPARE(visibleRowCount(model), 1);
 
-        w2->setParent(w1);
+        w2->setParent(w1.get());
         QTest::qWait(1); // event loop re-entry
         QCOMPARE(visibleRowCount(model), 1);
 
-        auto w3 = new QWidget;
-        w2->setParent(w3); // reparent without event loop reentry!
+        std::unique_ptr<QWidget> w3(new QWidget);
+        w2->setParent(w3.get()); // reparent without event loop reentry!
         QTest::qWait(1); // event loop re-entry
         QCOMPARE(visibleRowCount(model), 2);
 
-        delete w2;
+        w2.reset();
         QTest::qWait(1); // event loop re-entry
         QCOMPARE(visibleRowCount(model), 2);
 
-        delete w1;
+        w1.reset();
         QTest::qWait(1); // event loop re-entry
         QCOMPARE(visibleRowCount(model), 1);
 
-        delete w3;
+        w3.reset();
         QTest::qWait(1); // event loop re-entry
         QCOMPARE(visibleRowCount(model), 0);
+    }
+
+    void testPaintBuffer()
+    {
+        PaintBuffer buffer;
+        auto buffer2 = buffer;
+        buffer = PaintBuffer();
     }
 };
 

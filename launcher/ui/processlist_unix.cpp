@@ -35,12 +35,12 @@
 #include <launcher/core/probeabidetector.h>
 
 #include <QProcess>
+#include <QtConcurrent/QtConcurrentMap>
 #include <QDir>
 
 #include <algorithm>
-#include <functional>
 
-static GammaRay::ProbeABIDetector s_abiDetector;
+Q_GLOBAL_STATIC(GammaRay::ProbeABIDetector, s_abiDetector)
 
 static bool isUnixProcessId(const QString &procname)
 {
@@ -51,8 +51,9 @@ static bool isUnixProcessId(const QString &procname)
     return true;
 }
 
-struct PidAndNameMatch : public std::unary_function<ProcData, bool> {
-    explicit PidAndNameMatch(const QString &ppid, const QString &name)
+struct PidAndNameMatch
+{
+    explicit PidAndNameMatch(qint64 ppid, const QString &name)
         : m_ppid(ppid)
         , m_name(name)
     {
@@ -63,7 +64,7 @@ struct PidAndNameMatch : public std::unary_function<ProcData, bool> {
         return p.ppid == m_ppid && m_name == p.name;
     }
 
-    const QString m_ppid;
+    const qint64 m_ppid;
     const QString m_name;
 };
 
@@ -73,6 +74,9 @@ static ProcDataList unixProcessListPS(const ProcDataList &previous)
 #ifdef Q_OS_MAC
     // command goes last, otherwise it is cut off
     static const char formatC[] = "pid state user command";
+#elif defined(Q_OS_FREEBSD)
+    // command goes last, otherwise it is cut off
+    static const char formatC[] = "pid state user comm";
 #else
     static const char formatC[] = "pid,state,user,cmd";
 #endif
@@ -87,28 +91,27 @@ static ProcDataList unixProcessListPS(const ProcDataList &previous)
     QByteArray output = psProcess.readAllStandardOutput();
     // Split "457 S+   /Users/foo.app"
     const QStringList lines = QString::fromLocal8Bit(output).split(QLatin1Char('\n'));
-    const int lineCount = lines.size();
+    const int lineCount = ( int )lines.size();
     const QChar blank = QLatin1Char(' ');
     for (int l = 1; l < lineCount; l++) { // Skip header
         const QString line = lines.at(l).simplified();
         // we can't just split on blank as the process name might
         // contain them
-        const int endOfPid = line.indexOf(blank);
-        const int endOfState = line.indexOf(blank, endOfPid+1);
-        const int endOfUser = line.indexOf(blank, endOfState+1);
+        const auto endOfPid = line.indexOf(blank);
+        const auto endOfState = line.indexOf(blank, endOfPid + 1);
+        const auto endOfUser = line.indexOf(blank, endOfState + 1);
         if (endOfPid >= 0 && endOfState >= 0 && endOfUser >= 0) {
             ProcData procData;
-            procData.ppid = line.left(endOfPid);
-            procData.state = line.mid(endOfPid+1, endOfState-endOfPid-1);
-            procData.user = line.mid(endOfState+1, endOfUser-endOfState-1);
-            procData.name = line.right(line.size()-endOfUser-1);
-            ProcDataList::ConstIterator it
-                = std::find_if(previous.constBegin(), previous.constEnd(),
-                               PidAndNameMatch(procData.ppid, procData.name));
+            procData.ppid = line.left(endOfPid).toULongLong();
+            procData.state = line.mid(endOfPid + 1, endOfState - endOfPid - 1);
+            procData.user = line.mid(endOfState + 1, endOfUser - endOfState - 1);
+            procData.name = line.right(line.size() - endOfUser - 1);
+            PidAndNameMatch f(procData.ppid, procData.name);
+            ProcDataList::ConstIterator it = std::find_if(previous.constBegin(), previous.constEnd(), std::move(f));
             if (it != previous.constEnd())
                 procData.abi = it->abi;
             else
-                procData.abi = s_abiDetector.abiForProcess(procData.ppid.toLongLong());
+                procData.abi = s_abiDetector->abiForProcess(procData.ppid);
             rc.push_back(procData);
         }
     }
@@ -116,30 +119,29 @@ static ProcDataList unixProcessListPS(const ProcDataList &previous)
     return rc;
 }
 
-// Determine UNIX processes by reading "/proc". Default to ps if
-// it does not exist
-ProcDataList processList(const ProcDataList &previous)
+struct ProcIdToProcData
 {
-    const QDir procDir(QStringLiteral("/proc/"));
-    if (!procDir.exists())
-        return unixProcessListPS(previous);
-    ProcDataList rc;
-    const QStringList procIds = procDir.entryList();
-    if (procIds.isEmpty())
-        return rc;
-    for (const QString &procId : procIds) {
+    ProcIdToProcData(const ProcDataList &prev)
+        : previous(prev)
+    {
+    }
+
+    typedef ProcData result_type;
+
+    ProcData operator()(const QString &procId) const
+    {
+        ProcData proc;
         if (!isUnixProcessId(procId))
-            continue;
-        QString filename = QStringLiteral("/proc/");
-        filename += procId;
-        filename += QLatin1String("/stat");
+            return proc;
+
+        const QString filename = QLatin1String("/proc/") + procId + QLatin1String("/stat");
         QFile file(filename);
         if (!file.open(QIODevice::ReadOnly))
-            continue;     // process may have exited
+            return proc; // process may have exited
 
         const QStringList data = QString::fromLocal8Bit(file.readAll()).split(' ');
-        ProcData proc;
-        proc.ppid = procId;
+
+        proc.ppid = procId.toULongLong();
         proc.name = data.at(1);
         if (proc.name.startsWith(QLatin1Char('(')) && proc.name.endsWith(QLatin1Char(')'))) {
             proc.name.truncate(proc.name.size() - 1);
@@ -160,9 +162,46 @@ ProcDataList processList(const ProcDataList &previous)
         }
         cmdFile.close();
 
-        proc.abi = s_abiDetector.abiForProcess(procId.toLongLong());
+        ProcDataList::ConstIterator it = std::find_if(previous.constBegin(), previous.constEnd(),
+                                                      PidAndNameMatch(proc.ppid, proc.name));
+        if (it != previous.constEnd())
+            proc.abi = it->abi;
+        else
+            proc.abi = s_abiDetector->abiForProcess(proc.ppid);
 
-        rc.push_back(proc);
+        return proc;
     }
+
+private:
+    const ProcDataList &previous;
+};
+
+
+// Determine UNIX processes by reading "/proc". Default to ps if
+// it does not exist
+ProcDataList processList(const ProcDataList &previous)
+{
+    const QDir procDir(QStringLiteral("/proc/"));
+#ifndef Q_OS_FREEBSD
+    if (!procDir.exists())
+#endif
+        return unixProcessListPS(previous);
+
+    ProcDataList rc;
+    const QStringList procIds = procDir.entryList();
+    if (procIds.isEmpty())
+        return rc;
+
+    ProcIdToProcData procIdToProcData(previous);
+
+    // start collection
+    rc = QtConcurrent::blockingMapped<ProcDataList>(procIds, procIdToProcData);
+
+    // Filter out invalid entries
+    rc.erase(std::remove_if(rc.begin(), rc.end(), [](const ProcData &pd) {
+                 return pd.ppid == 0;
+             }),
+             rc.end());
+
     return rc;
 }

@@ -1,29 +1,14 @@
 /*
   overlaywidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Tobias Koenig <tobias.koenig@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "overlaywidget.h"
@@ -45,13 +30,11 @@ static QWidget *toplevelWidget(QWidget *widget)
         return widget->isWindow();
     };
     auto lastSuitableParent = parent;
-    while (parent->parentWidget() &&
-            !isTopLevel(parent->parentWidget()) &&
-            !isTopLevel(parent)) {
+    while (parent->parentWidget() && !isTopLevel(parent->parentWidget()) && !isTopLevel(parent)) {
         parent = parent->parentWidget();
 
         // don't pick parents that can't take the overlay as a children
-        if (!qobject_cast<QSplitter*>(parent)) {
+        if (!qobject_cast<QSplitter *>(parent)) {
             lastSuitableParent = parent;
         }
     }
@@ -60,8 +43,8 @@ static QWidget *toplevelWidget(QWidget *widget)
 }
 
 OverlayWidget::OverlayWidget()
-  : m_currentToplevelWidget(nullptr),
-    m_drawLayoutOutlineOnly(true)
+    : m_currentToplevelWidget(nullptr)
+    , m_drawLayoutOutlineOnly(true)
 {
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setFocusPolicy(Qt::NoFocus);
@@ -148,18 +131,20 @@ void OverlayWidget::updatePositions()
     const QPoint parentPos = m_currentItem.widget()->mapTo(m_currentToplevelWidget, m_currentItem.pos());
     m_outerRect = QRect(parentPos.x(), parentPos.y(),
                         m_currentItem.geometry().width(),
-                        m_currentItem.geometry().height()).adjusted(0, 0, -1, -1);
+                        m_currentItem.geometry().height())
+                      .adjusted(0, 0, -1, -1);
 
     m_layoutPath = QPainterPath();
 
     if (m_currentItem.layout()
         && qstrcmp(m_currentItem.layout()->metaObject()->className(),
-                   "QMainWindowLayout") != 0) {
+                   "QMainWindowLayout")
+            != 0) {
         const QRect layoutGeometry = m_currentItem.layout()->geometry();
 
-        const QRect mappedOuterRect
-            = QRect(m_currentItem.widget()->mapTo(m_currentToplevelWidget,
-                                                  layoutGeometry.topLeft()), layoutGeometry.size());
+        const QRect mappedOuterRect = QRect(m_currentItem.widget()->mapTo(m_currentToplevelWidget,
+                                                                          layoutGeometry.topLeft()),
+                                            layoutGeometry.size());
 
         QPainterPath outerPath;
         outerPath.addRect(mappedOuterRect.adjusted(1, 1, -2, -2));
@@ -169,10 +154,9 @@ void OverlayWidget::updatePositions()
             QLayoutItem *item = m_currentItem.layout()->itemAt(i);
             if (item->widget() && !item->widget()->isVisible())
                 continue;
-            const QRect mappedInnerRect
-                = QRect(m_currentItem.widget()->mapTo(m_currentToplevelWidget,
-                                                      item->geometry().topLeft()),
-                        item->geometry().size());
+            const QRect mappedInnerRect = QRect(m_currentItem.widget()->mapTo(m_currentToplevelWidget,
+                                                                              item->geometry().topLeft()),
+                                                item->geometry().size());
             innerPath.addRect(mappedInnerRect);
         }
 
@@ -180,7 +164,7 @@ void OverlayWidget::updatePositions()
         m_layoutPath = outerPath.subtracted(innerPath);
 
         if (m_layoutPath.isEmpty()) {
-            m_layoutPath = outerPath;
+            m_layoutPath = std::move(outerPath);
             m_layoutPath.addPath(innerPath);
             m_drawLayoutOutlineOnly = true;
         } else {

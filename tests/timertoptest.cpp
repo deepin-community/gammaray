@@ -1,29 +1,14 @@
 /*
   timertoptest.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "baseprobetest.h"
@@ -34,8 +19,7 @@
 #include <common/objectbroker.h>
 #include <common/objectid.h>
 
-#include <3rdparty/qt/modeltest.h>
-
+#include <QAbstractItemModelTester>
 #include <QSignalSpy>
 #include <QTimer>
 
@@ -48,11 +32,14 @@ class Deleter : public QObject
 public:
     explicit Deleter(QObject *parent = nullptr)
         : QObject(parent)
-    { }
+    {
+    }
 
 public slots:
     void deleteSender()
-    { delete sender(); }
+    {
+        delete sender();
+    }
 };
 
 class TimerTopTest : public BaseProbeTest
@@ -76,7 +63,7 @@ private slots:
 
         auto *model = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.TimerModel"));
         QVERIFY(model);
-        ModelTest modelTest(model);
+        QAbstractItemModelTester modelTest(model);
         auto baseRowCount = model->rowCount();
         QVERIFY(baseRowCount >= 0);
         QVERIFY(!searchFixedIndex(model, "timer1").isValid());
@@ -86,7 +73,7 @@ private slots:
         QTest::qWait(1);
 
         QCOMPARE(model->rowCount(), baseRowCount + 1);
-        auto idx = searchFixedIndex(model, "timer1");
+        auto idx = searchFixedIndex(model, "QTimer (timer1)");
         QVERIFY(idx.isValid());
         QCOMPARE(idx.data(ObjectModel::ObjectIdRole).value<ObjectId>(), ObjectId(t1));
 
@@ -101,7 +88,7 @@ private slots:
 
         auto *model = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.TimerModel"));
         QVERIFY(model);
-        ModelTest modelTest(model);
+        QAbstractItemModelTester modelTest(model);
 
         auto t1 = new QTimer;
         t1->setObjectName("timer1");
@@ -109,17 +96,16 @@ private slots:
         t1->setSingleShot(true);
         QTest::qWait(1);
 
-        auto idx = searchFixedIndex(model, "timer1");
+        auto idx = searchFixedIndex(model, "QTimer (timer1)");
         QVERIFY(idx.isValid());
         // TODO verify data
 
-        QSignalSpy dataChangeSpy(model, SIGNAL(dataChanged(QModelIndex,QModelIndex)));
+        QSignalSpy dataChangeSpy(model, &QAbstractItemModel::dataChanged);
         QVERIFY(dataChangeSpy.isValid());
         t1->start();
-        QTest::qWait(10 * 1000); // there's a 5sec throttle on dataChanged
 
         // TODO verify data
-        QVERIFY(!dataChangeSpy.isEmpty());
+        QVERIFY(!dataChangeSpy.isEmpty() || dataChangeSpy.wait(10 * 1000));
         QVERIFY(dataChangeSpy.size() < 5);
 
         delete t1;
@@ -132,7 +118,7 @@ private slots:
 
         auto *model = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.TimerModel"));
         QVERIFY(model);
-        auto idx = searchFixedIndex(model, "testObject");
+        auto idx = searchFixedIndex(model, "TimerTopTest (testObject)");
         QVERIFY(!idx.isValid());
         const auto prevRowCount = model->rowCount();
 
@@ -140,14 +126,10 @@ private slots:
         auto timerId = startTimer(10);
 
         // The TimerModel does batch all by a 5000ms timer.
-        QTest::qWait(5000);
-
         // Wait for the free timer discovery
-        int i = 0;
-        while (model->rowCount() == prevRowCount && i++ < 10)
-            QTest::qWait(100);
+        QTRY_VERIFY_WITH_TIMEOUT(model->rowCount() != prevRowCount, 6000);
 
-        idx = searchFixedIndex(model, "testObject");
+        idx = searchFixedIndex(model, "TimerTopTest (testObject)");
         QVERIFY(idx.isValid());
         QCOMPARE(idx.data(ObjectModel::ObjectIdRole).value<ObjectId>(), ObjectId(this));
         idx = idx.sibling(idx.row(), 6);
@@ -185,7 +167,7 @@ private slots:
             threadTimer->setInterval(100);
             threadTimer->moveToThread(mainThread.data());
 
-            connect(mainThread.data(), &QThread::started, threadTimer.data(), static_cast<void(QTimer::*)()>(&QTimer::start));
+            connect(mainThread.data(), &QThread::started, threadTimer.data(), static_cast<void (QTimer::*)()>(&QTimer::start));
 
             int timerId = -1;
             QTimer::singleShot(500, threadTimer.data(), [&]() {
@@ -206,16 +188,16 @@ private slots:
             QModelIndex idx;
             QVERIFY(model->rowCount() >= 4);
 
-            idx = searchFixedIndex(model, "mainThread");
+            idx = searchFixedIndex(model, "QThread (mainThread)");
             QVERIFY(idx.isValid());
             QCOMPARE(idx.data(ObjectModel::ObjectIdRole).value<ObjectId>(), ObjectId(mainThread.data()));
 
-            idx = searchFixedIndex(model, "mainTimer");
+            idx = searchFixedIndex(model, "QTimer (mainTimer)");
             QVERIFY(idx.isValid());
             QCOMPARE(idx.data(ObjectModel::ObjectIdRole).value<ObjectId>(), ObjectId(mainTimer.data()));
 
-            const auto idxs = searchFixedIndexes(model, "threadTimer");
-            QCOMPARE(idxs.count(), 2);
+            const auto idxs = searchFixedIndexes(model, "QTimer (threadTimer)");
+            QCOMPARE(idxs.size(), 2);
             for (const QModelIndex &idx : idxs) {
                 QVERIFY(idx.isValid());
             }
