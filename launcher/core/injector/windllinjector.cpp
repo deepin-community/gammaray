@@ -1,29 +1,14 @@
 /*
   windllinjector.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-  Author: Patrick Spendrin <ps_ml@gmx.de>
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Patrick Spendrin <patrick.spendrin@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 // krazy:excludeall=null,captruefalse
 
@@ -45,7 +30,9 @@ class FinishWaiter : public QThread
 {
 public:
     FinishWaiter(WinDllInjector *injector)
-        : m_injector(injector) {}
+        : m_injector(injector)
+    {
+    }
     ~FinishWaiter()
     {
         stop();
@@ -60,7 +47,7 @@ public:
     }
 
 protected:
-    void run()
+    void run() override
     {
         WaitForSingleObject(m_injector->m_destProcess, INFINITE);
         DWORD exitCode;
@@ -102,9 +89,9 @@ bool WinDllInjector::launch(const QStringList &programAndArgs, const QString &pr
 
     // https://msdn.microsoft.com/en-us/library/windows/desktop/ms682425%28v=vs.85%29.aspx
     QByteArray buffer;
-    char null[2] = {0, 0};
+    char null[2] = { 0, 0 };
     foreach (const QString &kv, env.toStringList()) {
-        buffer.append((const char *)kv.utf16(), kv.size() * sizeof(ushort));
+        buffer.append(( const char * )kv.utf16(), kv.size() * sizeof(ushort));
         buffer.append(null, 2);
     }
     if (!buffer.isEmpty())
@@ -114,10 +101,10 @@ bool WinDllInjector::launch(const QStringList &programAndArgs, const QString &pr
     dwCreationFlags |= CREATE_UNICODE_ENVIRONMENT;
     dwCreationFlags |= CREATE_SUSPENDED;
     STARTUPINFOW startupInfo = {
-        sizeof(STARTUPINFO), 0, 0, 0,
-        (ulong)CW_USEDEFAULT, (ulong)CW_USEDEFAULT,
-        (ulong)CW_USEDEFAULT, (ulong)CW_USEDEFAULT,
-        0, 0, 0, STARTF_USESTDHANDLES, 0, 0, 0,
+        sizeof(STARTUPINFO), nullptr, nullptr, nullptr,
+        ( ulong )CW_USEDEFAULT, ( ulong )CW_USEDEFAULT,
+        ( ulong )CW_USEDEFAULT, ( ulong )CW_USEDEFAULT,
+        0, 0, 0, STARTF_USESTDHANDLES, 0, 0, nullptr,
         GetStdHandle(STD_INPUT_HANDLE),
         GetStdHandle(STD_OUTPUT_HANDLE),
         GetStdHandle(STD_ERROR_HANDLE)
@@ -126,16 +113,16 @@ bool WinDllInjector::launch(const QStringList &programAndArgs, const QString &pr
     memset(&pid, 0, sizeof(PROCESS_INFORMATION));
 
     const QString applicationName = programAndArgs.join(QLatin1String(" "));
-    WIN_ERROR_ASSERT(CreateProcess(0, (wchar_t *)applicationName.utf16(),
-                                   0, 0, TRUE, dwCreationFlags,
-                                   buffer.isEmpty() ? 0 : buffer.data(),
-                                   (wchar_t *)workingDirectory().utf16(),
+    WIN_ERROR_ASSERT(CreateProcess(nullptr, ( wchar_t * )applicationName.utf16(),
+                                   nullptr, nullptr, TRUE, dwCreationFlags,
+                                   buffer.isEmpty() ? nullptr : buffer.data(),
+                                   ( wchar_t * )workingDirectory().utf16(),
                                    &startupInfo, &pid),
                      return false);
 
     m_destProcess = pid.hProcess;
     QString dllPath = fixProbeDllPath(probeDll);
-    BasicWinDllInjector::inject(m_destProcess, (wchar_t*)dllPath.utf16());
+    BasicWinDllInjector::inject(m_destProcess, ( wchar_t * )dllPath.utf16());
     m_injectThread->stop();
     emit started();
     ResumeThread(pid.hThread);
@@ -146,8 +133,7 @@ bool WinDllInjector::launch(const QStringList &programAndArgs, const QString &pr
 bool WinDllInjector::attach(int pid, const QString &probeDll, const QString & /*probeFunc*/)
 {
     const bool isX64 = probeDll.contains(QLatin1String("x86_64"), Qt::CaseInsensitive);
-    QString application = QString (QLatin1String("gammaray-wininjector-%1")).arg(
-                            isX64 ? QLatin1String("x86_64") : QLatin1String("i686"));
+    QString application = QString(QLatin1String("gammaray-wininjector-%1")).arg(isX64 ? QLatin1String("x86_64") : QLatin1String("i686"));
     QStringList args;
     args << QString::number(pid)
          << QDir::toNativeSeparators(Paths::binPath())
@@ -157,7 +143,7 @@ bool WinDllInjector::attach(int pid, const QString &probeDll, const QString & /*
     p.start(application, args);
     p.waitForFinished(-1);
     qDebug() << "Calling:" << application << args.join(" ");
-    if (p.error() != QProcess::UnknownError){
+    if (p.error() != QProcess::UnknownError) {
         qDebug() << "Injection failed:" << p.errorString();
         return false;
     }
@@ -210,4 +196,4 @@ QString WinDllInjector::fixProbeDllPath(const QString &probeDll)
     return dllPath;
 }
 
-}// namespace GammaRay
+} // namespace GammaRay

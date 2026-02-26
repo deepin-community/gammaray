@@ -1,30 +1,70 @@
-# probe plugin
-if (NOT GAMMARAY_CLIENT_ONLY_BUILD)
-set(gammaray_network_srcs
-    networksupport.cpp
-    networkinterfacemodel.cpp
-    networkconfigurationmodel.cpp
-    networkreplymodel.cpp
+# This file is part of GammaRay, the Qt application inspection and manipulation tool.
+#
+# SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Contact KDAB at <info@kdab.com> for commercial licensing options.
+#
 
-    cookies/cookieextension.cpp
-    cookies/cookiejarmodel.cpp
-)
-gammaray_add_plugin(gammaray_network JSON gammaray_network.json SOURCES ${gammaray_network_srcs})
-target_link_libraries(gammaray_network gammaray_core Qt5::Network)
+# probe plugin
+if(NOT GAMMARAY_CLIENT_ONLY_BUILD)
+    set(gammaray_network_srcs
+        cookies/cookieextension.cpp
+        cookies/cookieextension.h
+        cookies/cookiejarmodel.cpp
+        cookies/cookiejarmodel.h
+        networkinterfacemodel.cpp
+        networkinterfacemodel.h
+        networkreplymodel.cpp
+        networkreplymodel.h
+        networksupport.cpp
+        networksupport.h
+        networksupportinterface.cpp
+        networksupportinterface.h
+    )
+    if(${QT_VERSION_MAJOR} EQUAL 5 AND TARGET Qt5::Network)
+        list(APPEND gammaray_network_srcs networkconfigurationmodel.cpp networkconfigurationmodel.h)
+    endif()
+    gammaray_add_plugin(
+        gammaray_network
+        JSON
+        gammaray_network.json
+        SOURCES
+        ${gammaray_network_srcs}
+    )
+    target_link_libraries(gammaray_network gammaray_core Qt::Network Qt::CorePrivate)
+    set_target_properties(gammaray_network PROPERTIES DISABLE_PRECOMPILE_HEADERS ON)
 endif()
 
 # ui plugin
 if(GAMMARAY_BUILD_UI)
-  set(gammaray_network_ui_srcs
-    networkwidget.cpp
-    networkinterfacewidget.cpp
-    networkconfigurationwidget.cpp
-    clientnetworkconfigurationmodel.cpp
-    networkreplywidget.cpp
-    clientnetworkreplymodel.cpp
-
-    cookies/cookietab.cpp
-  )
-  gammaray_add_plugin(gammaray_network_ui JSON gammaray_network.json SOURCES ${gammaray_network_ui_srcs})
-  target_link_libraries(gammaray_network_ui gammaray_ui Qt5::Network)
+    set(gammaray_network_ui_srcs
+        clientnetworkconfigurationmodel.cpp
+        clientnetworkconfigurationmodel.h
+        clientnetworkreplymodel.cpp
+        clientnetworkreplymodel.h
+        cookies/cookietab.cpp
+        cookies/cookietab.h
+        networkconfigurationwidget.cpp
+        networkconfigurationwidget.h
+        networkinterfacewidget.cpp
+        networkinterfacewidget.h
+        networkreplywidget.cpp
+        networkreplywidget.h
+        networksupportclient.cpp
+        networksupportclient.h
+        networksupportinterface.cpp
+        networksupportinterface.h
+        networkwidget.cpp
+        networkwidget.h
+    )
+    gammaray_add_plugin(
+        gammaray_network_ui
+        JSON
+        gammaray_network.json
+        SOURCES
+        ${gammaray_network_ui_srcs}
+    )
+    target_link_libraries(gammaray_network_ui gammaray_ui Qt::Network)
 endif()

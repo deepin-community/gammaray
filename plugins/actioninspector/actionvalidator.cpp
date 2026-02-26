@@ -1,35 +1,21 @@
 /*
   actionvalidator.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2012-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2012 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Kevin Funk <kevin.funk@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "actionvalidator.h"
 
 #include <QAction>
 #include <QMutexLocker>
+#include <QWidget>
 
 #include <core/objectdataprovider.h>
 #include <core/probe.h>
@@ -80,11 +66,11 @@ void ActionValidator::insert(QAction *action)
 {
     Q_ASSERT(action);
 
-    Q_FOREACH(const QKeySequence &sequence, action->shortcuts()) {
+    Q_FOREACH (const QKeySequence &sequence, action->shortcuts()) {
         if (m_shortcutActionMap.values(sequence).contains(action))
             continue;
 
-        m_shortcutActionMap.insertMulti(sequence, action);
+        m_shortcutActionMap.insert(sequence, action);
     }
 
     // also track object destruction
@@ -103,7 +89,8 @@ void ActionValidator::remove(QAction *action)
 
 void ActionValidator::safeRemove(QAction *action)
 {
-    Q_FOREACH(const QKeySequence &sequence, m_shortcutActionMap.keys()) {
+    for (auto it = m_shortcutActionMap.cbegin(); it != m_shortcutActionMap.cend(); ++it) {
+        const QKeySequence &sequence = it.key();
         if (!m_shortcutActionMap.values(sequence).contains(action))
             continue;
 
@@ -111,7 +98,7 @@ void ActionValidator::safeRemove(QAction *action)
         const bool success = oldValues.removeOne(action);
         Q_UNUSED(success);
         Q_ASSERT(success);
-        m_shortcutActionMap[sequence] = action;
+        m_shortcutActionMap.replace(sequence, action);
     }
 }
 
@@ -129,7 +116,7 @@ bool ActionValidator::hasAmbiguousShortcut(const QAction *action) const
                        [action, this](const QKeySequence &seq) { return isAmbigous(action, seq); });
 }
 
-QVector<QKeySequence> GammaRay::ActionValidator::findAmbiguousShortcuts(const QAction* action) const
+QVector<QKeySequence> GammaRay::ActionValidator::findAmbiguousShortcuts(const QAction *action) const
 {
     QVector<QKeySequence> shortcuts;
 
@@ -137,7 +124,7 @@ QVector<QKeySequence> GammaRay::ActionValidator::findAmbiguousShortcuts(const QA
     if (!action)
         return shortcuts;
 
-    Q_FOREACH(const QKeySequence &sequence, action->shortcuts()) {
+    Q_FOREACH (const QKeySequence &sequence, action->shortcuts()) {
         if (isAmbigous(action, sequence)) {
             shortcuts.push_back(sequence);
         }
@@ -153,7 +140,7 @@ bool GammaRay::ActionValidator::isAmbigous(const QAction *action, const QKeySequ
         return false;
     }
 
-    Q_FOREACH(const QAction *other, m_shortcutActionMap.values(sequence)) {
+    Q_FOREACH (const QAction *other, m_shortcutActionMap.values(sequence)) {
         if (!other || other == action || !Probe::instance()->isValidObject(other)) {
             continue;
         }

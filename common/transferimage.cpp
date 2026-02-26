@@ -1,34 +1,20 @@
 /*
   transferimage.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "transferimage.h"
 
 #include <QDebug>
+#include <QIODevice>
 
 namespace GammaRay {
 TransferImage::TransferImage(const QImage &image)
@@ -61,15 +47,15 @@ QDataStream &operator<<(QDataStream &stream, const GammaRay::TransferImage &imag
     static const TransferImage::Format format = TransferImage::RawFormat;
 
     const QImage &img = image.image();
-    stream << (quint32)(format);
+    stream << ( quint32 )(format);
     switch (format) {
     case TransferImage::QImageFormat:
         stream << img;
         break;
     case TransferImage::RawFormat:
-        stream << (double)img.devicePixelRatio();
-        stream << (quint32)img.format() << (quint32)img.width() << (quint32)img.height() << image.transform();
-        stream.device()->write((const char*)img.constBits(), img.byteCount());
+        stream << ( double )img.devicePixelRatio();
+        stream << ( quint32 )img.format() << ( quint32 )img.width() << ( quint32 )img.height() << image.transform();
+        stream.device()->write(( const char * )img.constBits(), img.sizeInBytes());
         break;
     }
 
@@ -83,15 +69,13 @@ QDataStream &operator>>(QDataStream &stream, TransferImage &image)
     const TransferImage::Format format = static_cast<TransferImage::Format>(i);
 
     switch (format) {
-    case TransferImage::QImageFormat:
-    {
+    case TransferImage::QImageFormat: {
         QImage img;
         stream >> img;
         image.setImage(img);
         break;
     }
-    case TransferImage::RawFormat:
-    {
+    case TransferImage::RawFormat: {
         double r;
         quint32 f, w, h;
         QTransform transform;

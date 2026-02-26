@@ -1,54 +1,43 @@
 /*
   remotemodelserver.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "remotemodelserver.h"
+#include "common/remotemodelroles.h"
 #include "server.h"
 #include <core/probeguard.h>
 #include <common/protocol.h>
 #include <common/message.h>
 #include <common/modelevent.h>
 #include <common/sourcelocation.h>
+#include <common/objectmodel.h>
 
 #include <compat/qasconst.h>
 
 #include <QAbstractItemModel>
-#include <QSortFilterProxyModel>
+#include <QAssociativeIterable>
+#include <QBuffer>
 #include <QDataStream>
 #include <QDebug>
-#include <QBuffer>
 #include <QIcon>
+#include <QSequentialIterable>
+#include <QSortFilterProxyModel>
 
 #include <iostream>
 
 using namespace GammaRay;
 using namespace std;
 
-void(*RemoteModelServer::s_registerServerCallback)() = nullptr;
+void (*RemoteModelServer::s_registerServerCallback)() = nullptr;
 
 RemoteModelServer::RemoteModelServer(const QString &objectName, QObject *parent)
     : QObject(parent)
@@ -151,8 +140,7 @@ void RemoteModelServer::newRequest(const GammaRay::Message &msg)
 
     ProbeGuard g;
     switch (msg.type()) {
-    case Protocol::ModelRowColumnCountRequest:
-    {
+    case Protocol::ModelRowColumnCountRequest: {
         quint32 size;
         msg >> size;
         Q_ASSERT(size > 0);
@@ -176,8 +164,7 @@ void RemoteModelServer::newRequest(const GammaRay::Message &msg)
         break;
     }
 
-    case Protocol::ModelContentRequest:
-    {
+    case Protocol::ModelContentRequest: {
         quint32 size;
         msg >> size;
         Q_ASSERT(size > 0);
@@ -197,17 +184,18 @@ void RemoteModelServer::newRequest(const GammaRay::Message &msg)
 
         Message msg(m_myAddress, Protocol::ModelContentReply);
         msg << quint32(indexes.size());
-        for (const auto &qmIndex : qAsConst(indexes))
-            msg << Protocol::fromQModelIndex(qmIndex)
-                          << filterItemData(m_model->itemData(qmIndex))
-                          << qint32(m_model->flags(qmIndex));
+        for (const auto &qmIndex : qAsConst(indexes)) {
+            msg << Protocol::fromQModelIndex(qmIndex);
+            msg << filterItemData(m_model->itemData(qmIndex));
+            msg.writeCStringMarker(GammaRay::REMOTE_MODEL_MARKER, sizeof(GammaRay::REMOTE_MODEL_MARKER) - 1);
+            msg << qint32(m_model->flags(qmIndex));
+        }
 
         sendMessage(msg);
         break;
     }
 
-    case Protocol::ModelHeaderRequest:
-    {
+    case Protocol::ModelHeaderRequest: {
         qint8 orientation;
         qint32 section;
         msg >> orientation >> section;
@@ -229,8 +217,7 @@ void RemoteModelServer::newRequest(const GammaRay::Message &msg)
         break;
     }
 
-    case Protocol::ModelSetDataRequest:
-    {
+    case Protocol::ModelSetDataRequest: {
         Protocol::ModelIndex index;
         int role;
         QVariant value;
@@ -240,16 +227,14 @@ void RemoteModelServer::newRequest(const GammaRay::Message &msg)
         break;
     }
 
-    case Protocol::ModelSortRequest:
-    {
+    case Protocol::ModelSortRequest: {
         quint32 column, order;
         msg >> column >> order;
-        m_model->sort(column, (Qt::SortOrder)order);
+        m_model->sort(column, ( Qt::SortOrder )order);
         break;
     }
 
-    case Protocol::ModelSyncBarrier:
-    {
+    case Protocol::ModelSyncBarrier: {
         qint32 barrierId;
         msg >> barrierId;
         Message reply(m_myAddress, Protocol::ModelSyncBarrier);
@@ -257,6 +242,16 @@ void RemoteModelServer::newRequest(const GammaRay::Message &msg)
         sendMessage(reply);
         break;
     }
+
+    case Protocol::ModelCreationDeclartionLocationRequest:
+        Protocol::ModelIndex idx;
+        msg >> idx;
+        auto d = m_model->data(Protocol::toQModelIndex(m_model, idx), ObjectModel::DeclarationLocationRole);
+        auto c = m_model->data(Protocol::toQModelIndex(m_model, idx), ObjectModel::CreationLocationRole);
+        Message msg(m_myAddress, Protocol::ModelCreationDeclartionLocationReply);
+        msg << d << c;
+        sendMessage(msg);
+        break;
     }
 }
 
@@ -268,14 +263,14 @@ QMap<int, QVariant> RemoteModelServer::filterItemData(QMap<int, QVariant> &&item
         } else if (it.value().userType() == qMetaTypeId<QIcon>()) {
             // see also: https://bugreports.qt-project.org/browse/QTBUG-33321
             const QIcon icon = it.value().value<QIcon>();
-            ///TODO: what size to use? icon.availableSizes is empty...
+            /// TODO: what size to use? icon.availableSizes is empty...
             if (!icon.isNull())
                 it.value() = icon.pixmap(QSize(16, 16));
             ++it;
         } else if (canSerialize(it.value())) {
             ++it;
         } else {
-// qWarning() << "Cannot serialize QVariant of type" << it.value().typeName();
+            // qWarning() << "Cannot serialize QVariant of type" << it.value().typeName();
             it = itemData.erase(it);
         }
     }
@@ -347,7 +342,7 @@ void RemoteModelServer::headerDataChanged(Qt::Orientation orientation, int first
     if (!isConnected())
         return;
     Message msg(m_myAddress, Protocol::ModelHeaderChanged);
-    msg <<  qint8(orientation) << first << last;
+    msg << qint8(orientation) << first << last;
     sendMessage(msg);
 }
 
@@ -415,7 +410,7 @@ void RemoteModelServer::layoutChanged(const QList<QPersistentModelIndex> &parent
 }
 
 
-void RemoteModelServer::sendLayoutChanged(const QVector< Protocol::ModelIndex > &parents,
+void RemoteModelServer::sendLayoutChanged(const QVector<Protocol::ModelIndex> &parents,
                                           quint32 hint)
 {
     if (!isConnected())
@@ -452,7 +447,7 @@ void RemoteModelServer::sendMoveMessage(Protocol::MessageType type,
         return;
     Message msg(m_myAddress, type);
     msg << sourceParent << qint32(sourceStart) << qint32(sourceEnd)
-                  << destinationParent << qint32(destinationIndex);
+        << destinationParent << qint32(destinationIndex);
     sendMessage(msg);
 }
 
@@ -524,15 +519,23 @@ void RemoteModelServer::setProxyFilterKeyColumn(int column)
         proxy->setFilterKeyColumn(column);
 }
 
-QRegExp RemoteModelServer::proxyFilterRegExp() const
+RemoteModelServer::RegExpT RemoteModelServer::proxyFilterRegExp() const
 {
     if (auto proxy = qobject_cast<QSortFilterProxyModel *>(m_model))
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        return proxy->filterRegularExpression();
+#else
         return proxy->filterRegExp();
-    return QRegExp();
+#endif
+    return {};
 }
 
-void RemoteModelServer::setProxyFilterRegExp(const QRegExp &regExp)
+void RemoteModelServer::setProxyFilterRegExp(const RegExpT &regExp)
 {
     if (auto proxy = qobject_cast<QSortFilterProxyModel *>(m_model))
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        proxy->setFilterRegularExpression(regExp);
+#else
         proxy->setFilterRegExp(regExp);
+#endif
 }

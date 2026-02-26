@@ -5,12 +5,14 @@ Subject: Use system Qt installation paths
 Otherwise the mkspecs are installed to /usr/mkspecs, not to
 /usr/lib/*/qt5/mkspecs.
 ---
- CMakeLists.txt |    2 +-
+ CMakeLists.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2f829be..7374478 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -105,7 +105,7 @@ include(CTest)
+@@ -146,7 +146,7 @@ include(CTest)
  include(GammaRayMacros)
  include(GammaRayMacrosInternal)
  include(FeatureSummary)

@@ -1,29 +1,14 @@
 /*
   quickinspectorwidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "quickinspectorwidget.h"
@@ -100,8 +85,8 @@ QuickInspectorWidget::QuickInspectorWidget(QWidget *parent)
     m_interface = ObjectBroker::object<QuickInspectorInterface *>();
 
     ui->windowComboBox->setModel(ObjectBroker::model(QStringLiteral(
-                                                         "com.kdab.GammaRay.QuickWindowModel")));
-    connect(ui->windowComboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+        "com.kdab.GammaRay.QuickWindowModel")));
+    connect(ui->windowComboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             m_interface, &QuickInspectorInterface::selectWindow);
     if (ui->windowComboBox->currentIndex() >= 0)
         m_interface->selectWindow(ui->windowComboBox->currentIndex());
@@ -113,7 +98,7 @@ QuickInspectorWidget::QuickInspectorWidget(QWidget *parent)
     ui->itemTreeView->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
     ui->itemTreeView->setModel(proxy);
     ui->itemTreeView->setItemDelegate(new QuickItemDelegate(ui->itemTreeView));
-    new SearchLineController(ui->itemTreeSearchLine, proxy);
+    new SearchLineController(ui->itemTreeSearchLine, proxy, ui->itemTreeView);
     QItemSelectionModel *selectionModel = ObjectBroker::selectionModel(proxy);
     ui->itemTreeView->setSelectionModel(selectionModel);
     connect(selectionModel, &QItemSelectionModel::selectionChanged,
@@ -121,13 +106,18 @@ QuickInspectorWidget::QuickInspectorWidget(QWidget *parent)
     connect(proxy, &QAbstractItemModel::dataChanged,
             this, &QuickInspectorWidget::itemModelDataChanged);
 
+    ui->favoritesTreeView->setSourceView(ui->itemTreeView);
+    ui->favoritesTreeView->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
+    ui->favoritesTreeView->setItemDelegate(new QuickItemDelegate(ui->favoritesTreeView));
+    ui->favoritesTreeView->header()->setObjectName(QStringLiteral("quickFavItemTreeViewHeader"));
+
     model = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.QuickSceneGraphModel"));
     auto *clientSceneGraphModel = new ClientDecorationIdentityProxyModel(this);
     clientSceneGraphModel->setSourceModel(model);
     ui->sgTreeView->header()->setObjectName("sceneGraphTreeViewHeader");
     ui->sgTreeView->setDeferredResizeMode(0, QHeaderView::ResizeToContents);
     ui->sgTreeView->setModel(clientSceneGraphModel);
-    new SearchLineController(ui->sgTreeSearchLine, clientSceneGraphModel);
+    new SearchLineController(ui->sgTreeSearchLine, clientSceneGraphModel, ui->sgTreeView);
     QItemSelectionModel *sgSelectionModel = ObjectBroker::selectionModel(clientSceneGraphModel);
     ui->sgTreeView->setSelectionModel(sgSelectionModel);
     connect(sgSelectionModel, &QItemSelectionModel::selectionChanged,
@@ -167,8 +157,10 @@ QuickInspectorWidget::QuickInspectorWidget(QWidget *parent)
     addAction(createSeparator(this));
     addAction(ui->actionSlowDownMode);
 
-    m_stateManager.setDefaultSizes(ui->mainSplitter, UISizeVector() << "50%" << "50%");
-    m_stateManager.setDefaultSizes(ui->previewTreeSplitter, UISizeVector() << "50%" << "50%");
+    m_stateManager.setDefaultSizes(ui->mainSplitter, UISizeVector() << "50%"
+                                                                    << "50%");
+    m_stateManager.setDefaultSizes(ui->previewTreeSplitter, UISizeVector() << "50%"
+                                                                           << "50%");
 
     connect(ui->actionSaveAsImage, &QAction::triggered, this, &QuickInspectorWidget::saveAsImage);
     connect(ui->actionSaveAsImageWithDecoration, &QAction::triggered, this, &QuickInspectorWidget::saveAsImage);
@@ -261,9 +253,8 @@ void QuickInspectorWidget::itemModelDataChanged(const QModelIndex &topLeft,
         QPersistentModelIndex persistentIndex(index);
         connect(colorAnimation, &QVariantAnimation::valueChanged,
                 ui->itemTreeView->itemDelegate(), [persistentIndex, this](const QVariant &value) {
-            qobject_cast<QuickItemDelegate *>(ui->itemTreeView->itemDelegate())->setTextColor(value,
-                                                                                              persistentIndex);
-        });
+                    qobject_cast<QuickItemDelegate *>(ui->itemTreeView->itemDelegate())->setTextColor(value, persistentIndex);
+                });
         colorAnimation->setStartValue(QColor(129, 0, 129));
         colorAnimation->setEndValue(QColor(129, 0, 129, 0));
         colorAnimation->setDuration(2000);
@@ -294,10 +285,10 @@ void GammaRay::QuickInspectorWidget::itemContextMenu(const QPoint &pos)
 
     const auto objectId = index.data(ObjectModel::ObjectIdRole).value<ObjectId>();
     ContextMenuExtension ext(objectId);
-    ext.setLocation(ContextMenuExtension::Creation, index.data(
-                        ObjectModel::CreationLocationRole).value<SourceLocation>());
+    ext.setLocation(ContextMenuExtension::Creation, index.data(ObjectModel::CreationLocationRole).value<SourceLocation>());
     ext.setLocation(ContextMenuExtension::Declaration,
                     index.data(ObjectModel::DeclarationLocationRole).value<SourceLocation>());
+    ext.setCanFavoriteItems(true);
     ext.populateMenu(&contextMenu);
     contextMenu.exec(ui->itemTreeView->viewport()->mapToGlobal(pos));
 }
@@ -335,8 +326,7 @@ void QuickInspectorWidget::saveState()
 
 void QuickInspectorWidget::saveAsImage()
 {
-    const QString fileName
-        = QFileDialog::getSaveFileName(
+    const QString fileName = QFileDialog::getSaveFileName(
         this,
         tr("Save As Image"),
         QString(),
@@ -346,7 +336,7 @@ void QuickInspectorWidget::saveAsImage()
         return;
 
     const CompleteFrameRequest request(fileName,
-                                       sender() ==  ui->actionSaveAsImageWithDecoration);
+                                       sender() == ui->actionSaveAsImageWithDecoration);
     m_scenePreviewWidget->previewWidget()->requestCompleteFrame(request);
 }
 

@@ -1,29 +1,14 @@
 /*
   clienttoolmanager.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Anton Kreuzkamp <anton.kreuzkamp@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "clienttoolmanager.h"
@@ -51,23 +36,32 @@
 
 using namespace GammaRay;
 
-#define MAKE_FACTORY(type, label) \
-    class type##Factory : public ToolUiFactory { \
-    public: \
-        virtual QString id() const override { return "GammaRay::" #type; } \
-        virtual QString name() const override { return label; } \
-        virtual QWidget *createWidget(QWidget *parentWidget) override  { \
-            return new type##Widget(parentWidget); \
-        } \
+#define MAKE_FACTORY(type, label)                                     \
+    class type##Factory : public ToolUiFactory                        \
+    {                                                                 \
+    public:                                                           \
+        virtual QString id() const override                           \
+        {                                                             \
+            return "GammaRay::" #type;                                \
+        }                                                             \
+        virtual QString name() const override                         \
+        {                                                             \
+            return label;                                             \
+        }                                                             \
+        virtual QWidget *createWidget(QWidget *parentWidget) override \
+        {                                                             \
+            return new type##Widget(parentWidget);                    \
+        }                                                             \
     }
 
-MAKE_FACTORY(MessageHandler,    qApp->translate("GammaRay::MessageHandlerFactory", "Messages"));
+MAKE_FACTORY(MessageHandler, qApp->translate("GammaRay::MessageHandlerFactory", "Messages"));
 MAKE_FACTORY(MetaObjectBrowser, qApp->translate("GammaRay::MetaObjectBrowserFactory", "Meta Objects"));
-MAKE_FACTORY(MetaTypeBrowser,   qApp->translate("GammaRay::MetaTypeBrowserFactory", "Meta Types"));
-MAKE_FACTORY(ProblemReporter,   qApp->translate("GammaRay::ProblemReporterFactory", "Problems"));
-MAKE_FACTORY(ResourceBrowser,   qApp->translate("GammaRay::ResourceBrowserFactory", "Resources"));
+MAKE_FACTORY(MetaTypeBrowser, qApp->translate("GammaRay::MetaTypeBrowserFactory", "Meta Types"));
+MAKE_FACTORY(ProblemReporter, qApp->translate("GammaRay::ProblemReporterFactory", "Problems"));
+MAKE_FACTORY(ResourceBrowser, qApp->translate("GammaRay::ResourceBrowserFactory", "Resources"));
 
-struct PluginRepository {
+struct PluginRepository
+{
     PluginRepository() = default;
     Q_DISABLE_COPY(PluginRepository)
     ~PluginRepository()
@@ -111,11 +105,11 @@ static bool toolLessThan(const ToolInfo &lhs, const ToolInfo &rhs)
     return lhs.name().localeAwareCompare(rhs.name()) < 0;
 }
 
-ToolInfo::ToolInfo(const ToolData &toolData, ToolUiFactory *factory) :
-    m_toolId(toolData.id),
-    m_isEnabled(toolData.enabled),
-    m_hasUi(toolData.hasUi),
-    m_factory(factory)
+ToolInfo::ToolInfo(const ToolData &toolData, ToolUiFactory *factory)
+    : m_toolId(toolData.id)
+    , m_isEnabled(toolData.enabled)
+    , m_hasUi(toolData.hasUi)
+    , m_factory(factory)
 {
 }
 
@@ -159,7 +153,7 @@ bool ToolInfo::isValid() const
 }
 
 
-ClientToolManager* ClientToolManager::s_instance = nullptr;
+ClientToolManager *ClientToolManager::s_instance = nullptr;
 
 ClientToolManager::ClientToolManager(QObject *parent)
     : QObject(parent)
@@ -358,9 +352,12 @@ int ClientToolManager::toolIndexForToolId(const QString &toolId) const
     return -1;
 }
 
-ToolInfo ClientToolManager::toolForToolId(const QString &toolId) const {
+ToolInfo ClientToolManager::toolForToolId(const QString &toolId) const
+{
     const int index = toolIndexForToolId(toolId);
     if (index < 0 || index >= m_tools.size())
         return ToolInfo();
     return m_tools.at(index);
 }
+
+#include "moc_clienttoolmanager.cpp"

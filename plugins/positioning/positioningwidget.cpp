@@ -1,29 +1,14 @@
 /*
   positioningwidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "positioningwidget.h"
@@ -33,6 +18,7 @@
 
 #include <ui/propertybinder.h>
 #include <common/objectbroker.h>
+#include <common/streamoperators.h>
 
 #include <QAction>
 #include <QDateTime>
@@ -43,10 +29,6 @@
 #include <QQuickWidget>
 #include <QQmlContext>
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 11, 0)
-Q_DECLARE_METATYPE(QGeoPositionInfo)
-#endif
-
 using namespace GammaRay;
 
 static QObject *createPositioningClient(const QString &name, QObject *parent)
@@ -55,21 +37,21 @@ static QObject *createPositioningClient(const QString &name, QObject *parent)
     return new PositioningClient(parent);
 }
 
-PositioningWidget::PositioningWidget(QWidget* parent):
-    QWidget(parent),
-    ui(new Ui::PositioningWidget),
-    m_mapController(new MapController(this)),
-    m_replaySource(nullptr),
-    m_updateLock(false)
+PositioningWidget::PositioningWidget(QWidget *parent)
+    : QWidget(parent)
+    , ui(new Ui::PositioningWidget)
+    , m_mapController(new MapController(this))
+    , m_replaySource(nullptr)
+    , m_updateLock(false)
 {
     ui->setupUi(this);
     auto mapView = new QQuickWidget;
     mapView->rootContext()->setContextProperty(QStringLiteral("_controller"), m_mapController);
     ui->topLayout->addWidget(mapView);
 
-    ObjectBroker::registerClientObjectFactoryCallback<PositioningInterface*>(createPositioningClient);
+    ObjectBroker::registerClientObjectFactoryCallback<PositioningInterface *>(createPositioningClient);
 
-    m_interface = ObjectBroker::object<PositioningInterface*>();
+    m_interface = ObjectBroker::object<PositioningInterface *>();
     Q_ASSERT(m_interface);
     connect(m_interface, &PositioningInterface::positionInfoChanged, this, [this]() {
         m_mapController->setSourceCoordinate(m_interface->positionInfo().coordinate());
@@ -191,11 +173,14 @@ void PositioningWidget::loadNmeaFile()
     connect(m_replaySource, &QGeoPositionInfoSource::positionUpdated, this, &PositioningWidget::replayPosition);
     m_replaySource->startUpdates();
 
-    // TODO error handling
+#if QT_VERSION < QT_VERSION_CHECK(6, 2, 0)
     connect(m_replaySource, &QNmeaPositionInfoSource::updateTimeout, this, []() {
         qDebug() << "NMEA source update timeout!";
     });
     connect(m_replaySource, QOverload<QGeoPositionInfoSource::Error>::of(&QGeoPositionInfoSource::error), this, &PositioningWidget::nmeaError);
+#else
+    connect(m_replaySource, &QGeoPositionInfoSource::errorOccurred, this, &PositioningWidget::nmeaError);
+#endif
 }
 
 void PositioningWidget::nmeaError()
@@ -248,5 +233,5 @@ void PositioningWidget::setUiToPosition(const QGeoPositionInfo &pos)
 
 void PositioningUiFactory::initUi()
 {
-    qRegisterMetaTypeStreamOperators<QGeoPositionInfo>("QGeoPositionInfo");
+    StreamOperators::registerOperators<QGeoPositionInfo>();
 }

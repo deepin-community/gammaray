@@ -1,27 +1,14 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  quickinspectorpickingtest.cpp
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Christoph Sterz <christoph.sterz@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -40,7 +27,6 @@
 
 #include <QQuickView>
 #include <QItemSelectionModel>
-#include <QRegExp>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -50,18 +36,20 @@ class QuickInspectorPickingTest : public QObject
 {
     Q_OBJECT
 private:
-    void createProbe()
+    static void createProbe()
     {
         Paths::setRelativeRootPath(GAMMARAY_INVERSE_BIN_DIR);
         qputenv("GAMMARAY_ProbePath", Paths::probePath(GAMMARAY_PROBE_ABI).toUtf8());
         qputenv("GAMMARAY_ServerAddress", GAMMARAY_DEFAULT_LOCAL_TCP_URL);
         Hooks::installHooks();
         Probe::startupHookReceived();
+        // NOLINTNEXTLINE (clang-analyzer-cplusplus.NewDeleteLeaks)
         new ProbeCreator(ProbeCreator::Create);
+        // NOLINTNEXTLINE (clang-analyzer-cplusplus.NewDeleteLeaks)
         QTest::qWait(1); // event loop re-entry
     }
 
-    bool waitForSignal(QSignalSpy *spy, bool keepResult = false)
+    static bool waitForSignal(QSignalSpy *spy, bool keepResult = false)
     {
         if (spy->isEmpty())
             spy->wait(1000);
@@ -73,7 +61,7 @@ private:
 
     bool showSource(const QString &sourceFile)
     {
-        QSignalSpy renderSpy(view, SIGNAL(frameSwapped()));
+        QSignalSpy renderSpy(view, &QQuickWindow::frameSwapped);
         Q_ASSERT(renderSpy.isValid());
 
         view->setSource(QUrl(sourceFile));
@@ -81,8 +69,7 @@ private:
         exposed = QTest::qWaitForWindowExposed(view);
         if (!exposed)
             qWarning()
-                <<
-            "Unable to expose window, probably running tests on a headless system - ignoring all following render failures.";
+                << "Unable to expose window, probably running tests on a headless system - ignoring all following render failures.";
 
 
         // wait at least two frames so we have the final window size with all render loop/driver combinations...
@@ -93,7 +80,7 @@ private:
     }
 
 private slots:
-    void initTestCase()
+    static void initTestCase()
     {
         qRegisterMetaType<QItemSelection>();
     }
@@ -122,17 +109,23 @@ private slots:
         QTest::qWait(1);
     }
 
-    void testItemPicking_data()
+    static void testItemPicking_data()
     {
         QTest::addColumn<QString>("qmlFile", nullptr);
         QTest::addColumn<QString>("pickedObjectId", nullptr);
 
-        QTest::newRow("Vanilla Rect-Clicking") << "qrc:/manual/picking/stackedrects.qml" << "bluerect";
-        QTest::newRow("Negative z-order") << "qrc:/manual/picking/negativezordering.qml" << "greenrect";
-        QTest::newRow("Invisible overlay") << "qrc:/manual/picking/invisibleoverlay.qml" << "redrect";
-        QTest::newRow("Opacity:0 overlay") << "qrc:/manual/picking/opacityzerooverlay.qml" << "yellowrect";
-        QTest::newRow("Loader") << "qrc:/manual/picking/loader.qml" << "bluerect";
-        QTest::newRow("Outside of parent") << "qrc:/manual/picking/outsideofparent.qml" << "redrectchild";
+        QTest::newRow("Vanilla Rect-Clicking") << "qrc:/manual/picking/stackedrects.qml"
+                                               << "bluerect";
+        QTest::newRow("Negative z-order") << "qrc:/manual/picking/negativezordering.qml"
+                                          << "greenrect";
+        QTest::newRow("Invisible overlay") << "qrc:/manual/picking/invisibleoverlay.qml"
+                                           << "redrect";
+        QTest::newRow("Opacity:0 overlay") << "qrc:/manual/picking/opacityzerooverlay.qml"
+                                           << "yellowrect";
+        QTest::newRow("Loader") << "qrc:/manual/picking/loader.qml"
+                                << "bluerect";
+        QTest::newRow("Outside of parent") << "qrc:/manual/picking/outsideofparent.qml"
+                                           << "redrectchild";
     }
 
     // Info: Clickposition is always in Center of View
@@ -145,12 +138,12 @@ private slots:
 
         auto itemSelectionModel = ObjectBroker::selectionModel(itemModel);
         QVERIFY(itemSelectionModel);
-        QSignalSpy itemSpy(itemSelectionModel, SIGNAL(selectionChanged(QItemSelection,QItemSelection)));
+        QSignalSpy itemSpy(itemSelectionModel, &QItemSelectionModel::selectionChanged);
         QVERIFY(itemSpy.isValid());
 
         // auto center-click is broken before https://codereview.qt-project.org/141085/
         QTest::mouseClick(view, Qt::LeftButton, Qt::ShiftModifier | Qt::ControlModifier,
-                          QPoint(view->width()/2, view->height()/2));
+                          QPoint(view->width() / 2, view->height() / 2));
 
         if (itemSpy.isEmpty())
             QVERIFY(itemSpy.wait());

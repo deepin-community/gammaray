@@ -1,29 +1,14 @@
 /*
   toolmanager.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Anton Kreuzkamp <anton.kreuzkamp@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "toolmanager.h"
@@ -31,6 +16,7 @@
 #include "metaobject.h"
 #include "metaobjectrepository.h"
 #include "probe.h"
+#include "probesettings.h"
 #include "proxytoolfactory.h"
 #include "toolfactory.h"
 
@@ -73,8 +59,7 @@ void ToolManager::selectObject(const ObjectId &id, const QString &toolId)
     switch (id.type()) {
     case ObjectId::Invalid:
         return;
-    case ObjectId::QObjectType:
-    {
+    case ObjectId::QObjectType: {
         QMutexLocker lock(Probe::objectLock());
         if (!Probe::instance()->isValidObject(id.asQObject()))
             return;
@@ -99,8 +84,7 @@ void ToolManager::requestToolsForObject(const ObjectId &id)
     switch (id.type()) {
     case ObjectId::Invalid:
         return;
-    case ObjectId::QObjectType:
-    {
+    case ObjectId::QObjectType: {
         QMutexLocker lock(Probe::objectLock());
         if (!Probe::instance()->isValidObject(id.asQObject()))
             return;
@@ -218,6 +202,11 @@ void ToolManager::objectAdded(const QMetaObject *mo)
 
 void ToolManager::addToolFactory(ToolFactory *tool)
 {
+    const auto excludedTools = ProbeSettings::value(QStringLiteral("DisabledPlugins"), QString()).toString();
+    if (excludedTools.split(QLatin1Char(';')).contains(tool->id())) {
+        return;
+    }
+
     m_tools.push_back(tool);
     m_disabledTools.insert(tool);
 }

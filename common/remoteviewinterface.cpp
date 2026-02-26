@@ -1,29 +1,14 @@
 /*
   remoteviewinterface.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "remoteviewinterface.h"
@@ -31,27 +16,36 @@
 
 #include <common/objectbroker.h>
 #include <common/remoteviewframe.h>
+#include <QWindow>
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <private/qeventpoint_p.h>
+#endif
+#include <QPainterPath>
+Q_DECLARE_METATYPE(QPainterPath) // needed for Qt5
 
 using namespace GammaRay;
 QT_BEGIN_NAMESPACE
 GAMMARAY_ENUM_STREAM_OPERATORS(RemoteViewInterface::RequestMode)
 
-QDataStream &operator<<(QDataStream &s, Qt::TouchPointStates states)
+QDataStream &operator<<(QDataStream &s, GammaRay::RemoteViewInterface::TouchPointStates states)
 {
-    return s << (int)states;
+    return s << ( int )states;
 }
 
-QDataStream &operator>>(QDataStream &s, Qt::TouchPointStates &states)
+QDataStream &operator>>(QDataStream &s, GammaRay::RemoteViewInterface::TouchPointStates &states)
 {
     int st;
     s >> st;
-    states = Qt::TouchPointStates(st);
+    states = RemoteViewInterface::TouchPointStates(st);
     return s;
 }
 
+// Not available in Qt6, has QPointingDevice::PointerType instead
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 QDataStream &operator<<(QDataStream &s, QTouchEvent::TouchPoint::InfoFlags flags)
 {
-    return s << (int)flags;
+    return s << ( int )flags;
 }
 
 QDataStream &operator>>(QDataStream &s, QTouchEvent::TouchPoint::InfoFlags &flags)
@@ -61,10 +55,47 @@ QDataStream &operator>>(QDataStream &s, QTouchEvent::TouchPoint::InfoFlags &flag
     flags = QTouchEvent::TouchPoint::InfoFlags(f);
     return s;
 }
+#else
+QDataStream &operator<<(QDataStream &s, QPointingDeviceUniqueId id)
+{
+    return s << id.numericId();
+}
+
+QDataStream &operator>>(QDataStream &s, QPointingDeviceUniqueId &id)
+{
+    int devId {};
+    s >> devId;
+    id = QPointingDeviceUniqueId::fromNumericId(devId);
+    return s;
+}
+#endif
 
 QDataStream &operator<<(QDataStream &s, const QList<QTouchEvent::TouchPoint> &points)
 {
-    s << points.count();
+    // The (int) is fkn important!
+    s << ( int )points.count();
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    for (const auto &p : points) {
+        s << p.id();
+        s << p.state();
+        s << p.scenePosition();
+        s << p.ellipseDiameters();
+        s << p.position();
+        s << p.uniqueId();
+
+        s << p.globalGrabPosition();
+        s << p.globalLastPosition();
+        s << p.globalPressPosition();
+        s << p.globalPosition();
+
+        //         s << p.velocity();
+        s << p.pressure();
+        s << p.rotation();
+        s << ( quint64 )p.pressTimestamp();
+        s << ( quint64 )p.timestamp();
+    }
+#else
     for (const auto &p : points) {
         s << p.id();
         s << p.state();
@@ -77,22 +108,64 @@ QDataStream &operator<<(QDataStream &s, const QList<QTouchEvent::TouchPoint> &po
         s << p.flags();
         s << p.rawScreenPositions();
     }
+#endif
     return s;
 }
 
-template<class T>
-void setPointValue(QDataStream &s, QTouchEvent::TouchPoint &p, void (QTouchEvent::TouchPoint::*func)(T))
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+template<class T, class TouchPoint>
+void setPointValue(QDataStream &s, TouchPoint &p, void (TouchPoint::*func)(T))
 {
     typename std::decay<T>::type value;
     s >> value;
     (p.*func)(value);
 }
+#else
+template<class T>
+void setPointValue(QDataStream &s, QEventPoint &p, void (*func)(QEventPoint &, T))
+{
+    typename std::decay<T>::type value;
+    s >> value;
+    (func)(p, value);
+}
+#endif
 
 QDataStream &operator>>(QDataStream &s, QList<QTouchEvent::TouchPoint> &points)
 {
     int count;
     s >> count;
     points.reserve(count);
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    for (int i = 0; i < count; ++i) {
+        QEventPoint p;
+
+        setPointValue(s, p, &QMutableEventPoint::setId);
+        setPointValue(s, p, &QMutableEventPoint::setState);
+        setPointValue(s, p, &QMutableEventPoint::setScenePosition);
+        setPointValue(s, p, &QMutableEventPoint::setEllipseDiameters);
+        setPointValue(s, p, &QMutableEventPoint::setPosition);
+        setPointValue(s, p, &QMutableEventPoint::setUniqueId);
+
+        setPointValue(s, p, &QMutableEventPoint::setGlobalGrabPosition);
+        setPointValue(s, p, &QMutableEventPoint::setGlobalLastPosition);
+        setPointValue(s, p, &QMutableEventPoint::setGlobalPressPosition);
+        setPointValue(s, p, &QMutableEventPoint::setGlobalPosition);
+
+        //         setPointValue(s, p, &QMutableEventPoint::setVelocity);
+        setPointValue(s, p, &QMutableEventPoint::setPressure);
+        setPointValue(s, p, &QMutableEventPoint::setRotation);
+        quint64 v;
+
+        s >> v;
+        QMutableEventPoint::setPressTimestamp(p, v);
+
+        s >> v;
+        QMutableEventPoint::setTimestamp(p, v);
+
+        points.append(p);
+    }
+#else
     for (int i = 0; i < count; ++i) {
         QTouchEvent::TouchPoint p;
 
@@ -123,11 +196,11 @@ QDataStream &operator>>(QDataStream &s, QList<QTouchEvent::TouchPoint> &points)
 
         points.append(p);
     }
+#endif
     return s;
 }
 
 QT_END_NAMESPACE
-
 
 RemoteViewInterface::RemoteViewInterface(const QString &name, QObject *parent)
     : QObject(parent)
@@ -135,15 +208,20 @@ RemoteViewInterface::RemoteViewInterface(const QString &name, QObject *parent)
 {
     ObjectBroker::registerObject(name, this);
 
+    qRegisterMetaType<QPainterPath>(); // for QGraphicsItem::shape
     qRegisterMetaType<QTouchEvent::TouchPoint>();
-    qRegisterMetaType<QList<QTouchEvent::TouchPoint >>();
+    qRegisterMetaType<QList<QTouchEvent::TouchPoint>>();
+    qRegisterMetaType<RemoteViewInterface::TouchPointStates>();
 
-    qRegisterMetaType<RequestMode>();
-    qRegisterMetaTypeStreamOperators<RequestMode>();
-    qRegisterMetaTypeStreamOperators<GammaRay::RemoteViewFrame>();
-    qRegisterMetaTypeStreamOperators<Qt::TouchPointStates>();
-    qRegisterMetaTypeStreamOperators<QList<QTouchEvent::TouchPoint>>();
-    qRegisterMetaTypeStreamOperators<QTouchEvent::TouchPoint::InfoFlags>();
+    StreamOperators::registerOperators<RequestMode>();
+    StreamOperators::registerOperators<GammaRay::RemoteViewFrame>();
+    StreamOperators::registerOperators<RemoteViewInterface::TouchPointStates>();
+    StreamOperators::registerOperators<QList<QTouchEvent::TouchPoint>>();
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+    StreamOperators::registerOperators<QPointingDevice::PointerType>();
+#else
+    StreamOperators::registerOperators<QTouchEvent::TouchPoint::InfoFlags>();
+#endif
 }
 
 QString RemoteViewInterface::name() const

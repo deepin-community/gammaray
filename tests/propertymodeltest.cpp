@@ -1,27 +1,14 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  propertymodeltest.cpp
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "testhelpers.h"
@@ -51,7 +38,7 @@ private slots:
         createProbe();
     }
 
-    void testPropertyModel()
+    static void testPropertyModel()
     {
         PropertyTestObject obj;
         obj.setProperty("dynamicProperty", 5);
@@ -86,7 +73,7 @@ private slots:
         QVERIFY(!moRow.sibling(moRow.row(), 1).data(Qt::DisplayRole).toString().isEmpty());
     }
 
-    void testMetaObject()
+    static void testMetaObject()
     {
         AggregatedPropertyModel model;
         model.setObject(ObjectInstance(nullptr, &Gadget::staticMetaObject));
@@ -97,19 +84,19 @@ private slots:
         QVERIFY(qmoRow.isValid());
     }
 
-    void testChangeNotification()
+    static void testChangeNotification()
     {
         ChangingPropertyObject obj;
         AggregatedPropertyModel model;
-// ModelTest modelTest(&model);
+        // ModelTest modelTest(&model);
         model.setObject(&obj);
         QVERIFY(model.rowCount() >= 4);
 
-        QSignalSpy changeSpy(&model, SIGNAL(dataChanged(QModelIndex,QModelIndex)));
+        QSignalSpy changeSpy(&model, &QAbstractItemModel::dataChanged);
         QVERIFY(changeSpy.isValid());
-        QSignalSpy addSpy(&model, SIGNAL(rowsInserted(QModelIndex,int,int)));
+        QSignalSpy addSpy(&model, &QAbstractItemModel::rowsInserted);
         QVERIFY(addSpy.isValid());
-        QSignalSpy removeSpy(&model, SIGNAL(rowsRemoved(QModelIndex,int,int)));
+        QSignalSpy removeSpy(&model, &QAbstractItemModel::rowsRemoved);
         QVERIFY(removeSpy.isValid());
 
         obj.changeProperties();
@@ -126,7 +113,7 @@ private slots:
         QCOMPARE(removeSpy.size(), 1);
     }
 
-    void testGadgetRO()
+    static void testGadgetRO()
     {
         PropertyTestObject obj;
         AggregatedPropertyModel model;
@@ -135,11 +122,11 @@ private slots:
         auto idx = searchFixedIndex(&model, "gadgetReadOnly");
         QVERIFY(idx.isValid());
         QCOMPARE(model.rowCount(idx), 1);
-        idx = idx.child(0, 1);
+        idx = model.index(0, 1, idx);
         QVERIFY((idx.flags() & Qt::ItemIsEditable) == 0);
     }
 
-    void testGadgetRW()
+    static void testGadgetRW()
     {
         PropertyTestObject obj;
         AggregatedPropertyModel model;
@@ -149,7 +136,7 @@ private slots:
         auto idx = searchFixedIndex(&model, "gadget");
         QVERIFY(idx.isValid());
         QCOMPARE(model.rowCount(idx), 1);
-        idx = idx.child(0, 1);
+        idx = model.index(0, 1, idx);
         QVERIFY(idx.flags() & Qt::ItemIsEditable);
         QVERIFY(model.setData(idx, 1554));
         QCOMPARE(obj.gadgetPointer()->prop1(), 1554);
@@ -157,7 +144,7 @@ private slots:
         idx = searchFixedIndex(&model, "gadgetPointer");
         QVERIFY(idx.isValid());
         QCOMPARE(model.rowCount(idx), 1);
-        idx = idx.child(0, 1);
+        idx = model.index(0, 1, idx);
         QVERIFY(idx.flags() & Qt::ItemIsEditable);
         QVERIFY(model.setData(idx, 1559));
         QCOMPARE(obj.gadgetPointer()->prop1(), 1559);

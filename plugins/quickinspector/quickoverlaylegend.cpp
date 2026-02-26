@@ -1,29 +1,14 @@
 /*
   quickoverlaylegend.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Filipe Azevedo <filipe.azevedo@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "quickoverlaylegend.h"
@@ -46,25 +31,28 @@ class LegendModel : public QAbstractListModel
 
     struct Item
     {
-        enum Mode {
+        enum Mode
+        {
             Rect,
             Line,
             Last = Line + 1
         };
 
         explicit Item(const QBrush &brush = QBrush(), const QPen &pen = QPen(),
-             const QByteArray &label = QByteArray())
+                      const QByteArray &label = QByteArray())
             : brush(brush)
             , pen(pen)
             , label(label)
-        { }
+        {
+        }
 
         QBrush brush;
         QPen pen;
         QByteArray label;
         QPixmap pixmap;
 
-        static void createPixmap(Item &item) {
+        static void createPixmap(Item &item)
+        {
             static qreal dpr = 2.0;
             static QSize iconSize(44, 44);
             QPixmap pixmap(iconSize.width() * Last * dpr, iconSize.height() * dpr);
@@ -90,7 +78,7 @@ class LegendModel : public QAbstractListModel
                         painter.drawRect(rect.adjusted(margin, margin, -margin, -margin));
                         break;
                     }
-                    case Line:{
+                    case Line: {
                         painter.drawLine(QLine(QPoint(rect.left() + margin, rect.center().y() - 2),
                                                QPoint(rect.right() - margin, rect.center().y() - 2)));
                         pen.setStyle(Qt::DotLine);
@@ -103,7 +91,7 @@ class LegendModel : public QAbstractListModel
                 }
             }
 
-            item.pixmap = pixmap;
+            item.pixmap = std::move(pixmap);
         }
     };
 
@@ -150,52 +138,44 @@ public:
         m_items.clear();
 
         m_items << Item(
-                       settings.boundingRectBrush,
-                       settings.boundingRectColor,
-                       QT_TR_NOOP("Bounding rect")
-                       );
+            settings.boundingRectBrush,
+            settings.boundingRectColor,
+            QT_TR_NOOP("Bounding rect"));
 
         m_items << Item(
-                       settings.geometryRectBrush,
-                       settings.geometryRectColor,
-                       QT_TR_NOOP("Geometry rect")
-                       );
+            settings.geometryRectBrush,
+            settings.geometryRectColor,
+            QT_TR_NOOP("Geometry rect"));
 
         m_items << Item(
-                       settings.childrenRectBrush,
-                       settings.childrenRectColor,
-                       QT_TR_NOOP("Children rect")
-                       );
+            settings.childrenRectBrush,
+            settings.childrenRectColor,
+            QT_TR_NOOP("Children rect"));
 
         m_items << Item(
-                       QBrush(),
-                       settings.transformOriginColor,
-                       QT_TR_NOOP("Transform origin")
-                       );
+            QBrush(),
+            settings.transformOriginColor,
+            QT_TR_NOOP("Transform origin"));
 
         m_items << Item(
-                       QBrush(),
-                       settings.coordinatesColor,
-                       QT_TR_NOOP("Coordinates (x, y...)")
-                       );
+            QBrush(),
+            settings.coordinatesColor,
+            QT_TR_NOOP("Coordinates (x, y...)"));
 
         m_items << Item(
-                       QBrush(),
-                       settings.marginsColor,
-                       QT_TR_NOOP("Margins/Anchors")
-                       );
+            QBrush(),
+            settings.marginsColor,
+            QT_TR_NOOP("Margins/Anchors"));
 
         m_items << Item(
-                       QBrush(),
-                       settings.paddingColor,
-                       QT_TR_NOOP("Padding")
-                       );
+            QBrush(),
+            settings.paddingColor,
+            QT_TR_NOOP("Padding"));
 
         m_items << Item(
-                       QBrush(),
-                       settings.gridColor,
-                       QT_TR_NOOP("Grid")
-                       );
+            QBrush(),
+            settings.gridColor,
+            QT_TR_NOOP("Grid"));
 
         for (int i = 0; i < m_items.count(); ++i) {
             Item::createPixmap(m_items[i]);

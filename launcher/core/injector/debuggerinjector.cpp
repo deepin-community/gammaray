@@ -1,29 +1,14 @@
 /*
   debuggerinjector.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "debuggerinjector.h"
@@ -42,7 +27,7 @@ using namespace GammaRay;
 
 DebuggerInjector::~DebuggerInjector()
 {
-    stop();
+    stop_impl();
 }
 
 QString DebuggerInjector::filePath() const
@@ -56,6 +41,11 @@ void DebuggerInjector::setFilePath(const QString &filePath)
 }
 
 void DebuggerInjector::stop()
+{
+    stop_impl();
+}
+
+void DebuggerInjector::stop_impl()
 {
     if (m_process) {
         if (!mManualError) {
@@ -156,8 +146,7 @@ bool DebuggerInjector::startDebugger(const QStringList &args, const QProcessEnvi
             this, &DebuggerInjector::readyReadStandardOutput);
     connect(m_process.data(), &QProcess::started,
             this, &AbstractInjector::started);
-    connect(m_process.data(), static_cast<void(QProcess::*)(int)>(&QProcess::finished),
-            this, &DebuggerInjector::processFinished);
+    connect(m_process.data(), QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &DebuggerInjector::processFinished);
     m_process->setProcessChannelMode(QProcess::SeparateChannels);
     m_process->start(filePath(), args);
     bool status = m_process->waitForStarted(-1);
@@ -197,12 +186,15 @@ bool DebuggerInjector::selfTest()
     return false;
 }
 
+#define STR(x) STR_IMPL(x)
+#define STR_IMPL(x) #x
+
 void DebuggerInjector::waitForMain()
 {
     addFunctionBreakpoint("main");
     execCmd("run");
 
-    loadSymbols("Qt5Core");
+    loadSymbols("Qt" STR(QT_VERSION_MAJOR) "Core");
     addMethodBreakpoint("QCoreApplication::exec");
     execCmd("continue");
 }
@@ -211,12 +203,11 @@ bool DebuggerInjector::injectAndDetach(const QString &probeDll, const QString &p
 {
     Q_ASSERT(m_process);
     loadSymbols("dl");
-    execCmd(QStringLiteral("call (void) dlopen(\"%1\", %2)").
-            arg(probeDll).arg(RTLD_NOW).toUtf8());
+    execCmd(QStringLiteral("call (void) dlopen(\"%1\", %2)").arg(probeDll).arg(RTLD_NOW).toUtf8());
     loadSymbols(probeDll.toUtf8());
     execCmd(QStringLiteral("call (void) %1()").arg(probeFunc).toUtf8());
 
-    if (qgetenv("GAMMARAY_UNITTEST") != "1") {
+    if (qEnvironmentVariableIntValue("GAMMARAY_UNITTEST") != 1) {
         execCmd("detach");
         execCmd("quit");
     } else {
@@ -239,16 +230,19 @@ void DebuggerInjector::loadSymbols(const QByteArray &library)
 void DebuggerInjector::processLog(DebuggerInjector::Orientation orientation, bool isError,
                                   const QString &text)
 {
-    if (qgetenv("GAMMARAY_UNITTEST") == "1") { // clazy:exclude=qgetenv due to Qt4 support
+    if (qEnvironmentVariableIntValue("GAMMARAY_UNITTEST") == 1) {
         const QString output = QString::fromLatin1("%1 [%2] %3: %4")
-                               .arg(orientation == DebuggerInjector::In ? "<<<" : ">>>")
-                               .arg(QString::fromLatin1(isError ? "ERROR" : "OUTPUT"))
-                               .arg(QTime::currentTime().toString(QStringLiteral("HH:mm:ss:zzz")))
-                               .arg(text.trimmed());
+                                   .arg(orientation == DebuggerInjector::In ? "<<<" : ">>>",
+                                        QString::fromLatin1(isError ? "ERROR" : "OUTPUT"), // type
+                                        QTime::currentTime().toString(QStringLiteral("HH:mm:ss:zzz")), // time
+                                        text.trimmed()); // text
 
         if (isError)
             std::cerr << qPrintable(output) << std::endl;
         else
             std::cout << qPrintable(output) << std::endl;
+    } else {
+        if (isError)
+            std::cerr << qPrintable(text.trimmed()) << std::endl;
     }
 }

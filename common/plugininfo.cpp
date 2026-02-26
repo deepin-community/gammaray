@@ -1,29 +1,14 @@
 /*
   plugininfo.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "plugininfo.h"
@@ -44,14 +29,10 @@
 
 using namespace GammaRay;
 
-PluginInfo::PluginInfo()
-{
-  init();
-}
+PluginInfo::PluginInfo() = default;
 
-PluginInfo::PluginInfo(const QString& path)
+PluginInfo::PluginInfo(const QString &path)
 {
-    init();
     // OSX has broken QLibrary::isLibrary() - QTBUG-50446
     if (QLibrary::isLibrary(path) || path.endsWith(Paths::pluginExtension(), Qt::CaseInsensitive))
         initFromJSON(path);
@@ -59,17 +40,8 @@ PluginInfo::PluginInfo(const QString& path)
 
 PluginInfo::PluginInfo(const QStaticPlugin &staticPlugin)
 {
-    init();
-    m_staticPlugin = staticPlugin;
+    m_staticInstanceFunc = staticPlugin.instance;
     initFromJSON(staticPlugin.metaData());
-}
-
-void PluginInfo::init()
-{
-    m_remoteSupport = true;
-    m_hidden = false;
-    m_staticPlugin.instance = nullptr;
-    m_staticPlugin.rawMetaData = nullptr;
 }
 
 QString PluginInfo::path() const
@@ -148,7 +120,6 @@ static QString readLocalized(const QLocale &locale, const QJsonObject &obj, cons
 
         if (it != obj.end())
             return it.value().toString();
-
     }
 
     return obj.value(baseKey).toString();
@@ -156,13 +127,13 @@ static QString readLocalized(const QLocale &locale, const QJsonObject &obj, cons
 
 bool PluginInfo::isStatic() const
 {
-    return m_staticPlugin.instance && m_staticPlugin.rawMetaData;
+    return m_staticInstanceFunc;
 }
 
-QObject* PluginInfo::staticInstance() const
+QObject *PluginInfo::staticInstance() const
 {
     Q_ASSERT(isStatic());
-    return m_staticPlugin.instance();
+    return m_staticInstanceFunc();
 }
 
 void PluginInfo::initFromJSON(const QString &path)

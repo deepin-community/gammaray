@@ -1,4 +1,3 @@
 debian-archs-fix-build.patch
 qt-system-paths.patch
-increase-test-timeout.patch
-disable-test.patch
+disable-flaky-tests.patch

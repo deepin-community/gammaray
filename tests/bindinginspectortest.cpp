@@ -1,29 +1,14 @@
 /*
   bindinginspectortest.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "baseprobetest.h"
@@ -62,7 +47,7 @@
 using namespace GammaRay;
 
 template<typename CompareFunc>
-    std::vector<QModelIndex> getSortedChildren(const QModelIndex &index, const QAbstractItemModel *model, CompareFunc compare)
+std::vector<QModelIndex> getSortedChildren(const QModelIndex &index, const QAbstractItemModel *model, CompareFunc compare)
 {
     std::vector<QModelIndex> childIndices;
     int rowCount = model->rowCount(index);
@@ -85,7 +70,7 @@ std::vector<QModelIndex> getSortedChildren(const QModelIndex &index, const QAbst
 class MockBindingProvider : public AbstractBindingProvider
 {
 public:
-    std::vector<std::unique_ptr<BindingNode>> findBindingsFor(QObject * obj) const override
+    std::vector<std::unique_ptr<BindingNode>> findBindingsFor(QObject *obj) const override
     {
         std::vector<std::unique_ptr<BindingNode>> nodes;
         for (auto &&dataItem : data) {
@@ -97,7 +82,7 @@ public:
         return nodes;
     }
 
-    std::vector<std::unique_ptr<BindingNode>> findDependenciesFor(GammaRay::BindingNode * binding) const override
+    std::vector<std::unique_ptr<BindingNode>> findDependenciesFor(GammaRay::BindingNode *binding) const override
     {
         std::vector<std::unique_ptr<BindingNode>> nodes;
         for (auto &&dataItem : data) {
@@ -116,13 +101,15 @@ public:
         return true;
     }
 
-    struct NodeData {
+    struct NodeData
+    {
         NodeData(QObject *obj, const char *propName, QObject *depObj, const char *depPropName) // required for std::vector::emplace()
             : object(obj)
             , propertyName(propName)
             , depObject(depObj)
             , depPropertyName(depPropName)
-        {}
+        {
+        }
 
         QObject *object;
         const char *propertyName;
@@ -231,23 +218,17 @@ private slots:
     void init();
     void cleanup();
     void testMockProvider();
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
-    void testQmlBindingProvider_data();
-    void testQmlBindingProvider();
-#endif
-#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
-    void testQtQuickProvider_data();
-    void testQtQuickProvider();
-#endif
+    static void testQmlBindingProvider_data();
+    static void testQmlBindingProvider();
+    static void testQtQuickProvider_data();
+    static void testQtQuickProvider();
     void testModel();
     void testModelDataChanged();
     void testModelAdditions();
     void testModelInsertions();
     void testModelRemovalAtEnd();
     void testModelRemovalInside();
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
     void testIntegration();
-#endif
 
 private:
     MockBindingProvider *provider;
@@ -263,7 +244,8 @@ void BindingInspectorTest::initTestCase()
     BindingAggregator::registerBindingProvider(std::unique_ptr<MockBindingProvider>(provider));
 
     QTest::qWait(1);
-    bindingExtension = ObjectBroker::object<BindingExtension*>("com.kdab.GammaRay.ObjectInspector.bindingsExtension");
+    bindingExtension = qobject_cast<BindingExtension *>(
+        ObjectBroker::objectInternal("com.kdab.GammaRay.ObjectInspector.bindingsExtension"));
     QVERIFY(bindingExtension);
     bindingModel = bindingExtension->model();
     QVERIFY(bindingModel);
@@ -285,13 +267,13 @@ void BindingInspectorTest::testMockProvider()
     MockObject obj2 { 35, false, 'y', 3.5, "Bye, World" };
     obj2.setObjectName("obj2");
 
-    provider->data = {{
-        {&obj1, "a", &obj1, "e"},
-        {&obj1, "c", &obj1, "b"},
-        {&obj1, "c", &obj2, "b"},
-        {&obj2, "b", &obj2, "a"},
-        {&obj2, "a", &obj1, "a"},
-    }};
+    provider->data = { {
+        { &obj1, "a", &obj1, "e" },
+        { &obj1, "c", &obj1, "b" },
+        { &obj1, "c", &obj2, "b" },
+        { &obj2, "b", &obj2, "a" },
+        { &obj2, "a", &obj1, "a" },
+    } };
 
     auto bindings1 = provider->findBindingsFor(&obj1);
     auto &&bindingNode1 = bindings1.at(0);
@@ -332,7 +314,6 @@ void BindingInspectorTest::testMockProvider()
     QCOMPARE(dependency3->cachedValue().toBool(), false);
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
 void BindingInspectorTest::testQmlBindingProvider_data()
 {
     QTest::addColumn<QByteArray>("code");
@@ -340,67 +321,73 @@ void BindingInspectorTest::testQmlBindingProvider_data()
 
     QTest::newRow("context property")
         << QByteArray("import QtQuick 2.0\n"
-                    "Rectangle {\n"
-                        "id: rect\n"
-                        "objectName: 'rect'\n"
-                        "property string labelText: \"Hello world!\"\n"
-                        "Text { objectName: 'text'; text: labelText }\n"
-                    "}") << "rect";
+                      "Rectangle {\n"
+                      "id: rect\n"
+                      "objectName: 'rect'\n"
+                      "property string labelText: \"Hello world!\"\n"
+                      "Text { objectName: 'text'; text: labelText }\n"
+                      "}")
+        << "rect";
 
     QTest::newRow("scope property")
         << QByteArray("import QtQuick 2.0\n"
-                    "Rectangle {\n"
-                        "id: rect\n"
-                        "objectName: 'rect'\n"
-                        "property string labelText: \"I am wrong!\"\n"
-                        "Text {\n"
-                            "id: text\n"
-                            "objectName: 'text'\n"
-                            "property string labelText: \"Hello world!\"\n"
-                            "text: labelText\n"
-                        "}\n"
-                    "}") << "text";
+                      "Rectangle {\n"
+                      "id: rect\n"
+                      "objectName: 'rect'\n"
+                      "property string labelText: \"I am wrong!\"\n"
+                      "Text {\n"
+                      "id: text\n"
+                      "objectName: 'text'\n"
+                      "property string labelText: \"Hello world!\"\n"
+                      "text: labelText\n"
+                      "}\n"
+                      "}")
+        << "text";
 
     QTest::newRow("id object property")
         << QByteArray("import QtQuick 2.0\n"
-                    "Rectangle {\n"
-                        "id: rect\n"
-                        "objectName: 'rect'\n"
-                        "property string labelText: \"Hello world!\"\n"
-                        "Text { objectName: 'text'; text: rect.labelText }\n"
-                    "}") << "rect";
+                      "Rectangle {\n"
+                      "id: rect\n"
+                      "objectName: 'rect'\n"
+                      "property string labelText: \"Hello world!\"\n"
+                      "Text { objectName: 'text'; text: rect.labelText }\n"
+                      "}")
+        << "rect";
 
     QTest::newRow("dynamic context property")
         << QByteArray("import QtQuick 2.0\n"
-                    "Rectangle {\n"
-                        "id: rect\n"
-                        "objectName: 'rect'\n"
-                        "property string labelText: \"Hello world!\"\n"
-                        "Text { objectName: 'text'; Component.onCompleted: text = Qt.binding(function() { return labelText; }); }\n"
-                    "}") << "rect";
+                      "Rectangle {\n"
+                      "id: rect\n"
+                      "objectName: 'rect'\n"
+                      "property string labelText: \"Hello world!\"\n"
+                      "Text { objectName: 'text'; Component.onCompleted: text = Qt.binding(function() { return labelText; }); }\n"
+                      "}")
+        << "rect";
 
     QTest::newRow("dynamic scope property")
         << QByteArray("import QtQuick 2.0\n"
-                    "Rectangle {\n"
-                        "id: rect\n"
-                        "objectName: 'rect'\n"
-                        "property string labelText: \"I am wrong!\"\n"
-                        "Text {\n"
-                            "id: txt\n"
-                            "objectName: 'txt'\n"
-                            "property string labelText: \"Hello world!\"\n"
-                            "Component.onCompleted: text = Qt.binding(function() { return labelText; });\n"
-                        "}\n"
-                    "}") << "txt";
+                      "Rectangle {\n"
+                      "id: rect\n"
+                      "objectName: 'rect'\n"
+                      "property string labelText: \"I am wrong!\"\n"
+                      "Text {\n"
+                      "id: txt\n"
+                      "objectName: 'txt'\n"
+                      "property string labelText: \"Hello world!\"\n"
+                      "Component.onCompleted: text = Qt.binding(function() { return labelText; });\n"
+                      "}\n"
+                      "}")
+        << "txt";
 
     QTest::newRow("dynamic id object property")
         << QByteArray("import QtQuick 2.0\n"
-                    "Rectangle {\n"
-                        "id: rect\n"
-                        "objectName: 'rect'\n"
-                        "property string labelText: \"Hello world!\"\n"
-                        "Text { objectName: 'text'; Component.onCompleted: text = Qt.binding(function() { return rect.labelText; }); }\n"
-                    "}") << "rect";
+                      "Rectangle {\n"
+                      "id: rect\n"
+                      "objectName: 'rect'\n"
+                      "property string labelText: \"Hello world!\"\n"
+                      "Text { objectName: 'text'; Component.onCompleted: text = Qt.binding(function() { return rect.labelText; }); }\n"
+                      "}")
+        << "rect";
 }
 
 void BindingInspectorTest::testQmlBindingProvider()
@@ -440,9 +427,7 @@ void BindingInspectorTest::testQmlBindingProvider()
 
     delete rect;
 }
-#endif
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
 void BindingInspectorTest::testQtQuickProvider_data()
 {
     QTest::addColumn<QByteArray>("code", nullptr);
@@ -457,9 +442,9 @@ void BindingInspectorTest::testQtQuickProvider_data()
                       "    objectName: 'rect'\n"
                       "    implicitWidth: 20\n"
                       "    Text { objectName: 'text'; width: parent.width }\n"
-                      "}\n"
-                      )
-        << "rect" << "width" << QStringList { "rect.implicitWidth" };
+                      "}\n")
+        << "rect"
+        << "width" << QStringList { "rect.implicitWidth" };
 
     QTest::newRow("fill_determines_width")
         << QByteArray("import QtQuick 2.0\n"
@@ -469,9 +454,9 @@ void BindingInspectorTest::testQtQuickProvider_data()
                       "        objectName: 'item'\n"
                       "        anchors.fill: parent\n"
                       "    }\n"
-                      "}\n"
-                      )
-        << "item" << "width" << QStringList {"rect.width", "anchors.leftMargin"};
+                      "}\n")
+        << "item"
+        << "width" << QStringList { "rect.width", "anchors.leftMargin" };
 
     QTest::newRow("left_and_right_determine_width")
         << QByteArray("import QtQuick 2.0\n"
@@ -483,9 +468,9 @@ void BindingInspectorTest::testQtQuickProvider_data()
                       "        anchors.left: parent.left\n"
                       "        anchors.right: parent.right\n"
                       "    }\n"
-                      "}\n"
-                      )
-        << "item" << "width" << QStringList {"item.anchors.left", "item.anchors.right"};
+                      "}\n")
+        << "item"
+        << "width" << QStringList { "item.anchors.left", "item.anchors.right" };
 
     QTest::newRow("y_and_height_determine_bottom")
         << QByteArray("import QtQuick 2.0\n"
@@ -498,7 +483,8 @@ void BindingInspectorTest::testQtQuickProvider_data()
                       "        height: 100\n"
                       "    }\n"
                       "}\n")
-        << "item" << "bottom" << QStringList {"item.y", "item.height"};
+        << "item"
+        << "bottom" << QStringList { "item.y", "item.height" };
 
     QTest::newRow("childrenRect")
         << QByteArray("import QtQuick 2.0\n"
@@ -508,9 +494,9 @@ void BindingInspectorTest::testQtQuickProvider_data()
                       "        id: t\n"
                       "        text: 'Hello World!'\n"
                       "    }\n"
-                      "}\n"
-                      )
-        << "rect" << "childrenRect" << QStringList {"t.height"};
+                      "}\n")
+        << "rect"
+        << "childrenRect" << QStringList { "t.height" };
 }
 
 void BindingInspectorTest::testQtQuickProvider()
@@ -536,7 +522,7 @@ void BindingInspectorTest::testQtQuickProvider()
 
     for (const QString &depName : expectedDependencies) {
         bool found = false;
-        for (auto &&bindingNode: bindingNodes) {
+        for (auto &&bindingNode : bindingNodes) {
             if (bindingNode->canonicalName() == depName) {
                 found = true;
                 break;
@@ -544,7 +530,7 @@ void BindingInspectorTest::testQtQuickProvider()
         }
         if (!found) {
             qDebug() << "Dependency" << depName << "not found. Actual dependencies:";
-            for (auto &&bindingNode: bindingNodes) {
+            for (auto &&bindingNode : bindingNodes) {
                 qDebug() << "*" << (bindingNode->canonicalName());
             }
         }
@@ -553,20 +539,19 @@ void BindingInspectorTest::testQtQuickProvider()
 
     delete rect;
 }
-#endif
 
 void BindingInspectorTest::testModel()
 {
     MockObject obj1 { 53, true, 'x', 5.3, "Hello World" };
     MockObject obj2 { 35, false, 'y', 3.5, "Bye, World" };
 
-    provider->data = {{
-        {&obj1, "d", &obj1, "e"},
-        {&obj1, "c", &obj1, "b"},
-        {&obj1, "c", &obj2, "d"},
-        {&obj2, "d", &obj2, "a"},
-        {&obj2, "a", &obj1, "a"},
-    }};
+    provider->data = { {
+        { &obj1, "d", &obj1, "e" },
+        { &obj1, "c", &obj1, "b" },
+        { &obj1, "c", &obj2, "d" },
+        { &obj2, "d", &obj2, "a" },
+        { &obj2, "a", &obj1, "a" },
+    } };
 
     bindingExtension->setQObject(&obj1);
     QCOMPARE(bindingModel->rowCount(QModelIndex()), 2);
@@ -612,12 +597,12 @@ void BindingInspectorTest::testModelDataChanged()
 {
     MockObject obj1 { 53, true, 'x', 5.3, "Hello World" };
 
-    provider->data = {{
+    provider->data = { {
         { &obj1, "a", &obj1, "b" },
         { &obj1, "a", &obj1, "c" },
         { &obj1, "a", &obj1, "d" },
         { &obj1, "b", &obj1, "e" },
-    }};
+    } };
 
     bindingExtension->setQObject(&obj1);
     QCOMPARE(bindingModel->rowCount(QModelIndex()), 2);
@@ -637,7 +622,7 @@ void BindingInspectorTest::testModelDataChanged()
     QCOMPARE(obj1dIndex.sibling(obj1dIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("0"));
     QCOMPARE(bindingModel->rowCount(obj1dIndex), 0);
 
-    QSignalSpy dataChangedSpy(bindingModel, SIGNAL(dataChanged(QModelIndex,QModelIndex,QVector<int>)));
+    QSignalSpy dataChangedSpy(bindingModel, &QAbstractItemModel::dataChanged);
     QVERIFY(dataChangedSpy.isValid());
 
     obj1.setD(3.1415926535897932);
@@ -661,9 +646,7 @@ void BindingInspectorTest::testModelDataChanged()
 void BindingInspectorTest::testModelAdditions()
 {
     MockObject obj1 { 53, true, 'x', 5.3, "Hello World" };
-    provider->data = {{
-        { &obj1, "a", &obj1, "c" }
-    }};
+    provider->data = { { { &obj1, "a", &obj1, "c" } } };
 
     bindingExtension->setQObject(&obj1);
     QCOMPARE(bindingModel->rowCount(QModelIndex()), 1);
@@ -681,14 +664,14 @@ void BindingInspectorTest::testModelAdditions()
     QCOMPARE(obj1cIndex.sibling(obj1cIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("0"));
     QCOMPARE(bindingModel->rowCount(obj1cIndex), 0);
 
-    QSignalSpy rowAddedSpy(bindingModel, SIGNAL(rowsInserted(QModelIndex,int,int)));
-    QSignalSpy dataChangedSpy(bindingModel, SIGNAL(dataChanged(QModelIndex,QModelIndex,QVector<int>)));
+    QSignalSpy rowAddedSpy(bindingModel, &QAbstractItemModel::rowsInserted);
+    QSignalSpy dataChangedSpy(bindingModel, &QAbstractItemModel::dataChanged);
     QVERIFY(rowAddedSpy.isValid());
     QVERIFY(dataChangedSpy.isValid());
 
-    provider->data.emplace_back( &obj1, "c", &obj1, "a" );
-    provider->data.emplace_back( &obj1, "c", &obj1, "b" );
-    provider->data.emplace_back( &obj1, "b", &obj1, "d" );
+    provider->data.emplace_back(&obj1, "c", &obj1, "a");
+    provider->data.emplace_back(&obj1, "c", &obj1, "b");
+    provider->data.emplace_back(&obj1, "b", &obj1, "d");
     obj1.setA(12);
 
     rowAddedSpy.wait(500);
@@ -706,9 +689,9 @@ void BindingInspectorTest::testModelAdditions()
     QCOMPARE(dataChangedSpy.at(2).at(1).toModelIndex(), obj1aIndex.sibling(obj1aIndex.row(), BindingModel::DepthColumn));
 
     QCOMPARE(obj1aIndex.sibling(obj1aIndex.row(), BindingModel::ValueColumn).data().toInt(), 12);
-    QCOMPARE(obj1aIndex.sibling(obj1aIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(obj1aIndex.sibling(obj1aIndex.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
 
-    QCOMPARE(obj1cIndex.sibling(obj1cIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(obj1cIndex.sibling(obj1cIndex.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(obj1cIndex), 2);
 
     auto obj1cChildren = getSortedChildren(obj1cIndex);
@@ -716,7 +699,7 @@ void BindingInspectorTest::testModelAdditions()
     QVERIFY(node1aIndex.isValid());
     QCOMPARE(node1aIndex.data().toString(), QStringLiteral("a"));
     QCOMPARE(node1aIndex.sibling(node1aIndex.row(), BindingModel::ValueColumn).data().toInt(), 12);
-    QCOMPARE(node1aIndex.sibling(node1aIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(node1aIndex.sibling(node1aIndex.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(node1aIndex), 0);
 
     QModelIndex obj1bIndex = obj1cChildren[1];
@@ -739,9 +722,7 @@ void BindingInspectorTest::testModelInsertions()
     MockObject obj1 { 53, true, 'x', 5.3, "Hello World" };
     MockObject obj2 { 35, false, 'y', 3.5, "Bye, World" };
 
-    provider->data = {{
-        { &obj1, "a", &obj1, "e" }
-    }};
+    provider->data = { { { &obj1, "a", &obj1, "e" } } };
 
     bindingExtension->setQObject(&obj1);
     QCOMPARE(bindingModel->rowCount(QModelIndex()), 1);
@@ -759,8 +740,8 @@ void BindingInspectorTest::testModelInsertions()
     QCOMPARE(obj1eIndex.sibling(obj1eIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("0"));
     QCOMPARE(bindingModel->rowCount(obj1eIndex), 0);
 
-    QSignalSpy rowAddedSpy(bindingModel, SIGNAL(rowsInserted(QModelIndex,int,int)));
-    QSignalSpy dataChangedSpy(bindingModel, SIGNAL(dataChanged(QModelIndex,QModelIndex,QVector<int>)));
+    QSignalSpy rowAddedSpy(bindingModel, &QAbstractItemModel::rowsInserted);
+    QSignalSpy dataChangedSpy(bindingModel, &QAbstractItemModel::dataChanged);
     QVERIFY(rowAddedSpy.isValid());
     QVERIFY(dataChangedSpy.isValid());
 
@@ -832,12 +813,12 @@ void BindingInspectorTest::testModelRemovalAtEnd()
 {
     MockObject obj1 { 53, true, 'x', 5.3, "Hello World" };
 
-    provider->data = {{
+    provider->data = { {
         { &obj1, "a", &obj1, "b" },
         { &obj1, "a", &obj1, "c" },
         { &obj1, "a", &obj1, "d" },
         { &obj1, "d", &obj1, "e" },
-    }};
+    } };
 
     bindingExtension->setQObject(&obj1);
     QCOMPARE(bindingModel->rowCount(QModelIndex()), 2);
@@ -849,8 +830,8 @@ void BindingInspectorTest::testModelRemovalAtEnd()
     QCOMPARE(obj1aIndex.sibling(obj1aIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("2"));
     QCOMPARE(bindingModel->rowCount(obj1aIndex), 3);
 
-    QSignalSpy rowRemovedSpy(bindingModel, SIGNAL(rowsRemoved(QModelIndex,int,int)));
-    QSignalSpy dataChangedSpy(bindingModel, SIGNAL(dataChanged(QModelIndex,QModelIndex,QVector<int>)));
+    QSignalSpy rowRemovedSpy(bindingModel, &QAbstractItemModel::rowsRemoved);
+    QSignalSpy dataChangedSpy(bindingModel, &QAbstractItemModel::dataChanged);
     QVERIFY(rowRemovedSpy.isValid());
     QVERIFY(dataChangedSpy.isValid());
 
@@ -885,12 +866,12 @@ void BindingInspectorTest::testModelRemovalInside()
 {
     MockObject obj1 { 53, true, 'x', 5.3, "Hello World" };
 
-    provider->data = {{
+    provider->data = { {
         { &obj1, "a", &obj1, "b" },
         { &obj1, "a", &obj1, "c" },
         { &obj1, "a", &obj1, "d" },
         { &obj1, "b", &obj1, "e" },
-    }};
+    } };
 
     bindingExtension->setQObject(&obj1);
     QCOMPARE(bindingModel->rowCount(QModelIndex()), 2);
@@ -902,8 +883,8 @@ void BindingInspectorTest::testModelRemovalInside()
     QCOMPARE(obj1aIndex.sibling(obj1aIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("2"));
     QCOMPARE(bindingModel->rowCount(obj1aIndex), 3);
 
-    QSignalSpy rowRemovedSpy(bindingModel, SIGNAL(rowsRemoved(QModelIndex,int,int)));
-    QSignalSpy dataChangedSpy(bindingModel, SIGNAL(dataChanged(QModelIndex,QModelIndex,QVector<int>)));
+    QSignalSpy rowRemovedSpy(bindingModel, &QAbstractItemModel::rowsRemoved);
+    QSignalSpy dataChangedSpy(bindingModel, &QAbstractItemModel::dataChanged);
     QVERIFY(rowRemovedSpy.isValid());
     QVERIFY(dataChangedSpy.isValid());
 
@@ -934,7 +915,6 @@ void BindingInspectorTest::testModelRemovalInside()
     QCOMPARE(dataChangedSpy.at(1).at(1).toModelIndex(), obj1aIndex.sibling(obj1aIndex.row(), BindingModel::DepthColumn));
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
 void BindingInspectorTest::testIntegration()
 {
     createProbe();
@@ -959,7 +939,7 @@ void BindingInspectorTest::testIntegration()
     QQmlComponent c(&engine);
     c.setData(code, QUrl());
     QObject *rect = c.create();
-    QTest::qWait(10);
+    QTest::qWait(30);
     QVERIFY(rect);
     QObject *text = rect->findChildren<QQuickText *>().at(0);
 
@@ -987,53 +967,53 @@ void BindingInspectorTest::testIntegration()
     QModelIndex fooIndex = topLevelIndices[4];
     QVERIFY(fooIndex.isValid());
     QCOMPARE(fooIndex.data().toString(), QStringLiteral("t.foo"));
-    QCOMPARE(fooIndex.sibling(fooIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(fooIndex.sibling(fooIndex.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(fooIndex), 1);
 
     QModelIndex tWidthIndex = bindingModel->index(0, 0, fooIndex);
     QVERIFY(tWidthIndex.isValid());
     QCOMPARE(tWidthIndex.data().toString(), QStringLiteral("t.width"));
-    QCOMPARE(tWidthIndex.sibling(tWidthIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(tWidthIndex.sibling(tWidthIndex.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(tWidthIndex), 2);
 
     auto tWidthChildren = getSortedChildren(tWidthIndex);
     QModelIndex tAnchorsRightIndex = tWidthChildren[1];
     QVERIFY(tAnchorsRightIndex.isValid());
     QCOMPARE(tAnchorsRightIndex.data().toString(), QStringLiteral("t.anchors.right"));
-    QCOMPARE(tAnchorsRightIndex.sibling(tAnchorsRightIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(tAnchorsRightIndex.sibling(tAnchorsRightIndex.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(tAnchorsRightIndex), 2); // is `parent` and `parent.right`
 
     auto tAnchorsRightChildren = getSortedChildren(tAnchorsRightIndex);
     QModelIndex aRightIndex = tAnchorsRightChildren[0];
     QVERIFY(aRightIndex.isValid());
     QCOMPARE(aRightIndex.data().toString(), QStringLiteral("a.right"));
-    QCOMPARE(aRightIndex.sibling(aRightIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(aRightIndex.sibling(aRightIndex.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(aRightIndex), 2);
 
     auto aRightChildren = getSortedChildren(aRightIndex);
     QModelIndex aWidthIndex = aRightChildren[0];
     QVERIFY(aWidthIndex.isValid());
     QCOMPARE(aWidthIndex.data().toString(), QStringLiteral("a.width"));
-    QCOMPARE(aWidthIndex.sibling(aWidthIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(aWidthIndex.sibling(aWidthIndex.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(aWidthIndex), 1);
 
     QModelIndex aImplicitWidthIndex = bindingModel->index(0, 0, aWidthIndex);
     QVERIFY(aImplicitWidthIndex.isValid());
     QCOMPARE(aImplicitWidthIndex.data().toString(), QStringLiteral("a.implicitWidth"));
-    QCOMPARE(aImplicitWidthIndex.sibling(aImplicitWidthIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(aImplicitWidthIndex.sibling(aImplicitWidthIndex.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(aImplicitWidthIndex), 1);
 
     QModelIndex aChildrenRectIndex = bindingModel->index(0, 0, aImplicitWidthIndex);
     QVERIFY(aChildrenRectIndex.isValid());
     QCOMPARE(aChildrenRectIndex.data().toString(), QStringLiteral("a.childrenRect"));
-    QCOMPARE(aChildrenRectIndex.sibling(aChildrenRectIndex.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(aChildrenRectIndex.sibling(aChildrenRectIndex.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(aChildrenRectIndex), 2);
 
     auto aChildrenRectChildren = getSortedChildren(aChildrenRectIndex);
     QModelIndex tWidthIndex2 = aChildrenRectChildren[1];
     QVERIFY(tWidthIndex2.isValid());
     QCOMPARE(tWidthIndex2.data().toString(), QStringLiteral("t.width"));
-    QCOMPARE(tWidthIndex2.sibling(tWidthIndex2.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(tWidthIndex2.sibling(tWidthIndex2.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(tWidthIndex2), 0);
 
     Probe::instance()->selectObject(rect);
@@ -1042,7 +1022,7 @@ void BindingInspectorTest::testIntegration()
     QVERIFY(aImplicitWidthIndex2.isValid());
     QCOMPARE(aImplicitWidthIndex2.data().toString(), QStringLiteral("a.implicitWidth"));
     QCOMPARE(aImplicitWidthIndex2.sibling(aImplicitWidthIndex2.row(), BindingModel::ValueColumn).data().toDouble(), 0.0);
-    QCOMPARE(aImplicitWidthIndex2.sibling(aImplicitWidthIndex2.row(), BindingModel::DepthColumn).data().toString(), QStringLiteral("\u221E"));
+    QCOMPARE(aImplicitWidthIndex2.sibling(aImplicitWidthIndex2.row(), BindingModel::DepthColumn).data().toString(), QString(QChar(0x221e)));
     QCOMPARE(bindingModel->rowCount(aImplicitWidthIndex2), 1);
 
     Probe::instance()->selectObject(text);
@@ -1076,9 +1056,8 @@ void BindingInspectorTest::testIntegration()
     QCOMPARE(bindingModel->rowCount(aHeightIndex), 0);
 
     delete rect;
-    QCOMPARE(bindingModel->rowCount(), 0);
+    QTRY_VERIFY(bindingModel->rowCount() == 0);
 }
-#endif
 
 QTEST_MAIN(BindingInspectorTest)
 

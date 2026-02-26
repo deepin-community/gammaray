@@ -1,29 +1,14 @@
 /*
   sggeometrymodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "sggeometrymodel.h"
@@ -105,32 +90,24 @@ QVariant SGVertexModel::data(const QModelIndex &index, int role) const
         attrInfo += index.column();
         switch (attrInfo->type) {
         case GL_BYTE:
-            return toStringList<char>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(
-                                                                                             ", "));
+            return toStringList<char>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(", "));
         case GL_UNSIGNED_BYTE:
-            return toStringList<unsigned char>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(
-                                                                                                      ", "));
+            return toStringList<unsigned char>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(", "));
         case GL_UNSIGNED_SHORT:
-            return toStringList<quint16>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(
-                                                                                                ", "));
+            return toStringList<quint16>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(", "));
         case GL_SHORT:
-            return toStringList<qint16>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(
-                                                                                               ", "));
+            return toStringList<qint16>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(", "));
         case GL_INT:
-            return toStringList<int>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(
-                                                                                            ", "));
+            return toStringList<int>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(", "));
         case GL_UNSIGNED_INT:
-            return toStringList<uint>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(
-                                                                                             ", "));
+            return toStringList<uint>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(", "));
         case GL_FLOAT:
-            return toStringList<float>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(
-                                                                                              ", "));
+            return toStringList<float>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(", "));
 #if defined(GL_DOUBLE) && GL_DOUBLE != GL_FLOAT
         case GL_DOUBLE:
-            return toStringList<double>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(
-                                                                                               ", "));
+            return toStringList<double>(index.internalPointer(), attrInfo->tupleSize).join(QStringLiteral(", "));
 #endif
-#ifndef QT_OPENGL_ES_2
+#if !QT_CONFIG(opengles2)
         case GL_2_BYTES:
             return "2Bytes";
         case GL_3_BYTES:
@@ -139,15 +116,12 @@ QVariant SGVertexModel::data(const QModelIndex &index, int role) const
             return "4Bytes";
 #endif
         default:
-            return QStringLiteral("Unknown %1 byte data: 0x").
-                   arg(attrInfo->tupleSize).
-                   append(QByteArray((char *)index.internalPointer(), attrInfo->tupleSize).
-                          toHex());
+            return QStringLiteral("Unknown %1 byte data: 0x").arg(attrInfo->tupleSize).append(QByteArray(( char * )index.internalPointer(), attrInfo->tupleSize).toHex());
         }
     } else if (role == IsCoordinateRole) {
         const QSGGeometry::Attribute *attrInfo = m_geometry->attributes();
         attrInfo += index.column();
-        return (bool)attrInfo->isVertexCoordinate;
+        return ( bool )attrInfo->isVertexCoordinate;
     } else if (role == RenderRole) {
         const QSGGeometry::Attribute *attrInfo = m_geometry->attributes();
         attrInfo += index.column();
@@ -178,7 +152,7 @@ QVariant SGVertexModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
-QMap< int, QVariant > SGVertexModel::itemData(const QModelIndex &index) const
+QMap<int, QVariant> SGVertexModel::itemData(const QModelIndex &index) const
 {
     QMap<int, QVariant> map = QAbstractItemModel::itemData(index);
     map.insert(IsCoordinateRole, data(index, IsCoordinateRole));
@@ -189,7 +163,26 @@ QMap< int, QVariant > SGVertexModel::itemData(const QModelIndex &index) const
 QVariant SGVertexModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
     if (role == Qt::DisplayRole && orientation == Qt::Horizontal && m_geometry) {
-        char const * const *attributeNames = m_node->material()->createShader()->attributeNames();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        if (section < m_geometry->attributeCount()) {
+            switch (m_geometry->attributes()[section].attributeType) {
+            case QSGGeometry::UnknownAttribute:
+                return QStringLiteral("UnknownAttribute");
+            case QSGGeometry::PositionAttribute:
+                return QStringLiteral("PositionAttribute");
+            case QSGGeometry::ColorAttribute:
+                return QStringLiteral("ColorAttribute");
+            case QSGGeometry::TexCoordAttribute:
+                return QStringLiteral("TexCoordAttribute");
+            case QSGGeometry::TexCoord1Attribute:
+                return QStringLiteral("TexCoord1Attribute");
+            case QSGGeometry::TexCoord2Attribute:
+                return QStringLiteral("TexCoord2Attribute");
+                break;
+            }
+        }
+#else
+        char const *const *attributeNames = m_node->material()->createShader()->attributeNames();
 
         for (int i = 0; i <= section; i++) {
             if (!attributeNames[i])
@@ -197,6 +190,7 @@ QVariant SGVertexModel::headerData(int section, Qt::Orientation orientation, int
             if (i == section)
                 return attributeNames[section];
         }
+#endif
     }
     return QAbstractItemModel::headerData(section, orientation, role);
 }
@@ -310,7 +304,7 @@ void SGAdjacencyModel::setNode(QSGGeometryNode *node)
     endResetModel();
 }
 
-QMap< int, QVariant > SGAdjacencyModel::itemData(const QModelIndex &index) const
+QMap<int, QVariant> SGAdjacencyModel::itemData(const QModelIndex &index) const
 {
     QMap<int, QVariant> map = QAbstractItemModel::itemData(index);
     map.insert(DrawingModeRole, data(index, DrawingModeRole));

@@ -1,34 +1,19 @@
 /*
   lldbinjector.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "lldbinjector.h"
 
-#include <QRegExp>
+#include <QRegularExpression>
 
 using namespace GammaRay;
 
@@ -53,14 +38,15 @@ bool LldbInjector::selfTest()
             const QString output = QString::fromLocal8Bit(process.readAll()).trimmed();
             const auto targetMajor = 3;
             const auto targetMinor = 6;
-            QRegExp rx(QStringLiteral("\\b([\\d]+\\.[\\d]+\\.[\\d]+)\\b")); // lldb version 3.7.0 ( revision )
+            static const QRegularExpression rx(QStringLiteral("\\b([\\d]+\\.[\\d]+\\.[\\d]+)\\b")); // lldb version 3.7.0 ( revision )
+            const auto match = rx.match(output);
 
-            if (rx.indexIn(output) == -1) {
+            if (!match.hasMatch()) {
                 mErrorString = tr("The debugger version can't be read (%1)").arg(output);
                 return false;
             }
 
-            const QString version = rx.cap(1);
+            const auto version = match.captured(1);
             const QStringList parts = version.split(QLatin1Char('.'));
 
             if (parts.count() >= 2) {
@@ -71,7 +57,9 @@ bool LldbInjector::selfTest()
             }
 
             mErrorString = tr("The LLDB version is not compatible: %1 (%2.%3 or higher required)")
-                .arg(version).arg(targetMajor).arg(targetMinor);
+                               .arg(version)
+                               .arg(targetMajor)
+                               .arg(targetMinor);
             return false;
         }
     }
@@ -144,7 +132,7 @@ bool LldbInjector::attach(int pid, const QString &probeDll, const QString &probe
     return injectAndDetach(probeDll, probeFunc);
 }
 
-void LldbInjector::parseStandardError(const QByteArray& line)
+void LldbInjector::parseStandardError(const QByteArray &line)
 {
     if (m_scriptSupportIsRequired && line.startsWith("error: your copy of LLDB does not support scripting"))
         setManualError(tr("LLDB does not support scripting. Install lldb python support please."));

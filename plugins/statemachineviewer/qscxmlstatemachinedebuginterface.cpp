@@ -1,27 +1,14 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  qscxmlstatemachinedebuginterface.cpp
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Jan Arne Petersen <jan.petersen@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "qscxmlstatemachinedebuginterface.h"
@@ -31,19 +18,23 @@
 
 namespace GammaRay {
 
-static QScxmlStateMachineInfo::StateId fromState(State state) {
+static QScxmlStateMachineInfo::StateId fromState(State state)
+{
     return static_cast<QScxmlStateMachineInfo::StateId>(state);
 }
 
-static State toState(QScxmlStateMachineInfo::StateId state) {
+static State toState(QScxmlStateMachineInfo::StateId state)
+{
     return State(static_cast<quintptr>(state));
 }
 
-static QScxmlStateMachineInfo::TransitionId fromTransition(Transition transition) {
+static QScxmlStateMachineInfo::TransitionId fromTransition(Transition transition)
+{
     return static_cast<QScxmlStateMachineInfo::TransitionId>(transition);
 }
 
-static Transition toTransition(QScxmlStateMachineInfo::TransitionId transition) {
+static Transition toTransition(QScxmlStateMachineInfo::TransitionId transition)
+{
     return Transition(static_cast<quintptr>(transition));
 }
 
@@ -52,13 +43,14 @@ QScxmlStateMachineDebugInterface::QScxmlStateMachineDebugInterface(QScxmlStateMa
     , m_stateMachine(stateMachine)
     , m_info(new QScxmlStateMachineInfo(stateMachine))
 {
+    // clang-format off
     connect(stateMachine, SIGNAL(runningChanged(bool)), this, SIGNAL(runningChanged(bool)));
-
     connect(stateMachine, SIGNAL(log(QString,QString)), this, SIGNAL(logMessage(QString,QString)));
 
     connect(m_info.data(), SIGNAL(statesEntered(QVector<QScxmlStateMachineInfo::StateId>)), this, SLOT(statesEntered(QVector<QScxmlStateMachineInfo::StateId>)));
     connect(m_info.data(), SIGNAL(statesExited(QVector<QScxmlStateMachineInfo::StateId>)), this, SLOT(statesExited(QVector<QScxmlStateMachineInfo::StateId>)));
     connect(m_info.data(), SIGNAL(transitionsTriggered(QVector<QScxmlStateMachineInfo::TransitionId>)), this, SLOT(transitionsTriggered(QVector<QScxmlStateMachineInfo::TransitionId>)));
+    // clang-format on
 }
 
 QScxmlStateMachineDebugInterface::~QScxmlStateMachineDebugInterface()
@@ -154,18 +146,18 @@ QString QScxmlStateMachineDebugInterface::stateDisplay(State state) const
 QString QScxmlStateMachineDebugInterface::stateDisplayType(State state) const
 {
     switch (m_info->stateType(fromState(state))) {
-        case QScxmlStateMachineInfo::InvalidState:
-            return QStringLiteral("StateMachineState");
-        case QScxmlStateMachineInfo::NormalState:
-            return QStringLiteral("NormalState");
-        case QScxmlStateMachineInfo::ParallelState:
-            return QStringLiteral("ParallelState");
-        case QScxmlStateMachineInfo::FinalState:
-            return QStringLiteral("FinalState");
-        case QScxmlStateMachineInfo::ShallowHistoryState:
-            return QStringLiteral("ShallowHistoryState");
-        case QScxmlStateMachineInfo::DeepHistoryState:
-            return QStringLiteral("DeepHistoryState");
+    case QScxmlStateMachineInfo::InvalidState:
+        return QStringLiteral("StateMachineState");
+    case QScxmlStateMachineInfo::NormalState:
+        return QStringLiteral("NormalState");
+    case QScxmlStateMachineInfo::ParallelState:
+        return QStringLiteral("ParallelState");
+    case QScxmlStateMachineInfo::FinalState:
+        return QStringLiteral("FinalState");
+    case QScxmlStateMachineInfo::ShallowHistoryState:
+        return QStringLiteral("ShallowHistoryState");
+    case QScxmlStateMachineInfo::DeepHistoryState:
+        return QStringLiteral("DeepHistoryState");
     }
 
     return QString();
@@ -174,18 +166,18 @@ QString QScxmlStateMachineDebugInterface::stateDisplayType(State state) const
 StateType QScxmlStateMachineDebugInterface::stateType(State state) const
 {
     switch (m_info->stateType(fromState(state))) {
-        case QScxmlStateMachineInfo::InvalidState:
-            return StateMachineState;
-        case QScxmlStateMachineInfo::NormalState:
-            return OtherState;
-        case QScxmlStateMachineInfo::ParallelState:
-            return OtherState; // FIXME: No ParallelState. Bug.
-        case QScxmlStateMachineInfo::FinalState:
-            return FinalState;
-        case QScxmlStateMachineInfo::ShallowHistoryState:
-            return ShallowHistoryState;
-        case QScxmlStateMachineInfo::DeepHistoryState:
-            return DeepHistoryState;
+    case QScxmlStateMachineInfo::InvalidState:
+        return StateMachineState;
+    case QScxmlStateMachineInfo::NormalState:
+        return OtherState;
+    case QScxmlStateMachineInfo::ParallelState:
+        return OtherState; // FIXME: No ParallelState. Bug.
+    case QScxmlStateMachineInfo::FinalState:
+        return FinalState;
+    case QScxmlStateMachineInfo::ShallowHistoryState:
+        return ShallowHistoryState;
+    case QScxmlStateMachineInfo::DeepHistoryState:
+        return DeepHistoryState;
     }
 
     return OtherState;

@@ -1,29 +1,14 @@
 /*
   launchpage.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2011-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2011 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -50,10 +35,11 @@ LaunchPage::LaunchPage(QWidget *parent)
     , m_abiIsValid(true)
 {
     ui->setupUi(this);
+    ui->errorLabel->hide();
 #if defined(Q_OS_MAC)
     QMargins margins = ui->formLayout->contentsMargins();
-    margins.setRight(margins.right() +2);
-    margins.setBottom(margins.bottom() +2);
+    margins.setRight(margins.right() + 2);
+    margins.setBottom(margins.bottom() + 2);
     ui->formLayout->setContentsMargins(margins);
 #endif
     connect(ui->progSelectButton, &QAbstractButton::clicked, this, &LaunchPage::showFileDialog);
@@ -91,12 +77,11 @@ void LaunchPage::writeSettings()
     QSettings settings;
     settings.setValue(QStringLiteral("Launcher/Program"), ui->progEdit->text());
     settings.setValue(QStringLiteral("Launcher/WorkingDirectory"), ui->workDirEdit->text());
-    settings.setValue(QStringLiteral("Launcher/Arguments"), notEmptyString(
-                          m_argsModel->stringList()));
+    settings.setValue(QStringLiteral("Launcher/Arguments"), notEmptyString(m_argsModel->stringList()));
     settings.setValue(QStringLiteral("Launcher/AccessMode"), ui->accessMode->currentIndex());
 }
 
-QStringList LaunchPage::notEmptyString(const QStringList &list) const
+QStringList LaunchPage::notEmptyString(const QStringList &list)
 {
     QStringList notEmptyStringList;
     const int numberOfArguments = list.count();
@@ -141,15 +126,15 @@ LaunchOptions LaunchPage::launchOptions() const
 
 void LaunchPage::showFileDialog()
 {
-    QString exeFilePath
-        = QFileDialog::getOpenFileName(
+    QString exeFilePath = QFileDialog::getOpenFileName(
         this,
         tr("Executable to Launch"),
         ui->progEdit->text()
 #ifdef Q_OS_WIN
-        , tr("Executable (*.exe)")
+            ,
+        tr("Executable (*.exe)")
 #endif
-        );
+    );
 
     if (exeFilePath.isEmpty())
         return;
@@ -158,8 +143,8 @@ void LaunchPage::showFileDialog()
         const QFileInfo fileInfo(exeFilePath);
         if (fileInfo.isBundle()) {
             const QString bundleTarget = QString::fromLatin1("%1/Contents/MacOS/%2")
-                    .arg(exeFilePath, fileInfo.completeBaseName())
-                    .replace(QLatin1String("/"), QDir::separator());
+                                             .arg(exeFilePath, fileInfo.completeBaseName())
+                                             .replace(QLatin1String("/"), QDir::separator());
             if (QFile::exists(bundleTarget))
                 exeFilePath = bundleTarget;
         }
@@ -171,8 +156,7 @@ void LaunchPage::showFileDialog()
 void LaunchPage::showDirDialog()
 {
     QString workingDirPath = QFileDialog::getExistingDirectory(
-        this, tr("Working Directory"), ui->workDirEdit->text()
-        );
+        this, tr("Working Directory"), ui->workDirEdit->text());
 
     if (!workingDirPath.isEmpty()) {
         ui->workDirEdit->setText(workingDirPath);
@@ -196,7 +180,12 @@ void LaunchPage::removeArgument()
 
 bool LaunchPage::isValid()
 {
-    if (ui->progEdit->text().isEmpty() || !m_abiIsValid)
+    return m_abiIsValid && fileIsExecutable();
+}
+
+bool LaunchPage::fileIsExecutable() const
+{
+    if (ui->progEdit->text().isEmpty())
         return false;
 
     const QFileInfo fi(ui->progEdit->text());
@@ -219,8 +208,16 @@ void LaunchPage::detectABI(const QString &path)
 {
     const ProbeABI abi = m_abiDetector.abiForExecutable(path);
     const int index = m_abiModel->indexOfBestMatchingABI(abi);
-    if (index >= 0)
+    if (index >= 0) {
         ui->probeBox->setCurrentIndex(index);
+    } else {
+        if (!fileIsExecutable()) {
+            ui->errorLabel->setText(tr("The given file path is not a valid executable"));
+        } else {
+            ui->errorLabel->setText(tr("None of the available ABI probes supports the ABI of this binary [%1]").arg(abi.displayString()));
+        }
+    }
     m_abiIsValid = index >= 0;
+    ui->errorLabel->setVisible(!m_abiIsValid && !ui->progEdit->text().isEmpty());
     emit updateButtonState();
 }

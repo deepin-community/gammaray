@@ -1,29 +1,14 @@
 /*
   palettemodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2012-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2012 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "palettemodel.h"
@@ -33,7 +18,8 @@
 
 using namespace GammaRay;
 
-struct role_t {
+struct role_t
+{
     const char *name;
     QPalette::ColorRole role;
 };
@@ -60,7 +46,8 @@ static const role_t paletteRoles[] = {
     { "LinkVisited", QPalette::LinkVisited }
 };
 
-struct group_t {
+struct group_t
+{
     const char *name;
     QPalette::ColorGroup group;
 };
@@ -103,14 +90,15 @@ QVariant PaletteModel::data(const QModelIndex &index, int role) const
         if (index.column() == 0)
             return paletteRoles[index.row()].name;
 
-        return m_palette.color(paletteGroups[index.column()-1].group,
-                               paletteRoles[index.row()].role).name();
+        return m_palette.color(paletteGroups[index.column() - 1].group,
+                               paletteRoles[index.row()].role)
+            .name();
     } else if (role == Qt::EditRole && index.column() > 0) {
         // TODO return QBrush once we have an editor for that
-        return m_palette.color(paletteGroups[index.column()-1].group,
+        return m_palette.color(paletteGroups[index.column() - 1].group,
                                paletteRoles[index.row()].role);
     } else if (role == Qt::DecorationRole && index.column() != 0) {
-        const QBrush brush = m_palette.brush(paletteGroups[index.column()-1].group,
+        const QBrush brush = m_palette.brush(paletteGroups[index.column() - 1].group,
                                              paletteRoles[index.row()].role);
         QPixmap pixmap(32, 32);
         QPainter painter(&pixmap);
@@ -129,10 +117,10 @@ bool PaletteModel::setData(const QModelIndex &index, const QVariant &value, int 
 
     if (index.isValid() && role == Qt::EditRole) {
         if (value.type() == QVariant::Color) {
-            m_palette.setColor(paletteGroups[index.column()-1].group,
+            m_palette.setColor(paletteGroups[index.column() - 1].group,
                                paletteRoles[index.row()].role, value.value<QColor>());
         } else if (value.type() == QVariant::Brush) {
-            m_palette.setBrush(paletteGroups[index.column()-1].group,
+            m_palette.setBrush(paletteGroups[index.column() - 1].group,
                                paletteRoles[index.row()].role, value.value<QBrush>());
         }
     }
@@ -157,7 +145,7 @@ QVariant PaletteModel::headerData(int section, Qt::Orientation orientation, int 
     if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
         if (section == 0)
             return tr("Role");
-        return paletteGroups[section-1].name;
+        return paletteGroups[section - 1].name;
     }
     return QAbstractItemModel::headerData(section, orientation, role);
 }

@@ -1,29 +1,14 @@
 /*
   execution.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2017-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -58,19 +43,21 @@ namespace GammaRay {
 namespace Execution {
 
 #ifdef USE_BACKWARD_CPP
-class TraceData : public backward::StackTrace {
+class TraceData : public backward::StackTrace
+{
 public:
     using backward::StackTrace::skip_n_firsts;
 };
 #elif defined(Q_OS_WIN)
 typedef QVector<ResolvedFrame> TraceData;
 #else
-typedef QVector<void*> TraceData;
+typedef QVector<void *> TraceData;
 #endif
 
-class TracePrivate {
+class TracePrivate
+{
 public:
-    static TraceData& get(const Trace &trace)
+    static TraceData &get(const Trace &trace)
     {
         return trace.d->data;
     }
@@ -78,18 +65,19 @@ public:
     TraceData data;
 };
 
-}}
+}
+}
 
 #ifndef Q_OS_WIN
-//BEGIN UNIX specific code
+// BEGIN UNIX specific code
 
 #include <dlfcn.h>
 
-bool Execution::isReadOnlyData(const void* data)
+bool Execution::isReadOnlyData(const void *data)
 {
     Dl_info info;
     // ### technically we would also need to check if we are in a read-only section, but this close enough for our purpose
-    return dladdr(const_cast<void*>(data), &info) != 0;
+    return dladdr(const_cast<void *>(data), &info) != 0;
 }
 
 static bool stackTracingAvailableImpl()
@@ -132,7 +120,7 @@ Execution::Trace Execution::stackTrace(int maxDepth, int skip)
 }
 
 #ifdef USE_BACKWARD_CPP
-static backward::TraceResolver* resolver()
+static backward::TraceResolver *resolver()
 {
     static backward::TraceResolver s_traceResolver;
     return &s_traceResolver;
@@ -178,8 +166,8 @@ static QString maybeDemangleName(char *name)
             *mangledNameEnd = MANGLED_END[0];
             if (status == 0 && demangled) {
                 QString ret = QString::fromLatin1(name, mangledNameStart - name)
-                              +QString::fromLatin1(demangled)
-                              +QString::fromLatin1(mangledNameEnd);
+                    + QString::fromLatin1(demangled)
+                    + QString::fromLatin1(mangledNameEnd);
                 free(demangled);
                 return ret;
             }
@@ -239,13 +227,13 @@ QVector<Execution::ResolvedFrame> Execution::resolveAll(const Execution::Trace &
     return frames;
 }
 
-//END Unix specific code
+// END Unix specific code
 #else
-//BEGIN Windows specific code
+// BEGIN Windows specific code
 
 #include <qt_windows.h>
 
-bool Execution::isReadOnlyData(const void* data)
+bool Execution::isReadOnlyData(const void *data)
 {
     HMODULE handle;
     // ### technically we would also need to check if we are in a read-only section, but this close enough for our purpose
@@ -279,8 +267,12 @@ public:
     }
 
 protected:
-    void OnSymInit(LPCSTR, DWORD, LPCSTR) override {}
-    void OnLoadModule(LPCSTR, LPCSTR, DWORD64, DWORD, DWORD, LPCSTR, LPCSTR, ULONGLONG) override {}
+    void OnSymInit(LPCSTR, DWORD, LPCSTR) override
+    {
+    }
+    void OnLoadModule(LPCSTR, LPCSTR, DWORD64, DWORD, DWORD, LPCSTR, LPCSTR, ULONGLONG) override
+    {
+    }
 
     void OnCallstackEntry(CallstackEntryType eType, CallstackEntry &entry) override
     {
@@ -341,16 +333,16 @@ QVector<Execution::ResolvedFrame> Execution::resolveAll(const Execution::Trace &
     return frames;
 }
 
-//END Windows specific Code
+// END Windows specific Code
 #endif
 
-//BEGIN generic code applicable for all platforms
+// BEGIN generic code applicable for all platforms
 namespace GammaRay {
 namespace Execution {
 
 bool stackTracingAvailable()
 {
-    static const bool disableStackTracing = qgetenv("GAMMARAY_DISABLE_STACKTRACE") == "1";
+    static const bool disableStackTracing = qEnvironmentVariableIntValue("GAMMARAY_DISABLE_STACKTRACE") == 1;
     if (disableStackTracing)
         return false;
     return stackTracingAvailableImpl();
@@ -370,7 +362,7 @@ Trace::Trace(const Trace &) = default;
 
 Trace::~Trace() = default;
 
-Trace& Trace::operator=(const Trace &) = default;
+Trace &Trace::operator=(const Trace &) = default;
 
 bool Trace::empty() const
 {
@@ -382,5 +374,6 @@ int Trace::size() const
     return d->data.size();
 }
 
-}}
-//END generic code
+}
+}
+// END generic code

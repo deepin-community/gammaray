@@ -1,37 +1,19 @@
-###############################################################################
-##  This file is part of GammaRay, the Qt application inspection and
-##  manipulation tool.
-##
-##  Copyright (C) 2019-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-##  Author: Renato Araujo Oliveira Filho <renato.araujo@kdab.com>
-##
-##  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-##  accordance with GammaRay Commercial License Agreement provided with the Software.
-##
-##  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-##
-##  This program is free software; you can redistribute it and/or modify
-##  it under the terms of the GNU General Public License as published by
-##  the Free Software Foundation, either version 2 of the License, or
-##  (at your option) any later version.
-##
-##  This program is distributed in the hope that it will be useful,
-##  but WITHOUT ANY WARRANTY; without even the implied warranty of
-##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##  GNU General Public License for more details.
-##
-##  You should have received a copy of the GNU General Public License
-##  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-###############################################################################
+# This file is part of GammaRay, the Qt application inspection and manipulation tool.
+#
+# SPDX-FileCopyrightText: 2019 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+# Author: Renato Araujo Oliveira Filho <renato.araujo@kdab.com>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Contact KDAB at <info@kdab.com> for commercial licensing options.
+#
 
 from conans import ConanFile, CMake, tools
 
 class GammaRayConan(ConanFile):
     name = "GammaRay"
-    version = "2.11.3"
-    license = ("https://raw.githubusercontent.com/KDAB/GammaRay/{0}/LICENSE.txt,"
-               "https://raw.githubusercontent.com/KDAB/GammaRay/{0}/LICENSE.GPL.txt,"
-               "https://raw.githubusercontent.com/KDAB/GammaRay/{0}/LICENSE.BSD2.txt").format(version)
+    version = "3.1.0"
+    license = "https://raw.githubusercontent.com/KDAB/GammaRay/{0}/LICENSE.txt".format(version)
     author = "Klaralvdalens Datakonsult AB (KDAB) info@kdab.com"
     url = "https://github.com/KDAB/GammaRay.git"
     description = "GammaRay is a software introspection tool for Qt applications developed by KDAB."
@@ -86,7 +68,6 @@ class GammaRayConan(ConanFile):
         self.cmake.definitions["GAMMARAY_BUILD_UI"] = self.options.build_ui
         self.cmake.definitions["GAMMARAY_PROBE_ONLY_BUILD"] = self.options.probe_only_build
         self.cmake.definitions["GAMMARAY_CLIENT_ONLY_BUILD"] = self.options.client_only_build
-        self.cmake.definitions["GAMMARAY_ENABLE_GPL_ONLY_FEATURES"] = self.options.enable_gpl_only_features
         self.cmake.definitions["GAMMARAY_INSTALL_QT_LAYOUT"] = self.options.install_qt_layout
         self.cmake.definitions["GAMMARAY_BUILD_CLI_INJECTOR"] = self.options.build_cli_injector
         self.cmake.definitions["GAMMARAY_MULTI_BUILD"] = self.options.multi_build

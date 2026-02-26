@@ -1,35 +1,21 @@
 /*
   networkreplywidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2019-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2019 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "networkreplywidget.h"
 #include "clientnetworkreplymodel.h"
 #include "networkreplymodeldefs.h"
 #include "ui_networkreplywidget.h"
+#include "networksupportclient.h"
 
 #include <ui/contextmenuextension.h>
 
@@ -38,14 +24,34 @@
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QMenu>
+#include <QPlainTextEdit>
+#include <QJsonDocument>
+#include <QBuffer>
+#include <QXmlStreamReader>
+#include <QLabel>
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+#include <QTextCodec>
+#else
+#include <QStringDecoder>
+#endif
 
 using namespace GammaRay;
 
-NetworkReplyWidget::NetworkReplyWidget(QWidget* parent)
+static QObject *createClientNetworkSupportInterface(const QString & /*name*/, QObject *parent)
+{
+    return new NetworkSupportClient(parent);
+}
+
+NetworkReplyWidget::NetworkReplyWidget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::NetworkReplyWidget)
 {
     ui->setupUi(this);
+
+    ObjectBroker::registerClientObjectFactoryCallback<NetworkSupportInterface *>(
+        createClientNetworkSupportInterface);
+    auto interface = ObjectBroker::object<NetworkSupportInterface *>();
 
     auto srcModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.NetworkReplyModel"));
     auto proxy = new ClientNetworkReplyModel(this);
@@ -63,7 +69,75 @@ NetworkReplyWidget::NetworkReplyWidget(QWidget* parent)
     });
 
     connect(ui->replyView, &QWidget::customContextMenuRequested, this, &NetworkReplyWidget::contextMenu);
+    connect(ui->replyView->selectionModel(), &QItemSelectionModel::currentChanged, this, [this](const QModelIndex &current, const QModelIndex &) {
+        const auto objColumn = current.sibling(current.row(), NetworkReplyModelColumn::ObjectColumn);
+        auto response = objColumn.data(NetworkReplyModelRole::ReplyResponseRole).toByteArray();
+        const auto contentType = ( NetworkReply::ContentType )objColumn.data(NetworkReplyModelRole::ReplyContentType).toInt();
 
+        ui->imageLabel->clear();
+
+        switch (contentType) {
+        case NetworkReply::Json:
+            response = QJsonDocument::fromJson(response).toJson(QJsonDocument::JsonFormat::Indented);
+            break;
+        case NetworkReply::Xml: {
+            QXmlStreamReader reader(response);
+
+            QByteArray formattedResponse;
+            QXmlStreamWriter writer(&formattedResponse);
+            writer.setAutoFormatting(true);
+
+            while (!reader.atEnd()) {
+                reader.readNext();
+                if (reader.isWhitespace()) {
+                    continue;
+                }
+
+                writer.writeCurrentToken(reader);
+            }
+
+            if (reader.hasError()) {
+                qWarning() << "Error while parsing XML:" << reader.errorString();
+                break;
+            }
+
+            response.swap(formattedResponse);
+            break;
+        }
+        case NetworkReply::Image:
+            ui->imageLabel->setPixmap(QPixmap::fromImage(QImage::fromData(response)));
+            response.clear();
+            break;
+        default:
+            break;
+        }
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        QStringDecoder decoder(QStringDecoder::Utf8);
+        QByteArrayView bav(response.constData(), response.size());
+        const QString text = decoder.decode(bav);
+        if (!decoder.hasError()) {
+            ui->responseTextEdit->setPlainText(text);
+        }
+#else
+
+            QTextCodec::ConverterState state;
+            QTextCodec *codec = QTextCodec::codecForName("UTF-8");
+            const QString text = codec->toUnicode(response.constData(), response.size(), &state);
+            if (state.invalidChars > 0) {
+                ui->responseTextEdit->setPlainText(tr("%1: Unable to show response preview").arg(qApp->applicationName()));
+            } else {
+                ui->responseTextEdit->setPlainText(text);
+            }
+#endif
+    });
+    ui->responseTextEdit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    connect(ui->responseTextEdit, &QPlainTextEdit::textChanged, this, [this]() {
+        ui->responseTextEdit->setVisible(!ui->responseTextEdit->toPlainText().isEmpty());
+    });
+    connect(ui->captureResponse, &QCheckBox::toggled, interface, [interface](bool checked) {
+        interface->setProperty("captureResponse", checked);
+    });
 }
 
 NetworkReplyWidget::~NetworkReplyWidget() = default;

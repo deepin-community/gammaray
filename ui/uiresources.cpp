@@ -1,29 +1,14 @@
 /*
   uiresources.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Filipe Azevedo <filipe.azevedo@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "uiresources.h"
@@ -34,7 +19,7 @@
 #include <QFileInfo>
 #include <QWidget>
 #include <QApplication>
-#include <QDesktopWidget>
+#include <QPainter>
 #include <QScreen>
 #include <QDebug>
 
@@ -42,15 +27,16 @@ using namespace GammaRay;
 
 namespace GammaRay {
 namespace UIResources {
-struct PairThemeFileName {
+struct PairThemeFileName
+{
     bool operator==(const PairThemeFileName &other) const
     {
-        return devicePixelRatio == other.devicePixelRatio &&
-                theme == other.theme &&
-                filePath == other.filePath;
+        return devicePixelRatio == other.devicePixelRatio && theme == other.theme && filePath == other.filePath;
     }
     bool operator!=(const PairThemeFileName &other) const
-    { return !operator==(other); }
+    {
+        return !operator==(other);
+    }
 
     qreal devicePixelRatio;
     UIResources::Theme theme;
@@ -74,8 +60,7 @@ qreal devicePixelRatio(QWidget *widget)
     qreal pixelRatio = qApp->devicePixelRatio();
 
     if (widget) {
-        const int screenNumber = qMax(0, qApp->desktop()->screenNumber(widget));
-        const QScreen *screen = qApp->screens().value(screenNumber);
+        const QScreen *screen = widget->screen();
         pixelRatio = screen->devicePixelRatio();
     }
 
@@ -113,8 +98,8 @@ QString themedPath(UIResources::Theme theme, const QString &extra, QWidget *widg
     const int dpr = qRound(devicePixelRatio(widget));
     if (dpr > 1) {
         const QString highdpi = QString::fromLatin1("%1/%2@%4x.%3")
-                .arg(candidate.path(), candidate.baseName(), candidate.suffix())
-                .arg(dpr);
+                                    .arg(candidate.path(), candidate.baseName(), candidate.suffix())
+                                    .arg(dpr);
         if (QFile::exists(highdpi))
             candidate.setFile(highdpi);
     }
@@ -135,7 +120,7 @@ QString themedFilePath(ThemeEntryType type, UIResources::Theme theme, const QStr
 
     if (it == hash.end()) {
         const QString iconFilePath = QString::fromLatin1("%1/%2")
-                .arg(type == Pixmap ? QStringLiteral("pixmaps") : QStringLiteral("icons"), filePath);
+                                         .arg(type == Pixmap ? QStringLiteral("pixmaps") : QStringLiteral("icons"), filePath);
         QString candidate(UIResources::themedPath(theme, iconFilePath, widget));
 
         // Fallback to default theme file
@@ -146,7 +131,7 @@ QString themedFilePath(ThemeEntryType type, UIResources::Theme theme, const QStr
         }
 
         it = hash.insert(pair, candidate);
-        Q_ASSERT_X(QFile::exists(*it), "themedFilePath", qPrintable(*it));
+        // Q_ASSERT_X(QFile::exists(*it), "themedFilePath", qPrintable(*it));
     }
 
     return *it;
@@ -181,13 +166,13 @@ QString UIResources::themedFilePath(UIResources::ThemeEntryType type, const QStr
 
 QImage UIResources::tintedImage(const QImage &image, const QColor &color)
 {
-    QImage img(image.alphaChannel());
-    img.setDevicePixelRatio(image.devicePixelRatio());
-    QColor newColor = color;
-    for (int i = 0; i < img.colorCount(); ++i) {
-        newColor.setAlpha(qGray(img.color(i)));
-        img.setColor(i, newColor.rgba());
-    }
+    QImage img(image.size(), QImage::Format_ARGB32_Premultiplied);
+
+    QPainter painter(&img);
+    painter.setCompositionMode(QPainter::CompositionMode_Source);
+    painter.drawImage(img.rect(), image);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    painter.fillRect(img.rect(), color);
     return img;
 }
 

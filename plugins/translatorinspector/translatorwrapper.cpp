@@ -1,29 +1,14 @@
 /*
   translatorwrapper.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Jan Dalheimer <jan.dalheimer@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "translatorwrapper.h"
@@ -85,8 +70,7 @@ bool TranslationsModel::setData(const QModelIndex &index, const QVariant &value,
             return true;
         node.translation = value.toString();
         node.isOverridden = true;
-        emit dataChanged(index, index, QVector<int>() << Qt::DisplayRole
-                                                      << Qt::EditRole);
+        emit dataChanged(index, index, QVector<int>() << Qt::DisplayRole << Qt::EditRole);
         return true;
     }
     return false;
@@ -135,7 +119,7 @@ void TranslationsModel::resetTranslations(const QItemSelection &selection)
         }
     }
 
-    for (int i = ranges.count() -1; i >= 0; --i) {
+    for (int i = ranges.count() - 1; i >= 0; --i) {
         const auto &range = ranges[i];
         beginRemoveRows(QModelIndex(), range.first, range.second);
         m_nodes.remove(range.first, range.second - range.first + 1);
@@ -147,8 +131,7 @@ QString TranslationsModel::translation(const char *context, const char *sourceTe
                                        const char *disambiguation, const int n,
                                        const QString &default_)
 {
-    QModelIndex existingIndex
-        = findNode(context, sourceText, disambiguation, n, true);
+    QModelIndex existingIndex = findNode(context, sourceText, disambiguation, n, true);
     Row &row = m_nodes[existingIndex.row()];
     if (!row.isOverridden)
         setTranslation(existingIndex, default_);
@@ -233,7 +216,7 @@ QString TranslatorWrapper::translate(const char *context, const char *sourceText
 
 QString TranslatorWrapper::translateInternal(const char *context, const char *sourceText,
                                              const char *disambiguation, int n)
-const
+    const
 {
     return translator()->translate(context, sourceText, disambiguation, n);
 }

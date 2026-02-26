@@ -1,29 +1,14 @@
 /*
   objectinspector.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "objectinspector.h"
@@ -48,8 +33,6 @@
 #include <core/util.h>
 #include <remote/serverproxymodel.h>
 
-#include <3rdparty/kde/krecursivefilterproxymodel.h>
-
 #include <QCoreApplication>
 #include <QItemSelectionModel>
 #include <QMetaMethod>
@@ -65,9 +48,10 @@ ObjectInspector::ObjectInspector(Probe *probe, QObject *parent)
     registerPCExtensions();
 
     m_propertyController = new PropertyController(QStringLiteral(
-                                                      "com.kdab.GammaRay.ObjectInspector"), this);
+                                                      "com.kdab.GammaRay.ObjectInspector"),
+                                                  this);
 
-    auto proxy = new ServerProxyModel<KRecursiveFilterProxyModel>(this);
+    auto proxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     proxy->setSourceModel(probe->objectTreeModel());
     probe->registerModel(QStringLiteral("com.kdab.GammaRay.ObjectInspectorTree"), proxy);
 
@@ -80,17 +64,17 @@ ObjectInspector::ObjectInspector(Probe *probe, QObject *parent)
     connect(probe, &Probe::objectSelected,
             this, &ObjectInspector::objectSelected);
 
-    ProblemCollector::registerProblemChecker("com.kdab.GammaRay.ObjectInspector.BindingLoopScan",
-                                             "Binding Loops",
-                                             "Scans all QObjects for binding loops",
+    ProblemCollector::registerProblemChecker(QStringLiteral("com.kdab.GammaRay.ObjectInspector.BindingLoopScan"),
+                                             QStringLiteral("Binding Loops"),
+                                             QStringLiteral("Scans all QObjects for binding loops"),
                                              &BindingAggregator::scanForBindingLoops);
-    ProblemCollector::registerProblemChecker("com.kdab.GammaRay.ObjectInspector.ConnectionsCheck",
-                                             "Connection issues",
-                                             "Scans all QObjects for direct cross-thread and duplicate connections",
+    ProblemCollector::registerProblemChecker(QStringLiteral("com.kdab.GammaRay.ObjectInspector.ConnectionsCheck"),
+                                             QStringLiteral("Connection issues"),
+                                             QStringLiteral("Scans all QObjects for direct cross-thread and duplicate connections"),
                                              &ObjectInspector::scanForConnectionIssues);
-    ProblemCollector::registerProblemChecker("com.kdab.GammaRay.ObjectInspector.ThreadAffinityCheck",
-                                             "Threading issues",
-                                             "Scans all QObjects for thread affinity issues",
+    ProblemCollector::registerProblemChecker(QStringLiteral("com.kdab.GammaRay.ObjectInspector.ThreadAffinityCheck"),
+                                             QStringLiteral("Threading issues"),
+                                             QStringLiteral("Scans all QObjects for thread affinity issues"),
                                              &ObjectInspector::scanForThreadAffinityIssues);
 }
 
@@ -115,11 +99,10 @@ void ObjectInspector::modelIndexSelected(const QModelIndex &index)
 void ObjectInspector::objectSelected(QObject *object)
 {
     const QAbstractItemModel *model = m_selectionModel->model();
-    const QModelIndexList indexList
-        = model->match(model->index(0, 0),
-                       ObjectModel::ObjectRole,
-                       QVariant::fromValue<QObject *>(object), 1,
-                       Qt::MatchExactly | Qt::MatchRecursive | Qt::MatchWrap);
+    const QModelIndexList indexList = model->match(model->index(0, 0),
+                                                   ObjectModel::ObjectRole,
+                                                   QVariant::fromValue<QObject *>(object), 1,
+                                                   Qt::MatchExactly | Qt::MatchRecursive | Qt::MatchWrap);
     if (indexList.isEmpty())
         return;
 
@@ -127,7 +110,7 @@ void ObjectInspector::objectSelected(QObject *object)
     m_selectionModel->select(
         index,
         QItemSelectionModel::Select | QItemSelectionModel::Clear
-        |QItemSelectionModel::Rows | QItemSelectionModel::Current);
+            | QItemSelectionModel::Rows | QItemSelectionModel::Current);
     // TODO: move this to the client side!
     // ui->objectTreeView->scrollTo(index);
     modelIndexSelected(index);
@@ -152,7 +135,7 @@ QVector<QByteArray> GammaRay::ObjectInspectorFactory::selectableTypes() const
 
 void ObjectInspector::scanForConnectionIssues()
 {
-    const QVector<QObject*> &allObjects = Probe::instance()->allQObjects();
+    const QVector<QObject *> &allObjects = Probe::instance()->allQObjects();
 
     QMutexLocker lock(Probe::objectLock());
     for (QObject *obj : allObjects) {
@@ -160,29 +143,29 @@ void ObjectInspector::scanForConnectionIssues()
             continue;
 
         auto reportProblem = [obj](const AbstractConnectionsModel::Connection &connection, const QString &descriptionTemplate, const QString &problemType, bool isOutbound) {
-                QObject *sender = isOutbound ? obj : connection.endpoint.data();
-                QObject *receiver = isOutbound ? connection.endpoint.data() : obj;
-                if (!sender || !receiver) {
-                    return;
-                }
+            QObject *sender = isOutbound ? obj : connection.endpoint.data();
+            QObject *receiver = isOutbound ? connection.endpoint.data() : obj;
+            if (!sender || !receiver) {
+                return;
+            }
 
-                QString signalName = sender->metaObject()->method(connection.signalIndex).name();
-                QString slotName = connection.slotIndex < 0 ? QStringLiteral("<slot object>") : receiver->metaObject()->method(connection.slotIndex).name();
-                QString senderName = Util::displayString(sender);
-                QString receiverName = Util::displayString(receiver);
-                Problem p;
-                p.severity = Problem::Warning;
-                p.description = descriptionTemplate.arg(receiverName, slotName, senderName, signalName);
-                p.object = ObjectId(receiver);
-//                 p.location = bindingNode->sourceLocation(); //TODO can we get source locations of connect-statements?
-                p.problemId = QString("com.kdab.GammaRay.ObjectInspector.ConnectionsCheck.%1:%2.%3-%4.%5")
-                    .arg(problemType,
-                            QString::number(reinterpret_cast<quintptr>(sender)),
-                            QString::number(connection.signalIndex),
-                            QString::number(reinterpret_cast<quintptr>(receiver)),
-                            QString::number(connection.slotIndex));
-                p.findingCategory = Problem::Scan;
-                ProblemCollector::addProblem(p);
+            QString signalName = sender->metaObject()->method(connection.signalIndex).name();
+            QString slotName = connection.slotIndex < 0 ? QStringLiteral("<slot object>") : receiver->metaObject()->method(connection.slotIndex).name();
+            QString senderName = Util::displayString(sender);
+            QString receiverName = Util::displayString(receiver);
+            Problem p;
+            p.severity = Problem::Warning;
+            p.description = descriptionTemplate.arg(receiverName, slotName, senderName, signalName);
+            p.object = ObjectId(receiver);
+            //                 p.location = bindingNode->sourceLocation(); //TODO can we get source locations of connect-statements?
+            p.problemId = QStringLiteral("com.kdab.GammaRay.ObjectInspector.ConnectionsCheck.%1:%2.%3-%4.%5")
+                              .arg(problemType,
+                                   QString::number(reinterpret_cast<quintptr>(sender)),
+                                   QString::number(connection.signalIndex),
+                                   QString::number(reinterpret_cast<quintptr>(receiver)),
+                                   QString::number(connection.slotIndex));
+            p.findingCategory = Problem::Scan;
+            ProblemCollector::addProblem(p);
         };
 
         auto connections = InboundConnectionsModel::inboundConnectionsForObject(obj);
@@ -230,7 +213,7 @@ void ObjectInspector::scanForThreadAffinityIssues()
             problem.object = ObjectId(object);
             problem.locations.append(probe->objectCreationSourceLocation(object));
             problem.problemId = QStringLiteral("com.kdab.GammaRay.ObjectInspector.ThreadAffinityCheck.Self.%1")
-                    .arg(QString::number(reinterpret_cast<quintptr>(object)));
+                                    .arg(QString::number(reinterpret_cast<quintptr>(object)));
             problem.findingCategory = Problem::Scan;
             ProblemCollector::addProblem(problem);
         }
@@ -248,21 +231,21 @@ void ObjectInspector::scanForThreadAffinityIssues()
             problem.object = ObjectId(object);
             problem.locations.append(probe->objectCreationSourceLocation(object));
             problem.problemId = QStringLiteral("com.kdab.GammaRay.ObjectInspector.ThreadAffinityCheck.%1:%2")
-                    .arg(QString::number(reinterpret_cast<quintptr>(object)),
-                         QString::number(reinterpret_cast<quintptr>(parent)));
+                                    .arg(QString::number(reinterpret_cast<quintptr>(object)),
+                                         QString::number(reinterpret_cast<quintptr>(parent)));
             problem.findingCategory = Problem::Scan;
             ProblemCollector::addProblem(problem);
         }
 
-        if (qobject_cast<QThread*>(parent) && object->thread() != object->parent()) {
+        if (qobject_cast<QThread *>(parent) && object->thread() != object->parent()) {
             Problem problem;
             problem.severity = Problem::Warning;
             problem.description = QStringLiteral("The object %1 has thread %2 as parent, but doesn't have affinity with it.").arg(objectName, parentName);
             problem.object = ObjectId(object);
             problem.locations.append(probe->objectCreationSourceLocation(object));
             problem.problemId = QStringLiteral("com.kdab.GammaRay.ObjectInspector.ThreadAffinityCheck.Parent.%1")
-                    .arg(QString::number(reinterpret_cast<quintptr>(object)),
-                         QString::number(reinterpret_cast<quintptr>(parent)));
+                                    .arg(QString::number(reinterpret_cast<quintptr>(object)),
+                                         QString::number(reinterpret_cast<quintptr>(parent)));
             problem.findingCategory = Problem::Scan;
             ProblemCollector::addProblem(problem);
         }

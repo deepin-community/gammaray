@@ -1,30 +1,14 @@
 /*
   widgetinspectorserver.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
-  Author: Milian Wolff <milian.wolff@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -58,15 +42,15 @@
 #include <common/probecontrollerinterface.h>
 #include <common/remoteviewframe.h>
 
-#include <3rdparty/kde/krecursivefilterproxymodel.h>
-
 #include <QAction>
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QButtonGroup>
 #include <QComboBox>
 #include <QCompleter>
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QDesktopWidget>
+#endif
 #include <QDialog>
 #include <QGraphicsEffect>
 #include <QGraphicsProxyWidget>
@@ -82,13 +66,15 @@
 #include <QEvent>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSplitter>
 #include <QStyle>
 #include <QToolButton>
 #include <QWindow>
+#include <QSortFilterProxyModel>
 
 #include <iostream>
 
-Q_DECLARE_METATYPE(const QStyle*)
+Q_DECLARE_METATYPE(const QStyle *)
 Q_DECLARE_METATYPE(QSizePolicy::ControlType)
 Q_DECLARE_METATYPE(QSizePolicy::ControlTypes)
 
@@ -97,8 +83,7 @@ using namespace std;
 
 static bool isGoodCandidateWidget(QWidget *widget)
 {
-    if (!widget->isVisible() || widget->testAttribute(Qt::WA_NoSystemBackground) ||
-            widget->metaObject() == &QWidget::staticMetaObject) {
+    if (!widget->isVisible() || widget->testAttribute(Qt::WA_NoSystemBackground) || widget->metaObject() == &QWidget::staticMetaObject) {
         return false;
     }
 
@@ -107,7 +92,6 @@ static bool isGoodCandidateWidget(QWidget *widget)
 
 WidgetInspectorServer::WidgetInspectorServer(Probe *probe, QObject *parent)
     : WidgetInspectorInterface(parent)
-    , m_externalExportActions(new QLibrary(this))
     , m_propertyController(new PropertyController(objectName(), this))
     , m_paintAnalyzer(new PaintAnalyzer(QStringLiteral("com.kdab.GammaRay.WidgetPaintAnalyzer"),
                                         this))
@@ -127,7 +111,7 @@ WidgetInspectorServer::WidgetInspectorServer(Probe *probe, QObject *parent)
     auto *widgetFilterProxy = new WidgetTreeModel(this);
     widgetFilterProxy->setSourceModel(probe->objectTreeModel());
 
-    auto widgetSearchProxy = new ServerProxyModel<KRecursiveFilterProxyModel>(this);
+    auto widgetSearchProxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     widgetSearchProxy->setSourceModel(widgetFilterProxy);
     widgetSearchProxy->addRole(ObjectModel::ObjectIdRole);
 
@@ -195,12 +179,14 @@ void WidgetInspectorServer::widgetSelectionChanged(const QItemSelection &selecti
     m_selectedWidget = widget;
     m_remoteView->setEventReceiver(m_selectedWidget ? m_selectedWidget->window()->windowHandle() : nullptr);
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     if (m_selectedWidget
         && (qobject_cast<QDesktopWidget *>(m_selectedWidget)
             || m_selectedWidget->inherits("QDesktopScreenWidget"))) {
         m_overlayWidget->placeOn(WidgetOrLayoutFacade());
         return;
     }
+#endif
     if (m_selectedWidget == m_overlayWidget) {
         // this should not happen, but apparently our object recovery is slightly too good sometimes ;)
         return;
@@ -241,7 +227,7 @@ bool WidgetInspectorServer::eventFilter(QObject *object, QEvent *event)
                     m_probe->selectObject(view->selectionModel());
                 else if (QComboBox *box = Util::findParentOfType<QComboBox>(object))
                     m_probe->selectObject(box->model());
-                else if (auto toolButton = qobject_cast<QToolButton*>(object)) {
+                else if (auto toolButton = qobject_cast<QToolButton *>(object)) {
                     if (toolButton->defaultAction())
                         m_probe->selectObject(toolButton->defaultAction());
                 }
@@ -264,14 +250,14 @@ void WidgetInspectorServer::updateWidgetPreview()
     frame.setImage(imageForWidget(m_selectedWidget->window()));
     WidgetFrameData data;
     data.tabFocusRects = tabFocusChain(m_selectedWidget->window());
-    frame.setData(QVariant::fromValue(data));
+    frame.data = QVariant::fromValue(data);
     m_remoteView->sendFrame(frame);
 }
 
-QVector<QRect> WidgetInspectorServer::tabFocusChain(QWidget* window) const
+QVector<QRect> WidgetInspectorServer::tabFocusChain(QWidget *window)
 {
     QVector<QRect> r;
-    QSet<QWidget*> widgets;
+    QSet<QWidget *> widgets;
     auto w = window;
     while (w->nextInFocusChain()) {
         w = w->nextInFocusChain();
@@ -315,7 +301,7 @@ void WidgetInspectorServer::pickElementId(const GammaRay::ObjectId &id)
 QImage WidgetInspectorServer::imageForWidget(QWidget *widget)
 {
     // prevent "recursion", i.e. infinite update loop, in our eventFilter
-    Util::SetTempValue<QPointer<QWidget> > guard(m_selectedWidget, nullptr);
+    Util::SetTempValue<QPointer<QWidget>> guard(m_selectedWidget, nullptr);
     // We should use hidpi rendering but it's buggy so let stay with
     // low dpi rendering. See QTBUG-53801
     const qreal ratio = 1; // widget->window()->devicePixelRatio();
@@ -345,18 +331,17 @@ void WidgetInspectorServer::widgetSelected(QWidget *widget)
         return;
 
     const QAbstractItemModel *model = m_widgetSelectionModel->model();
-    const QModelIndexList indexList
-        = model->match(model->index(0, 0),
-                       ObjectModel::ObjectRole,
-                       QVariant::fromValue<QObject *>(widget), 1,
-                       Qt::MatchExactly | Qt::MatchRecursive | Qt::MatchWrap);
+    const QModelIndexList indexList = model->match(model->index(0, 0),
+                                                   ObjectModel::ObjectRole,
+                                                   QVariant::fromValue<QObject *>(widget), 1,
+                                                   Qt::MatchExactly | Qt::MatchRecursive | Qt::MatchWrap);
     if (indexList.isEmpty())
         return;
     const QModelIndex index = indexList.first();
     m_widgetSelectionModel->select(
         index,
         QItemSelectionModel::Select | QItemSelectionModel::Clear
-        |QItemSelectionModel::Rows | QItemSelectionModel::Current);
+            | QItemSelectionModel::Rows | QItemSelectionModel::Current);
 }
 
 void WidgetInspectorServer::objectSelected(QObject *obj)
@@ -393,16 +378,6 @@ void WidgetInspectorServer::saveAsSvg(const QString &fileName)
     m_overlayWidget->show();
 }
 
-void WidgetInspectorServer::saveAsPdf(const QString &fileName)
-{
-    if (fileName.isEmpty() || !m_selectedWidget)
-        return;
-
-    m_overlayWidget->hide();
-    callExternalExportAction("gammaray_save_widget_to_pdf", m_selectedWidget, fileName);
-    m_overlayWidget->show();
-}
-
 void WidgetInspectorServer::saveAsUiFile(const QString &fileName)
 {
     if (fileName.isEmpty() || !m_selectedWidget)
@@ -419,7 +394,7 @@ GammaRay::ObjectIds WidgetInspectorServer::recursiveWidgetsAt(QWidget *parent, c
 
     bestCandidate = -1;
 
-    const auto childItems = parent->children();
+    const auto &childItems = parent->children();
     for (int i = childItems.size() - 1; i >= 0; --i) { // backwards to match z order
         auto c = childItems.at(i);
         if (!c->isWidgetType() || c->metaObject()->className() == QLatin1String("GammaRay::OverlayWidget"))
@@ -438,8 +413,7 @@ GammaRay::ObjectIds WidgetInspectorServer::recursiveWidgetsAt(QWidget *parent, c
                 if (bestCandidate == -1 && bc != -1) {
                     bestCandidate = count + bc;
                 }
-            }
-            else {
+            } else {
                 if (bestCandidate == -1 && isGoodCandidateWidget(w)) {
                     bestCandidate = objects.count();
                 }
@@ -470,27 +444,35 @@ GammaRay::ObjectIds WidgetInspectorServer::recursiveWidgetsAt(QWidget *parent, c
 void WidgetInspectorServer::callExternalExportAction(const char *name, QWidget *widget,
                                                      const QString &fileName)
 {
-    if (!m_externalExportActions->isLoaded()) {
+    if (!m_externalExportActions) {
+        std::unique_ptr<QLibrary> lib;
         foreach (const auto &path, Paths::pluginPaths(GAMMARAY_PROBE_ABI)) {
             const QString baseName = path + QLatin1String("/libgammaray_widget_export_actions");
-            m_externalExportActions->setFileName(baseName + QLatin1Char('-') + QStringLiteral(GAMMARAY_PROBE_ABI));
-            if (m_externalExportActions->load())
+            lib.reset(new QLibrary);
+            lib->setFileName(baseName + QLatin1Char('-') + QStringLiteral(GAMMARAY_PROBE_ABI));
+            if (lib->load()) {
+                m_externalExportActions = std::move(lib);
                 break;
-            m_externalExportActions->setFileName(baseName + QStringLiteral(GAMMARAY_DEBUG_POSTFIX));
-            if (m_externalExportActions->load())
+            }
+            lib.reset(new QLibrary);
+            lib->setFileName(baseName + QLatin1String(GAMMARAY_DEBUG_POSTFIX));
+            if (lib->load()) {
+                m_externalExportActions = std::move(lib);
                 break;
+            }
         }
     }
 
-    void (*function)(QWidget *, const QString &)
-        = reinterpret_cast<void (*)(QWidget *,
-                                    const QString &)>(m_externalExportActions->resolve(name));
+    if (m_externalExportActions) {
+        void (*function)(QWidget *, const QString &) = reinterpret_cast<void (*)(QWidget *,
+                                                                                 const QString &)>(m_externalExportActions->resolve(name));
 
-    if (!function) {
-        cerr << Q_FUNC_INFO << ' ' << qPrintable(m_externalExportActions->errorString()) << endl;
-        return;
+        if (!function) {
+            cerr << Q_FUNC_INFO << ' ' << qPrintable(m_externalExportActions->errorString()) << endl;
+            return;
+        }
+        function(widget, fileName);
     }
-    function(widget, fileName);
 }
 
 void WidgetInspectorServer::analyzePainting()
@@ -511,9 +493,6 @@ void WidgetInspectorServer::checkFeatures()
     Features f = NoFeature;
 #ifdef HAVE_QT_SVG
     f |= SvgExport;
-#endif
-#ifdef HAVE_QT_PRINTSUPPORT
-    f |= PdfExport;
 #endif
 #ifdef HAVE_QT_DESIGNER
     f |= UiExport;
@@ -552,31 +531,31 @@ void WidgetInspectorServer::registerWidgetMetaTypes()
 
     MO_ADD_METAOBJECT2(QWidget, QObject, QPaintDevice);
     MO_ADD_PROPERTY_RO(QWidget, actions);
-    MO_ADD_PROPERTY   (QWidget, backgroundRole, setBackgroundRole);
-    MO_ADD_PROPERTY_RO(QWidget, contentsMargins);
+    MO_ADD_PROPERTY(QWidget, backgroundRole, setBackgroundRole);
+    MO_ADD_PROPERTY(QWidget, contentsMargins, setContentsMargins);
     MO_ADD_PROPERTY_RO(QWidget, contentsRect);
     MO_ADD_PROPERTY_RO(QWidget, focusProxy);
     MO_ADD_PROPERTY_RO(QWidget, focusWidget);
-    MO_ADD_PROPERTY   (QWidget, foregroundRole, setForegroundRole);
-    MO_ADD_PROPERTY   (QWidget, graphicsEffect, setGraphicsEffect);
+    MO_ADD_PROPERTY(QWidget, foregroundRole, setForegroundRole);
+    MO_ADD_PROPERTY(QWidget, graphicsEffect, setGraphicsEffect);
     MO_ADD_PROPERTY_RO(QWidget, graphicsProxyWidget);
     MO_ADD_PROPERTY_RO(QWidget, hasFocus);
     MO_ADD_PROPERTY_RO(QWidget, hasMouseTracking);
     MO_ADD_PROPERTY_RO(QWidget, isWindow);
-    MO_ADD_PROPERTY   (QWidget, layout, setLayout);
+    MO_ADD_PROPERTY(QWidget, layout, setLayout);
     MO_ADD_PROPERTY_O2(QWidget, mask, setMask);
     MO_ADD_PROPERTY_RO(QWidget, nativeParentWidget);
     MO_ADD_PROPERTY_RO(QWidget, nextInFocusChain);
     MO_ADD_PROPERTY_RO(QWidget, parentWidget);
     MO_ADD_PROPERTY_RO(QWidget, previousInFocusChain);
-    MO_ADD_PROPERTY   (QWidget, style, setStyle);
+    MO_ADD_PROPERTY(QWidget, style, setStyle);
     MO_ADD_PROPERTY_RO(QWidget, underMouse);
     MO_ADD_PROPERTY_RO(QWidget, visibleRegion);
     MO_ADD_PROPERTY_RO(QWidget, window);
     MO_ADD_PROPERTY_RO(QWidget, windowHandle);
-    MO_ADD_PROPERTY   (QWidget, windowFlags, setWindowFlags);
-    MO_ADD_PROPERTY   (QWidget, windowRole, setWindowRole);
-    MO_ADD_PROPERTY   (QWidget, windowState, setWindowState);
+    MO_ADD_PROPERTY(QWidget, windowFlags, setWindowFlags);
+    MO_ADD_PROPERTY(QWidget, windowRole, setWindowRole);
+    MO_ADD_PROPERTY(QWidget, windowState, setWindowState);
 
     MO_ADD_METAOBJECT1(QStyle, QObject);
     MO_ADD_PROPERTY_RO(QStyle, proxy);
@@ -586,8 +565,9 @@ void WidgetInspectorServer::registerWidgetMetaTypes()
     MO_ADD_PROPERTY_ST(QApplication, activeModalWidget);
     MO_ADD_PROPERTY_ST(QApplication, activePopupWidget);
     MO_ADD_PROPERTY_ST(QApplication, activeWindow);
-    MO_ADD_PROPERTY_ST(QApplication, colorSpec);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     MO_ADD_PROPERTY_ST(QApplication, desktop);
+#endif
     MO_ADD_PROPERTY_ST(QApplication, focusWidget);
     MO_ADD_PROPERTY_ST(QApplication, style);
     MO_ADD_PROPERTY_ST(QApplication, topLevelWidgets);
@@ -597,17 +577,17 @@ void WidgetInspectorServer::registerWidgetMetaTypes()
     MO_ADD_PROPERTY_RO(QCompleter, completionModel);
     MO_ADD_PROPERTY_RO(QCompleter, currentCompletion);
     MO_ADD_PROPERTY_RO(QCompleter, currentRow);
-    MO_ADD_PROPERTY   (QCompleter, model, setModel);
-    MO_ADD_PROPERTY   (QCompleter, popup, setPopup);
+    MO_ADD_PROPERTY(QCompleter, model, setModel);
+    MO_ADD_PROPERTY(QCompleter, popup, setPopup);
     MO_ADD_PROPERTY_RO(QCompleter, widget);
 
     MO_ADD_METAOBJECT1(QFrame, QWidget);
     MO_ADD_METAOBJECT1(QAbstractScrollArea, QFrame);
     MO_ADD_PROPERTY_RO(QAbstractScrollArea, cornerWidget);
-    MO_ADD_PROPERTY   (QAbstractScrollArea, horizontalScrollBar, setHorizontalScrollBar);
+    MO_ADD_PROPERTY(QAbstractScrollArea, horizontalScrollBar, setHorizontalScrollBar);
     MO_ADD_PROPERTY_RO(QAbstractScrollArea, maximumViewportSize);
-    MO_ADD_PROPERTY   (QAbstractScrollArea, verticalScrollBar, setVerticalScrollBar);
-    MO_ADD_PROPERTY   (QAbstractScrollArea, viewport, setViewport);
+    MO_ADD_PROPERTY(QAbstractScrollArea, verticalScrollBar, setVerticalScrollBar);
+    MO_ADD_PROPERTY(QAbstractScrollArea, viewport, setViewport);
 
     MO_ADD_METAOBJECT1(QAbstractItemView, QAbstractScrollArea);
     MO_ADD_PROPERTY_RO(QAbstractItemView, model);
@@ -620,30 +600,34 @@ void WidgetInspectorServer::registerWidgetMetaTypes()
     MO_ADD_PROPERTY_RO(QComboBox, itemDelegate);
     MO_ADD_PROPERTY_RO(QComboBox, lineEdit);
     MO_ADD_PROPERTY_RO(QComboBox, model);
-    MO_ADD_PROPERTY   (QComboBox, validator, setValidator);
-    MO_ADD_PROPERTY   (QComboBox, view, setView);
+    MO_ADD_PROPERTY(QComboBox, validator, setValidator);
+    MO_ADD_PROPERTY(QComboBox, view, setView);
 
     MO_ADD_METAOBJECT1(QLineEdit, QWidget);
-    MO_ADD_PROPERTY   (QLineEdit, completer, setCompleter);
-    MO_ADD_PROPERTY   (QLineEdit, validator, setValidator);
+    MO_ADD_PROPERTY(QLineEdit, completer, setCompleter);
+    MO_ADD_PROPERTY(QLineEdit, validator, setValidator);
 
     MO_ADD_METAOBJECT1(QScrollArea, QAbstractScrollArea);
-    MO_ADD_PROPERTY   (QScrollArea, widget, setWidget);
+    MO_ADD_PROPERTY(QScrollArea, widget, setWidget);
+
+    MO_ADD_METAOBJECT1(QSplitter, QFrame);
+    MO_ADD_PROPERTY_RO(QSplitter, count);
+    MO_ADD_PROPERTY(QSplitter, sizes, setSizes);
 
     MO_ADD_METAOBJECT1(QToolButton, QAbstractButton);
     MO_ADD_PROPERTY_RO(QToolButton, defaultAction);
     MO_ADD_PROPERTY_RO(QToolButton, menu);
 
     MO_ADD_METAOBJECT0(QSizePolicy);
-    MO_ADD_PROPERTY   (QSizePolicy, controlType, setControlType);
+    MO_ADD_PROPERTY(QSizePolicy, controlType, setControlType);
     MO_ADD_PROPERTY_RO(QSizePolicy, expandingDirections);
-    MO_ADD_PROPERTY   (QSizePolicy, hasHeightForWidth, setHeightForWidth);
-    MO_ADD_PROPERTY   (QSizePolicy, hasWidthForHeight, setWidthForHeight);
-    MO_ADD_PROPERTY   (QSizePolicy, horizontalPolicy, setHorizontalPolicy);
-    MO_ADD_PROPERTY   (QSizePolicy, horizontalStretch, setHorizontalStretch);
-    MO_ADD_PROPERTY   (QSizePolicy, retainSizeWhenHidden, setRetainSizeWhenHidden);
-    MO_ADD_PROPERTY   (QSizePolicy, verticalPolicy, setVerticalPolicy);
-    MO_ADD_PROPERTY   (QSizePolicy, verticalStretch, setVerticalStretch);
+    MO_ADD_PROPERTY(QSizePolicy, hasHeightForWidth, setHeightForWidth);
+    MO_ADD_PROPERTY(QSizePolicy, hasWidthForHeight, setWidthForHeight);
+    MO_ADD_PROPERTY(QSizePolicy, horizontalPolicy, setHorizontalPolicy);
+    MO_ADD_PROPERTY(QSizePolicy, horizontalStretch, setHorizontalStretch);
+    MO_ADD_PROPERTY(QSizePolicy, retainSizeWhenHidden, setRetainSizeWhenHidden);
+    MO_ADD_PROPERTY(QSizePolicy, verticalPolicy, setVerticalPolicy);
+    MO_ADD_PROPERTY(QSizePolicy, verticalStretch, setVerticalStretch);
 
     MO_ADD_METAOBJECT1(QActionEvent, QEvent);
     MO_ADD_PROPERTY_RO(QActionEvent, action);
@@ -660,13 +644,13 @@ static QString sizePolicyPolicyToString(QSizePolicy::Policy policy)
 static QString sizePolicyToString(const QSizePolicy &policy)
 {
     return sizePolicyPolicyToString(policy.horizontalPolicy()) + " x "
-           + sizePolicyPolicyToString(policy.verticalPolicy());
+        + sizePolicyPolicyToString(policy.verticalPolicy());
 }
 
 void WidgetInspectorServer::registerVariantHandlers()
 {
     VariantHandler::registerStringConverter<QSizePolicy>(sizePolicyToString);
-    VariantHandler::registerStringConverter<const QStyle*>(Util::displayString);
+    VariantHandler::registerStringConverter<const QStyle *>(Util::displayString);
 }
 
 void WidgetInspectorServer::discoverObjects()

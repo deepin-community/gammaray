@@ -1,29 +1,14 @@
 /*
   probe.h
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #ifndef GAMMARAY_PROBE_H
@@ -49,7 +34,8 @@ class QModelIndex;
 class QThread;
 class QTimer;
 class QMutex;
-struct QSignalSpyCallbackSet;
+class QRecursiveMutex;
+class QSignalSpyCallbackSet;
 QT_END_NAMESPACE
 
 namespace GammaRay {
@@ -62,7 +48,9 @@ class Server;
 class ToolManager;
 class ProblemCollector;
 class MetaObjectRegistry;
-namespace Execution { class Trace; }
+namespace Execution {
+class Trace;
+}
 
 /*!
  * Central entity of GammaRay: The probe is tracking the Qt application under test
@@ -105,7 +93,7 @@ public:
      * object lock and check the pointer with @e isValidObject though, before
      * dereferencing any of the QObject pointers.
      */
-    const QVector<QObject*> &allQObjects() const;
+    const QVector<QObject *> &allQObjects() const;
 
     /*!
      * Returns the object list model.
@@ -122,7 +110,7 @@ public:
      * @param objectName Unique identifier for the model, typically in reverse domain notation.
      * @param model The model to register.
      */
-    void registerModel(const QString &objectName, QAbstractItemModel *model);
+    static void registerModel(const QString &objectName, QAbstractItemModel *model);
     /*!
      * Install a global event filter.
      * Use this rather than installing the filter manually on QCoreApplication,
@@ -142,7 +130,7 @@ public:
      *
      * @since 2.5
      */
-    bool needsObjectDiscovery() const;
+    static bool needsObjectDiscovery();
     /*!
      * Notify the probe about QObjects your plug-in can discover by using information about
      * the types it can handle.
@@ -167,6 +155,23 @@ public:
      * @since 2.1
      */
     void selectObject(void *object, const QString &typeName);
+
+
+    /*!
+     * Mark an object as favorite. Favorite objects might be shown
+     * in a separate view
+     * Connect to the objectFavorited(QObject*) signal on probe() to
+     * know when an object gets marked as favorited
+     */
+    void markObjectAsFavorite(QObject *object);
+    /*!
+     * Unmark an object as favorite
+     *
+     * Connect to the objectUnfavorited(QObject*) signal on probe() to
+     * know when an object gets removed as favorited
+     */
+    void removeObjectAsFavorite(QObject *object);
+
     /*!
      * Register a signal spy callback set.
      * Signal indexes provided as arguments are mapped to method indexes, ie. argument semantics
@@ -177,9 +182,9 @@ public:
     void registerSignalSpyCallbackSet(const SignalSpyCallbackSet &callbacks);
 
     /*! Returns the source code location @p object was created at. */
-    SourceLocation objectCreationSourceLocation(QObject *object) const;
+    static SourceLocation objectCreationSourceLocation(const QObject *object);
     /*! Returns the entire stack trace for the creation of @p object. */
-    Execution::Trace objectCreationStackTrace(QObject *object) const;
+    static Execution::Trace objectCreationStackTrace(QObject *object);
 
     ///@cond internal
     QObject *window() const;
@@ -192,14 +197,19 @@ public:
      * Lock this to check the validity of a QObject
      * and to access it safely afterwards.
      */
-    static QMutex *objectLock();
+    static QRecursiveMutex *objectLock();
 
     /*!
      * Check whether @p obj is still valid.
      *
      * @note The objectLock must be locked when this is called!
      */
-    bool isValidObject(const QObject *obj) const;
+    bool isValidObject(const QObject *obj) const
+    {
+        /// TODO: can we somehow assert(s_lock().isLocked()) ?!
+        ///   -> Not with a recursive mutex. Make it non-recursive, and you can do Q_ASSERT(!s_lock().tryLock());
+        return m_validObjects.contains(obj);
+    }
 
     /*!
      * Determines if the specified QObject belongs to the GammaRay Probe or Window.
@@ -215,7 +225,8 @@ public:
 
     ///@cond internal
     static void startupHookReceived();
-    template<typename Func> static void executeSignalCallback(const Func &func);
+    template<typename Func>
+    static void executeSignalCallback(const Func &func);
     ///@endcond
 
     ProblemCollector *problemCollector() const;
@@ -260,6 +271,8 @@ signals:
      */
     void objectDestroyed(QObject *obj);
     void objectReparented(QObject *obj);
+    void objectFavorited(QObject *obj);
+    void objectUnfavorited(QObject *obj);
 
     void aboutToDetach();
 
@@ -273,7 +286,7 @@ private slots:
     void shutdown();
 
     void processQueuedObjectChanges();
-    void handleObjectDestroyed(QObject *obj);
+    static void handleObjectDestroyed(QObject *obj);
 
 private:
     friend class ProbeCreator;
@@ -283,7 +296,7 @@ private:
      * about every QObject creation/destruction.
      * @since 2.0
      */
-    QT_DEPRECATED bool hasReliableObjectTracking() const;
+    QT_DEPRECATED static bool hasReliableObjectTracking();
 
     void objectFullyConstructed(QObject *obj);
 
@@ -297,7 +310,7 @@ private:
 
     /*! Check if we are capable of showing widgets. */
     static bool canShowWidgets();
-    void showInProcessUi();
+    static void showInProcessUi();
 
     static void createProbe(bool findExisting);
     void resendServerAddress();
@@ -317,9 +330,11 @@ private:
     MetaObjectRegistry *m_metaObjectRegistry;
 
     // all delayed object changes need to go through a single queue, as the order is crucial
-    struct ObjectChange {
+    struct ObjectChange
+    {
         QObject *obj;
-        enum Type {
+        enum Type
+        {
             Create,
             Destroy
         } type;
@@ -331,11 +346,7 @@ private:
     QVector<QObject *> m_globalEventFilters;
     QVector<SignalSpyCallbackSet> m_signalSpyCallbacks;
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
     QSignalSpyCallbackSet *m_previousSignalSpyCallbackSet;
-#else
-    SignalSpyCallbackSet m_previousSignalSpyCallbackSet;
-#endif
     Server *m_server;
 };
 }

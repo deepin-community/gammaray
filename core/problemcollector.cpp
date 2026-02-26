@@ -1,29 +1,14 @@
 /*
   problemcollector.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2018-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2018 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Anton Kreuzkamp <anton.kreuzkamp@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 // Own
@@ -40,16 +25,16 @@ ProblemCollector::ProblemCollector(QObject *parent)
 {
 }
 
-ProblemCollector * ProblemCollector::instance()
+ProblemCollector *ProblemCollector::instance()
 {
     return Probe::instance()->problemCollector();
 }
 
-void ProblemCollector::registerProblemChecker(const QString& id,
-                                           const QString& name, const QString& description,
-                                           const std::function<void ()>& callback, bool enabled)
+void ProblemCollector::registerProblemChecker(const QString &id,
+                                              const QString &name, const QString &description,
+                                              const std::function<void()> &callback, bool enabled)
 {
-    Checker c = {id, name, description, callback, enabled};
+    Checker c = { id, name, description, callback, enabled };
     instance()->m_availableCheckers.push_back(c);
 }
 
@@ -64,7 +49,7 @@ void GammaRay::ProblemCollector::requestScan()
     emit problemScansFinished();
 }
 
-void ProblemCollector::addProblem(const Problem& problem)
+void ProblemCollector::addProblem(const Problem &problem)
 {
     auto self = instance();
 
@@ -81,7 +66,7 @@ void ProblemCollector::addProblem(const Problem& problem)
     self->m_problems.push_back(problem);
     emit self->problemAdded();
 }
-void ProblemCollector::removeProblem(const QString& problemId)
+void ProblemCollector::removeProblem(const QString &problemId)
 {
     auto self = instance();
     auto it = std::find_if(self->m_problems.begin(), self->m_problems.end(), [&](const Problem &problem) { return problem.problemId == problemId; });
@@ -118,7 +103,7 @@ void ProblemCollector::clearScans()
     }
 }
 
-const QVector<Problem> & ProblemCollector::problems()
+const QVector<Problem> &ProblemCollector::problems()
 {
     return m_problems;
 }
@@ -128,11 +113,8 @@ QVector<ProblemCollector::Checker> &ProblemCollector::availableCheckers()
     return m_availableCheckers;
 }
 
-bool ProblemCollector::isCheckerRegistered(const QString& id) const
+bool ProblemCollector::isCheckerRegistered(const QString &id) const
 {
     return std::any_of(m_availableCheckers.begin(), m_availableCheckers.end(),
-                        [&id](const Checker &c){ return c.id == id; }
-                      );
+                       [&id](const Checker &c) { return c.id == id; });
 }
-
-

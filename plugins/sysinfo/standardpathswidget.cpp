@@ -1,29 +1,14 @@
 /*
   standardpathswidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2012-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2012 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "standardpathswidget.h"
@@ -45,7 +30,9 @@ class StandardPathsProxy : public QIdentityProxyModel
     Q_OBJECT
 public:
     explicit StandardPathsProxy(QObject *parent = nullptr)
-        : QIdentityProxyModel(parent) { }
+        : QIdentityProxyModel(parent)
+    {
+    }
 
     QVariant headerData(int section, Qt::Orientation orientation,
                         int role = Qt::DisplayRole) const override
@@ -62,7 +49,9 @@ class StandardPathsDelegate : public QStyledItemDelegate
     Q_OBJECT
 public:
     explicit StandardPathsDelegate(QObject *parent = nullptr)
-        : QStyledItemDelegate(parent) { }
+        : QStyledItemDelegate(parent)
+    {
+    }
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option,
                const QModelIndex &index) const override
@@ -77,10 +66,12 @@ public:
 
             const int textMargin = style->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, widget) + 1;
             const QRect textRect = style->subElementRect(QStyle::SE_ItemViewItemText, &opt, widget)
-                                   .adjusted(textMargin, 1, -textMargin, -1);
+                                       .adjusted(textMargin, 1, -textMargin, -1);
             painter->setPen(((opt.state
-                              & QStyle::State_Selected) ? opt.palette.highlightedText() : opt.
-                             palette.text()).color());
+                              & QStyle::State_Selected)
+                                 ? opt.palette.highlightedText()
+                                 : opt.palette.text())
+                                .color());
             painter->drawText(textRect, Qt::AlignBottom | Qt::AlignLeft,
                               index.sibling(index.row(), 3).data().toString());
         } else {
@@ -94,8 +85,8 @@ public:
         if (index.column() == 2) {
             QSize s1 = QStyledItemDelegate::sizeHint(option, index.sibling(index.row(), 2));
             QSize s2 = QStyledItemDelegate::sizeHint(option, index.sibling(index.row(), 3));
-            return {qMax(s1.width(), s2.width()),
-                         s1.height() + s2.height() + option.fontMetrics.height()};
+            return { qMax(s1.width(), s2.width()),
+                     s1.height() + s2.height() + option.fontMetrics.height() };
         } else {
             return QStyledItemDelegate::sizeHint(option, index);
         }
@@ -112,7 +103,7 @@ StandardPathsWidget::StandardPathsWidget(QWidget *parent)
 
     auto *proxy = new StandardPathsProxy(this);
     proxy->setSourceModel(ObjectBroker::model(QStringLiteral(
-                                                  "com.kdab.GammaRay.StandardPathsModel")));
+        "com.kdab.GammaRay.StandardPathsModel")));
 
     ui->pathView->header()->setObjectName("pathViewHeader");
     ui->pathView->setUniformRowHeights(false);

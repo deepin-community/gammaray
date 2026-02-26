@@ -1,29 +1,14 @@
 /*
   probesettings.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -40,6 +25,10 @@
 #include <QUrl>
 #include <QThread>
 #include <QWaitCondition>
+
+#ifdef Q_OS_ANDROID
+#include <QtAndroid>
+#endif
 
 #include <iostream>
 
@@ -73,7 +62,7 @@ private slots:
 
 private:
     Q_INVOKABLE void run();
-    void setRootPathFromProbePath(const QString &probePath);
+    static void setRootPathFromProbePath(const QString &probePath);
     QLocalSocket *m_socket = nullptr;
     QWaitCondition m_waitCondition;
     QMutex m_mutex;
@@ -96,8 +85,12 @@ void ProbeSettingsReceiver::run()
 
     m_socket = new QLocalSocket;
     connect(m_socket, &QLocalSocket::disconnected, this, &ProbeSettingsReceiver::settingsReceivedFallback);
-    connect(m_socket, static_cast<void(QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    connect(m_socket, &QLocalSocket::errorOccurred, this, &ProbeSettingsReceiver::settingsReceivedFallback);
+#else
+    connect(m_socket, static_cast<void (QLocalSocket::*)(QLocalSocket::LocalSocketError)>(&QLocalSocket::error),
             this, &ProbeSettingsReceiver::settingsReceivedFallback);
+#endif
     connect(m_socket, &QIODevice::readyRead, this, &ProbeSettingsReceiver::readyRead);
     m_socket->connectToServer(QStringLiteral("gammaray-")
                               + QString::number(ProbeSettings::launcherIdentifier()));
@@ -123,23 +116,20 @@ void ProbeSettingsReceiver::readyRead()
     while (Message::canReadMessage(m_socket)) {
         auto msg = Message::readMessage(m_socket);
         switch (msg.type()) {
-        case Protocol::ServerVersion:
-        {
+        case Protocol::ServerVersion: {
             qint32 version;
             msg >> version;
             if (version != Protocol::version()) {
                 qWarning()
-                        <<
-                        "Unable to receive probe settings, mismatching protocol versions (expected:"
-                        << Protocol::version() << "got:" << version << ")";
+                    << "Unable to receive probe settings, mismatching protocol versions (expected:"
+                    << Protocol::version() << "got:" << version << ")";
                 qWarning() << "Continuing anyway, but this is likely going to fail.";
                 settingsReceivedFallback();
                 return;
             }
             break;
         }
-        case Protocol::ProbeSettings:
-        {
+        case Protocol::ProbeSettings: {
             msg >> s_probeSettings()->settings;
             // qDebug() << Q_FUNC_INFO << s_probeSettings()->settings;
             const QString probePath = ProbeSettings::value(QStringLiteral("ProbePath")).toString();
@@ -210,11 +200,42 @@ void ProbeSettingsReceiver::setRootPathFromProbePath(const QString &probePath)
 }
 }
 
+#ifdef QT_ANDROIDEXTRAS_LIB
+static QVariant getPackageMetaData(const QString &key, const QVariant &defaultValue)
+{
+    auto pm = QtAndroid::androidContext().callObjectMethod("getPackageManager", "()Landroid/content/pm/PackageManager;");
+    auto packageName = QtAndroid::androidContext().callObjectMethod("getPackageName", "()Ljava/lang/String;");
+    auto GET_META_DATA = QAndroidJniObject::getStaticField<jint>("android/content/pm/PackageManager", "GET_META_DATA");
+    auto appInfo = pm.callObjectMethod("getApplicationInfo", "(Ljava/lang/String;I)Landroid/content/pm/ApplicationInfo;", packageName.object(), GET_META_DATA);
+    auto metaData = appInfo.getObjectField("metaData", "Landroid/os/Bundle;");
+    if (!metaData.isValid()) {
+        return defaultValue;
+    }
+
+    // TODO handle different type cases based on defaultValue.type()
+    auto value = metaData.callObjectMethod("getString", "(Ljava/lang/String;)Ljava/lang/String;", QAndroidJniObject::fromString(key).object());
+    if (value.isValid()) {
+        return value.toString();
+    }
+
+    return defaultValue;
+}
+#endif
+
 QVariant ProbeSettings::value(const QString &key, const QVariant &defaultValue)
 {
     QByteArray v = s_probeSettings()->settings.value(key.toUtf8());
-    if (v.isEmpty())
-        v = qgetenv("GAMMARAY_" + key.toLocal8Bit());
+    if (v.isEmpty()) {
+        const QByteArray cstr = "GAMMARAY_" + key.toLocal8Bit();
+        v = qgetenv(cstr);
+    }
+
+#ifdef QT_ANDROIDEXTRAS_LIB
+    if (v.isEmpty()) {
+        return getPackageMetaData("com.kdab.gammaray." + key, defaultValue);
+    }
+#endif
+
     if (v.isEmpty())
         return defaultValue;
 

@@ -1,29 +1,14 @@
 /*
   earlyexittest.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Giulio Camuffo <giulio.camuffo@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -47,7 +32,7 @@ class EarlyExitTest : public QObject
 {
     Q_OBJECT
 private:
-    bool hasInjector(const char *type) const
+    static bool hasInjector(const char *type)
     {
         auto injector = InjectorFactory::createInjector(type);
         if (!injector)
@@ -57,7 +42,7 @@ private:
     }
 
 private slots:
-    void testNonExistingTarget()
+    static void testNonExistingTarget()
     {
         LaunchOptions options;
 #ifdef Q_OS_MAC
@@ -83,7 +68,7 @@ private slots:
             QTest::newRow("lldb") << QStringLiteral("lldb");
     }
 
-    void testNonExistingTargetDebugger()
+    static void testNonExistingTargetDebugger()
     {
         QFETCH(QString, injectorType);
         if (injectorType.isEmpty())
@@ -97,7 +82,7 @@ private slots:
         options.setInjectorType(injectorType);
         Launcher launcher(options);
 
-        QSignalSpy spy(&launcher, SIGNAL(finished()));
+        QSignalSpy spy(&launcher, &Launcher::finished);
         QVERIFY(launcher.start());
 
         spy.wait(10000);
@@ -106,7 +91,7 @@ private slots:
         QVERIFY(!launcher.errorMessage().isEmpty());
     }
 
-    void test()
+    static void test()
     {
         LaunchOptions options;
         options.setUiMode(LaunchOptions::NoUi);
@@ -117,7 +102,7 @@ private slots:
         options.setProbeSetting(QStringLiteral("ServerAddress"), GAMMARAY_DEFAULT_LOCAL_TCP_URL);
         Launcher launcher(options);
 
-        QSignalSpy spy(&launcher, SIGNAL(finished()));
+        QSignalSpy spy(&launcher, &Launcher::finished);
 
         QVERIFY(launcher.start());
 
@@ -136,7 +121,7 @@ private slots:
             QTest::newRow("lldb") << QStringLiteral("lldb");
     }
 
-    void testStop()
+    static void testStop()
     {
         QFETCH(QString, injectorType);
 
@@ -150,7 +135,7 @@ private slots:
         options.setProbeSetting(QStringLiteral("ServerAddress"), GAMMARAY_DEFAULT_LOCAL_TCP_URL);
         Launcher launcher(options);
 
-        QSignalSpy spy(&launcher, SIGNAL(finished()));
+        QSignalSpy spy(&launcher, &Launcher::finished);
 
         QVERIFY(launcher.start());
         launcher.stop();

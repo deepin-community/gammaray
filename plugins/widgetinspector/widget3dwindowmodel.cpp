@@ -1,29 +1,14 @@
 /*
-  widget3dview.h
+  widget3dwindowmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2011-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2011 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Daniel Vrátil <daniel.vratil@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "widget3dwindowmodel.h"
@@ -38,7 +23,8 @@ class Widget3DWindowModel::WindowNode
 public:
     explicit WindowNode(const QModelIndex &idx)
         : sourceIdx(idx)
-    {}
+    {
+    }
 
     QPersistentModelIndex sourceIdx;
 };
@@ -131,7 +117,7 @@ QModelIndex Widget3DWindowModel::mapToSource(const QModelIndex &proxyIndex) cons
         return QModelIndex();
     }
 
-    auto node = static_cast<WindowNode*>(proxyIndex.internalPointer());
+    auto node = static_cast<WindowNode *>(proxyIndex.internalPointer());
     if (!node) {
         return QModelIndex();
     }

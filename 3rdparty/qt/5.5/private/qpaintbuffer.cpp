@@ -211,7 +211,7 @@ QPaintBuffer &QPaintBuffer::operator=(const QPaintBuffer &other)
     if (other.d_ptr != d_ptr) {
         QPaintBufferPrivate *data = other.d_ptr;
         data->ref.ref();
-        if (d_ptr->ref.deref())
+        if (!d_ptr->ref.deref())
             delete d_ptr;
         d_ptr = data;
     }
@@ -553,7 +553,7 @@ class QPaintBufferEnginePrivate : public QPaintEngineExPrivate
 {
     Q_DECLARE_PUBLIC(QPaintBufferEngine)
 public:
-    void systemStateChanged() {
+    void systemStateChanged() override {
         Q_Q(QPaintBufferEngine);
         q->buffer->addCommand(QPaintBufferPrivate::Cmd_SystemStateChanged, QVariant(systemClip));
     }
@@ -677,8 +677,13 @@ void QPaintBufferEngine::penChanged()
         } else {
             qreal penWidth = (pen.widthF() == 0) ? 1 : pen.widthF();
             QPointF transformedWidth(penWidth, penWidth);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
             if (!qt_pen_is_cosmetic(pen, state()->renderHints))
                 transformedWidth = painter()->transform().map(transformedWidth);
+#else
+            if (!pen.isCosmetic())
+                transformedWidth = painter()->transform().map(transformedWidth);
+#endif
             buffer->penWidthAdjustment = transformedWidth.x() / 2.0;
         }
     }
@@ -1335,8 +1340,8 @@ public:
     QFakeDevice() { dpi_x = qt_defaultDpiX(); dpi_y = qt_defaultDpiY(); }
     void setDpiX(int dpi) { dpi_x = dpi; }
     void setDpiY(int dpi) { dpi_y = dpi; }
-    QPaintEngine *paintEngine() const { return nullptr; }
-    int metric(PaintDeviceMetric m) const
+    QPaintEngine *paintEngine() const override { return nullptr; }
+    int metric(PaintDeviceMetric m) const override
     {
         switch(m) {
             case PdmPhysicalDpiX:
@@ -1461,16 +1466,18 @@ void QPainterReplayer::process(const QPaintBufferCommand &cmd)
         QPainter::RenderHints xored = ph ^ nh;
         if (xored & QPainter::Antialiasing)
             painter->setRenderHint(QPainter::Antialiasing, nh & QPainter::Antialiasing);
-        if (xored & QPainter::HighQualityAntialiasing)
-            painter->setRenderHint(QPainter::HighQualityAntialiasing, nh & QPainter::HighQualityAntialiasing);
         if (xored & QPainter::TextAntialiasing)
             painter->setRenderHint(QPainter::TextAntialiasing, nh & QPainter::TextAntialiasing);
         if (xored & QPainter::SmoothPixmapTransform)
             painter->setRenderHint(QPainter::SmoothPixmapTransform, nh & QPainter::SmoothPixmapTransform);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+        if (xored & QPainter::HighQualityAntialiasing)
+            painter->setRenderHint(QPainter::HighQualityAntialiasing, nh & QPainter::HighQualityAntialiasing);
         if (xored & QPainter::NonCosmeticDefaultPen)
             painter->setRenderHint(QPainter::NonCosmeticDefaultPen, nh & QPainter::NonCosmeticDefaultPen);
         if (xored & QPainter::Qt4CompatiblePainting)
             painter->setRenderHint(QPainter::Qt4CompatiblePainting, nh & QPainter::Qt4CompatiblePainting);
+#endif
         break; }
 
     case QPaintBufferPrivate::Cmd_SetOpacity: {
@@ -2116,8 +2123,13 @@ QDataStream &operator>>(QDataStream &stream, QPaintBufferCacheEntryV2 &entry)
 
 static void qRegisterPaintBufferMetaTypes()
 {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     qRegisterMetaTypeStreamOperators<QPaintBufferCacheEntry>();
     qRegisterMetaTypeStreamOperators<QPaintBufferCacheEntryV2>();
+#else
+    qRegisterMetaType<QPaintBufferCacheEntry>();
+    qRegisterMetaType<QPaintBufferCacheEntryV2>();
+#endif
 }
 
 Q_CONSTRUCTOR_FUNCTION(qRegisterPaintBufferMetaTypes)

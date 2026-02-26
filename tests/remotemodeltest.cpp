@@ -1,27 +1,14 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  remotemodeltest.cpp
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <3rdparty/qt/modeltest.h>
@@ -40,7 +27,9 @@
 
 using namespace GammaRay;
 
-static void fakeRegisterServer() {}
+static void fakeRegisterServer()
+{
+}
 
 namespace GammaRay {
 class FakeRemoteModelServer : public RemoteModelServer
@@ -59,18 +48,21 @@ public:
     }
 
 signals:
-    void message(const GammaRay::Message &msg);
+    void message(const GammaRay::Message &);
 
 private slots:
     void deliverMessage(const QByteArray &ba)
     {
-        QBuffer buffer(const_cast<QByteArray*>(&ba));
+        QBuffer buffer(const_cast<QByteArray *>(&ba));
         buffer.open(QIODevice::ReadOnly);
         emit message(Message::readMessage(&buffer));
     }
 
 private:
-    bool isConnected() const override { return true; }
+    bool isConnected() const override
+    {
+        return true;
+    }
     void sendMessage(const Message &msg) const override
     {
         QByteArray ba;
@@ -78,7 +70,7 @@ private:
         buffer.open(QIODevice::WriteOnly);
         msg.write(&buffer);
         buffer.close();
-        QMetaObject::invokeMethod(const_cast<FakeRemoteModelServer*>(this), "deliverMessage", Qt::QueuedConnection, Q_ARG(QByteArray, ba));
+        QMetaObject::invokeMethod(const_cast<FakeRemoteModelServer *>(this), "deliverMessage", Qt::QueuedConnection, Q_ARG(QByteArray, ba));
     }
 };
 
@@ -98,7 +90,7 @@ public:
     }
 
 signals:
-    void message(const GammaRay::Message &msg);
+    void message(const GammaRay::Message &);
 
 private:
     void sendMessage(const Message &msg) const override
@@ -117,12 +109,12 @@ class RemoteModelTest : public QObject
 {
     Q_OBJECT
 private:
-    bool waitForData(const QModelIndex &idx)
+    static bool waitForData(const QModelIndex &idx)
     {
         if (idx.data(RemoteModelRole::LoadingState).value<RemoteModelNodeState::NodeStates>() == RemoteModelNodeState::NoState)
             return true; // data already present
 
-        QSignalSpy spy(const_cast<QAbstractItemModel*>(idx.model()), SIGNAL(dataChanged(QModelIndex,QModelIndex)));
+        QSignalSpy spy(const_cast<QAbstractItemModel *>(idx.model()), &QAbstractItemModel::dataChanged);
         if (!spy.isValid())
             return false;
         idx.data(); // trigger the request
@@ -138,7 +130,7 @@ private:
     }
 
 private slots:
-    void initTestCase()
+    static void initTestCase()
     {
         FakeRemoteModelServer::setup();
         FakeRemoteModel::setup();
@@ -185,7 +177,7 @@ private slots:
                 &RemoteModelServer::newRequest);
 
         ModelTest modelTest(&client);
-        QTest::qWait(100); // ModelTest is going to fetch stuff for us already
+        QTRY_VERIFY(client.rowCount() == 4); // ModelTest is going to fetch stuff for us already
 
         QCOMPARE(client.rowCount(), 4);
         QCOMPARE(client.hasChildren(), true);
@@ -196,7 +188,7 @@ private slots:
         QCOMPARE(client.rowCount(index), 0);
 
         listModel->insertRow(1, new QStandardItem(QStringLiteral("entry1")));
-        QTest::qWait(10);
+        QTRY_VERIFY(client.rowCount() == 5);
         QCOMPARE(client.rowCount(), 5);
         index = client.index(1, 0);
         QVERIFY(waitForData(index));
@@ -204,7 +196,7 @@ private slots:
 
         const auto deleteMe = listModel->takeRow(3);
         qDeleteAll(deleteMe);
-        QTest::qWait(10);
+        QTRY_VERIFY(client.rowCount() == 4);
         QCOMPARE(client.rowCount(), 4);
     }
 
@@ -231,7 +223,7 @@ private slots:
                 &RemoteModelServer::newRequest);
 
         ModelTest modelTest(&client);
-        QTest::qWait(25); // ModelTest is going to fetch stuff for us already
+        QTRY_VERIFY(client.rowCount() == 2);
 
         QCOMPARE(client.rowCount(), 2);
         QCOMPARE(client.hasChildren(), true);
@@ -247,7 +239,8 @@ private slots:
         QCOMPARE(client.rowCount(i12), 0);
 
         e1->insertRow(1, new QStandardItem(QStringLiteral("entry11")));
-        QTest::qWait(10);
+        QTRY_VERIFY(client.rowCount(i1) == 3);
+
         QCOMPARE(client.rowCount(i1), 3);
         auto i11 = client.index(1, 0, i1);
         QVERIFY(waitForData(i11));
@@ -256,7 +249,8 @@ private slots:
 
         const auto deleteMe = e1->takeRow(0);
         qDeleteAll(deleteMe);
-        QTest::qWait(10);
+        QTRY_VERIFY(client.rowCount(i1) == 2);
+
         QCOMPARE(client.rowCount(i1), 2);
         i11 = client.index(0, 0, i1);
         QVERIFY(waitForData(i11));
@@ -294,7 +288,7 @@ private slots:
         proxy.setSourceModel(&client);
 
         ModelTest modelTest(&proxy);
-        QTest::qWait(25); // ModelTest is going to fetch stuff for us already
+        QTRY_VERIFY(client.rowCount() == 2);
 
         QCOMPARE(client.rowCount(), 2);
         QCOMPARE(proxy.rowCount(), 2);
@@ -317,7 +311,7 @@ private slots:
         QVERIFY(waitForData(pi1));
         QCOMPARE(pi1.data().toString(), QStringLiteral("entry1"));
         // this fails with data() call batching sizes close to 1
-// QEXPECT_FAIL("", "QSFPM misbehavior, no idea yet where this is coming from", Continue);
+        // QEXPECT_FAIL("", "QSFPM misbehavior, no idea yet where this is coming from", Continue);
         QCOMPARE(proxy.rowCount(pi1), 2);
     }
 };

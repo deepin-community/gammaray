@@ -1,33 +1,19 @@
 /*
   metatypesmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Stephen Kelly <stephen.kelly@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "metatypesmodel.h"
 
+#include <core/metaobjectregistry.h>
 #include <core/util.h>
 
 #include <common/objectid.h>
@@ -55,8 +41,7 @@ QVariant MetaTypesModel::data(const QModelIndex &index, int role) const
     const auto metaTypeId = m_metaTypes.at(index.row());
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
-        case 0:
-        {
+        case 0: {
             QString name(QMetaType::typeName(metaTypeId));
             if (name.isEmpty())
                 return tr("N/A");
@@ -68,33 +53,49 @@ QVariant MetaTypesModel::data(const QModelIndex &index, int role) const
             return QMetaType::sizeOf(metaTypeId);
         case 3:
             return Util::addressToString(QMetaType::metaObjectForType(metaTypeId));
-        case 4:
-        {
+        case 4: {
             const QMetaType::TypeFlags flags = QMetaType::typeFlags(metaTypeId);
             QStringList l;
-        #define F(x) if (flags & QMetaType:: x) l.push_back(QStringLiteral(#x))
+#define F(x)                  \
+    if (flags & QMetaType::x) \
+    l.push_back(QStringLiteral(#x))
             F(NeedsConstruction);
             F(NeedsDestruction);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+            F(RelocatableType);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
+            F(IsConst);
+#endif
+            F(IsQmlList);
+            F(IsUnsignedEnumeration);
+#else
             F(MovableType);
+            F(WasDeclaredAsMetaType);
+#endif
             F(PointerToQObject);
             F(IsEnumeration);
             F(SharedPointerToQObject);
             F(WeakPointerToQObject);
             F(TrackingPointerToQObject);
-            F(WasDeclaredAsMetaType);
             F(IsGadget);
-        #undef F
+#undef F
 
             return l.join(QStringLiteral(", "));
         }
-        case 5:
+        case 5: {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+            auto mt = QMetaType(metaTypeId);
+            return mt.isEqualityComparable() && mt.isOrdered();
+#else
             return QMetaType::hasRegisteredComparators(metaTypeId);
+#endif
+        }
         case 6:
             return QMetaType::hasRegisteredDebugStreamOperator(metaTypeId);
         }
     } else if (role == MetaTypeRoles::MetaObjectIdRole && index.column() == 0) {
         if (auto mo = QMetaType::metaObjectForType(metaTypeId))
-            return QVariant::fromValue(ObjectId(const_cast<QMetaObject*>(mo), "const QMetaObject*"));
+            return QVariant::fromValue(ObjectId(const_cast<QMetaObject *>(mo), "const QMetaObject*"));
     }
 
     return QVariant();
@@ -119,6 +120,21 @@ int MetaTypesModel::columnCount(const QModelIndex &parent) const
 void MetaTypesModel::scanMetaTypes()
 {
     QVector<int> metaTypes;
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    for (int mtId = 0; mtId <= QMetaType::User; ++mtId) {
+        if (!MetaObjectRegistry::isTypeIdRegistered(mtId))
+            continue;
+        const auto name = QMetaType::typeName(mtId);
+        if (strstr(name, "GammaRay::") != name)
+            metaTypes.push_back(mtId);
+    }
+    for (int mtId = QMetaType::User + 1; QMetaType::isRegistered(mtId); ++mtId) {
+        const auto name = QMetaType::typeName(mtId);
+        if (strstr(name, "GammaRay::") != name)
+            metaTypes.push_back(mtId);
+    }
+#else
     for (int mtId = 0; mtId <= QMetaType::User || QMetaType::isRegistered(mtId); ++mtId) {
         if (!QMetaType::isRegistered(mtId))
             continue;
@@ -126,6 +142,7 @@ void MetaTypesModel::scanMetaTypes()
         if (strstr(name, "GammaRay::") != name)
             metaTypes.push_back(mtId);
     }
+#endif
 
     auto itOld = m_metaTypes.constBegin();
     auto itNew = metaTypes.constBegin();

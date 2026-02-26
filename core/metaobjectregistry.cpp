@@ -1,29 +1,14 @@
 /*
-  metaobjecttreemodel.cpp
+  metaobjectregistry.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2012-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2012 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Kevin Funk <kevin.funk@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "metaobjectregistry.h"
@@ -42,6 +27,20 @@
 #include <algorithm>
 #include <cassert>
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QBitArray>
+#include <QEasingCurve>
+#include <QUuid>
+#include <QJsonValue>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QCborArray>
+#include <QCborMap>
+#include <QModelIndex>
+#include <private/qmetatype_p.h>
+#endif
+
 using namespace GammaRay;
 
 namespace GammaRay {
@@ -51,7 +50,10 @@ namespace GammaRay {
 class UnprotectedQObject : public QObject
 {
 public:
-    inline QObjectData *data() const { return d_ptr.data(); }
+    inline QObjectData *data() const
+    {
+        return d_ptr.data();
+    }
 };
 }
 
@@ -77,7 +79,12 @@ public:
  *
  * @return Return true in case metaObject() does not point to staticMetaObject.
  */
-static inline bool hasDynamicMetaObject(const QObject *object)
+#if defined(Q_CC_CLANG) || defined(Q_CC_GNU)
+// keep it working in UBSAN
+__attribute__((no_sanitize("vptr")))
+#endif
+static inline bool
+hasDynamicMetaObject(const QObject *object)
 {
     return reinterpret_cast<const UnprotectedQObject *>(object)->data()->metaObject != nullptr;
 }
@@ -197,8 +204,69 @@ void MetaObjectRegistry::objectAdded(QObject *obj)
     }
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+// Lifted from Qt
+struct MetaTypeCoreHelper final : public QMetaTypeModuleHelper
+{
+    template<typename T, typename LiteralWrapper = std::conditional_t<std::is_same_v<T, QString>, QLatin1String, const char *>>
+    static inline bool convertToBool(const T &source)
+    {
+        T str = source.toLower();
+        return !(str.isEmpty() || str == LiteralWrapper("0") || str == LiteralWrapper("false"));
+    }
+
+    const QtPrivate::QMetaTypeInterface *interfaceForType(int type) const override
+    {
+        switch (type) {
+            QT_FOR_EACH_STATIC_PRIMITIVE_TYPE(QT_METATYPE_CONVERT_ID_TO_TYPE)
+            QT_FOR_EACH_STATIC_PRIMITIVE_POINTER(QT_METATYPE_CONVERT_ID_TO_TYPE)
+            QT_FOR_EACH_STATIC_CORE_CLASS(QT_METATYPE_CONVERT_ID_TO_TYPE)
+            QT_FOR_EACH_STATIC_CORE_POINTER(QT_METATYPE_CONVERT_ID_TO_TYPE)
+            QT_FOR_EACH_STATIC_CORE_TEMPLATE(QT_METATYPE_CONVERT_ID_TO_TYPE)
+        default:
+            return nullptr;
+        }
+    }
+};
+
+Q_GLOBAL_STATIC(MetaTypeCoreHelper, qMetaTypeCoreHelper)
+
+static const QMetaTypeModuleHelper *qModuleHelperForType(int type)
+{
+    if (type <= QMetaType::LastCoreType)
+        return qMetaTypeCoreHelper;
+    if (type >= QMetaType::FirstGuiType && type <= QMetaType::LastGuiType)
+        return qMetaTypeGuiHelper;
+    else if (type >= QMetaType::FirstWidgetsType && type <= QMetaType::LastWidgetsType)
+        return qMetaTypeWidgetsHelper;
+    return nullptr;
+}
+
+bool MetaObjectRegistry::isTypeIdRegistered(int type)
+{
+    if (auto moduleHelper = qModuleHelperForType(type))
+        return moduleHelper->interfaceForType(type) != nullptr;
+    return false;
+}
+#endif
+
 void MetaObjectRegistry::scanMetaTypes()
 {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    for (int mtId = 0; mtId <= QMetaType::User; ++mtId) {
+        if (!isTypeIdRegistered(mtId))
+            continue;
+        if (const QMetaObject *mt = QMetaType::metaObjectForType(mtId)) {
+            addMetaObject(mt);
+        }
+    }
+
+    for (int mtId = QMetaType::User + 1; QMetaType::isRegistered(mtId); ++mtId) {
+        if (const QMetaObject *mt = QMetaType::metaObjectForType(mtId))
+            addMetaObject(mt);
+    }
+    addMetaObject(&Qt::staticMetaObject);
+#else
     for (int mtId = 0; mtId <= QMetaType::User || QMetaType::isRegistered(mtId); ++mtId) {
         if (!QMetaType::isRegistered(mtId))
             continue;
@@ -207,6 +275,7 @@ void MetaObjectRegistry::scanMetaTypes()
             addMetaObject(mt);
     }
     addMetaObject(&staticQtMetaObject);
+#endif
 }
 
 const QMetaObject *MetaObjectRegistry::addMetaObject(const QMetaObject *metaObject, bool mergeDynamic)
@@ -237,7 +306,7 @@ const QMetaObject *MetaObjectRegistry::addMetaObject(const QMetaObject *metaObje
     // beforeMetaObjectAdded() can use parentOf().
     m_childParentMap.insert(metaObject, parentMetaObject);
 
-    QVector<const QMetaObject *> &children = m_parentChildMap[ parentMetaObject ];
+    QVector<const QMetaObject *> &children = m_parentChildMap[parentMetaObject];
 
     emit beforeMetaObjectAdded(metaObject);
     children.push_back(metaObject);

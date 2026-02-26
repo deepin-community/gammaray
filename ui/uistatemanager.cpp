@@ -1,29 +1,15 @@
 /*
- * This file is part of GammaRay, the Qt application inspection and
- * manipulation tool.
- *
- * Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
- * Author: Filipe Azevedo <filipe.azevedo@kdab.com>
- *
- * Licensees holding valid commercial KDAB GammaRay licenses may use this file in
- * accordance with GammaRay Commercial License Agreement provided with the Software.
- *
- * Contact info@kdab.com if any conditions of this licensing are not clear to you.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
+  uistatemanager.cpp
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+  Author: Filipe Azevedo <filipe.azevedo@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
 
 #include "uistatemanager.h"
 #include "deferredtreeview.h"
@@ -32,14 +18,17 @@
 #include "common/settempvalue.h"
 
 #include <QApplication>
+#include <QDebug>
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 #include <QDesktopWidget>
+#endif
 #include <QMainWindow>
 #include <QSplitter>
-#include <QHeaderView>
 #include <QSettings>
 #include <QEvent>
+#include <QScreen>
 #include <QTimer>
-#include <QDebug>
+
 #include <vector>
 
 #define WIDGET_CUSTOMIZED "customized"
@@ -51,7 +40,7 @@ QAbstractItemView *headerView(QHeaderView *header)
 {
     QWidget *view = header->parentWidget();
 
-    while (!qobject_cast<QAbstractItemView*>(view))
+    while (!qobject_cast<QAbstractItemView *>(view))
         view = view->parentWidget();
 
     return qobject_cast<QAbstractItemView *>(view);
@@ -59,21 +48,21 @@ QAbstractItemView *headerView(QHeaderView *header)
 
 void distributeSpace(QList<int> &sizes, int size, int handleSize)
 {
-    std::vector<QList<int>::Iterator> its;
+    std::vector<int> indexes;
     int usedSpace = 0;
 
-    for (auto it = sizes.begin(), end = sizes.end(); it != end; ++it) {
-        if ((*it) == -1)
-            its.push_back(it);
+    for (int i = 0; i < sizes.size(); ++i) {
+        if (sizes[i] == -1)
+            indexes.push_back(i);
         else
-            usedSpace += (*it);
+            usedSpace += sizes[i];
     }
 
-    if (!its.empty()) {
+    if (!indexes.empty()) {
         const int freeSpace = size - usedSpace - (sizes.count() * handleSize) - handleSize;
-        const int space = freeSpace / its.size();
-        for (auto & it : its)
-            (*it) = space;
+        const int space = freeSpace / indexes.size();
+        for (auto i : indexes)
+            sizes[i] = space;
     }
 }
 
@@ -224,7 +213,9 @@ void UIStateManager::restoreState()
         m_stateSettings->beginGroup(Endpoint::instance()->key());
         QMetaMethod method = m_targetStateSource->method(m_targetRestoreMethodId);
         QObject *target = m_targetStateSource == m_widget->metaObject() ? qobject_cast<QObject *>(m_widget) : this;
+        // clang-format off
         method.invoke(target, Q_ARG(QSettings*, m_stateSettings));
+        // clang-format on
         m_stateSettings->endGroup();
     }
 
@@ -254,7 +245,9 @@ void UIStateManager::saveState()
         m_stateSettings->beginGroup(Endpoint::instance()->key());
         QMetaMethod method = m_targetStateSource->method(m_targetSaveMethodId);
         QObject *target = m_targetStateSource == m_widget->metaObject() ? qobject_cast<QObject *>(m_widget) : this;
+        // clang-format off
         method.invoke(target, Q_ARG(QSettings*, m_stateSettings));
+        // clang-format on
         m_stateSettings->endGroup();
     }
 
@@ -293,11 +286,12 @@ bool UIStateManager::eventFilter(QObject *object, QEvent *event)
     return result;
 }
 
-QString UIStateManager::widgetName(QWidget *widget) const
+QString UIStateManager::widgetName(QWidget *widget)
 {
     return (widget->objectName().isEmpty()
-            ? QString::fromLatin1(widget->metaObject()->className())
-            : widget->objectName()).toLower();
+                ? QString::fromLatin1(widget->metaObject()->className())
+                : widget->objectName())
+        .toLower();
 }
 
 QString UIStateManager::widgetPath(QWidget *widget) const
@@ -370,9 +364,9 @@ bool UIStateManager::checkWidget(QWidget *widget) const
     return true;
 }
 
-int UIStateManager::percentToInt(const QString &size) const
+int UIStateManager::percentToInt(const QString &size)
 {
-    return size.left(size.length() -1).toInt(); // clazy:exclude=qstring-ref due to Qt4 support
+    return size.left(size.length() - 1).toInt(); // clazy:exclude=qstring-ref due to Qt4 support
 }
 
 void UIStateManager::restoreWindowState()
@@ -380,12 +374,11 @@ void UIStateManager::restoreWindowState()
     QMainWindow *window = qobject_cast<QMainWindow *>(m_widget);
 
     if (window) {
-        const QByteArray geometry
-            = m_stateSettings->value(widgetGeometryKey(m_widget)).toByteArray();
+        const QByteArray geometry = m_stateSettings->value(widgetGeometryKey(m_widget)).toByteArray();
         const QByteArray state = m_stateSettings->value(widgetStateKey(m_widget)).toByteArray();
 
         if (geometry.isEmpty()) {
-            const QRect area = qApp->desktop()->availableGeometry(QCursor::pos());
+            const QRect area = m_widget->screen()->availableGeometry();
             QRect rect(QPoint(), QSize(1024, 768));
             rect.moveCenter(area.center());
             m_widget->setGeometry(rect);
@@ -432,8 +425,7 @@ void UIStateManager::restoreSplitterState(QSplitter *splitter)
                         sizes << size.toInt();
                         break;
 
-                    case QVariant::String:
-                    {              // Percent
+                    case QVariant::String: { // Percent
                         int value = percentToInt(size.toString());
                         if (value == -1)
                             sizes << value;
@@ -532,8 +524,7 @@ void UIStateManager::restoreHeaderState(QHeaderView *header)
             }
         } else {
             if (!m_resizing) {
-                const int count
-                    = m_stateSettings->value(widgetStateSectionsKey(header), -1).toInt();
+                const int count = m_stateSettings->value(widgetStateSectionsKey(header), -1).toInt();
                 if (count == header->count()) {
                     header->restoreState(state);
                     header->setProperty(WIDGET_CUSTOMIZED, true);
@@ -563,7 +554,13 @@ void UIStateManager::saveHeaderState(QHeaderView *header)
 
 void UIStateManager::headerSectionCountChanged()
 {
-    restoreHeaderState(qobject_cast<QHeaderView *>(sender()));
+    auto headerView = qobject_cast<QHeaderView *>(sender());
+    // Delay the call to restoreHeaderState to avoid multiple changes in flight at the QAIM level
+    // E.g. we might be here because of columnsInserted() (which just finished, but not all receivers were told yet)
+    // and restoring will sort() the model, which will emit layoutChanged(). Separate the two so QAbstractItemModelTester doesn't abort.
+    // clang-format off
+    QMetaObject::invokeMethod(this, "restoreHeaderState", Qt::QueuedConnection, Q_ARG(QHeaderView *, headerView));
+    // clang-format on
 }
 
 void UIStateManager::widgetResized(QWidget *widget)

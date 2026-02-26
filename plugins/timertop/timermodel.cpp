@@ -2,29 +2,14 @@
 /*
   timermodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Thomas McGuire <thomas.mcguire@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 #include "timermodel.h"
 
@@ -64,7 +49,8 @@ struct TimeoutEvent
     explicit TimeoutEvent(const QTime &timeStamp = QTime(), int executionTime = -1)
         : timeStamp(timeStamp)
         , executionTime(executionTime)
-    { }
+    {
+    }
 
     QTime timeStamp;
     int executionTime;
@@ -90,7 +76,7 @@ struct TimerIdData
 
     TimerIdInfo &toInfo(TimerId::Type type)
     {
-        info.totalWakeups =  totalWakeups();
+        info.totalWakeups = totalWakeups();
         info.wakeupsPerSec = wakeupsPerSec();
         info.timePerWakeup = timePerWakeup(type);
         info.maxWakeupTime = maxWakeupTime(type);
@@ -120,7 +106,7 @@ struct TimerIdData
             const QTime startTime = timeoutEvents[start].timeStamp;
             const QTime endTime = timeoutEvents[end].timeStamp;
             const int timeSpan = startTime.msecsTo(endTime);
-            const qreal wakeupsPerSec = wakeups / (qreal)timeSpan * (qreal)1000;
+            const qreal wakeupsPerSec = wakeups / ( qreal )timeSpan * ( qreal )1000;
             return wakeupsPerSec;
         }
         return 0;
@@ -142,7 +128,7 @@ struct TimerIdData
         }
 
         if (wakeups > 0)
-            return (qreal)totalTime / (qreal)wakeups;
+            return ( qreal )totalTime / ( qreal )wakeups;
         return 0;
     }
 
@@ -192,7 +178,7 @@ const TimerIdInfo *TimerModel::findTimerInfo(const QModelIndex &index) const
 {
     if (index.row() < m_sourceModel->rowCount()) {
         const QModelIndex sourceIndex = m_sourceModel->index(index.row(), 0);
-        QObject * const timerObject = sourceIndex.data(ObjectModel::ObjectRole).value<QObject *>();
+        QObject *const timerObject = sourceIndex.data(ObjectModel::ObjectRole).value<QObject *>();
 
         // The object might have already be deleted even if our index is valid
         if (!timerObject)
@@ -208,9 +194,9 @@ const TimerIdInfo *TimerModel::findTimerInfo(const QModelIndex &index) const
         }
 
         return &it.value();
-    } else {
-        if (index.row() < m_sourceModel->rowCount() + m_freeTimersInfo.count())
-            return &m_freeTimersInfo[index.row() - m_sourceModel->rowCount()];
+    }
+    if (index.row() < m_sourceModel->rowCount() + m_freeTimersInfo.count()) {
+        return &m_freeTimersInfo[index.row() - m_sourceModel->rowCount()];
     }
 
     return nullptr;
@@ -228,20 +214,18 @@ bool TimerModel::canHandleCaller(QObject *caller, int methodIndex) const
         Q_ASSERT(m_qmlTimerRunningChangedIndex != -1);
     }
 
-    return (isQTimer && m_timeoutIndex == methodIndex) ||
-            (isQQmlTimer && (m_qmlTimerTriggeredIndex == methodIndex ||
-                             m_qmlTimerRunningChangedIndex == methodIndex));
+    return (isQTimer && m_timeoutIndex == methodIndex) || (isQQmlTimer && (m_qmlTimerTriggeredIndex == methodIndex || m_qmlTimerRunningChangedIndex == methodIndex));
 }
 
 void TimerModel::checkDispatcherStatus(QObject *object)
 {
     // m_mutex have to be locked!!
-    static QHash<QAbstractEventDispatcher *, QTime> dispatcherChecks;
+    static QHash<QAbstractEventDispatcher *, QElapsedTimer> dispatcherChecks;
     QAbstractEventDispatcher *dispatcher = QAbstractEventDispatcher::instance(object->thread());
     auto it = dispatcherChecks.find(dispatcher);
 
     if (it == dispatcherChecks.end()) {
-        it = dispatcherChecks.insert(dispatcher, QTime());
+        it = dispatcherChecks.insert(dispatcher, QElapsedTimer());
         it.value().start();
     }
 
@@ -258,7 +242,7 @@ void TimerModel::checkDispatcherStatus(QObject *object)
             continue;
         }
 
-        switch(gIt.key().type()) {
+        switch (gIt.key().type()) {
         case TimerId::InvalidType:
         case TimerId::QQmlTimerType:
             continue;
@@ -267,7 +251,7 @@ void TimerModel::checkDispatcherStatus(QObject *object)
             break;
         }
 
-        switch(gIt.value().info.state) {
+        switch (gIt.value().info.state) {
         case TimerIdInfo::InactiveState:
             gIt.value().update(gIt.key(), gItObject);
         case TimerIdInfo::InvalidState:
@@ -303,11 +287,11 @@ bool TimerModel::eventNotifyCallback(void *data[])
      */
     QObject *receiver = static_cast<QObject *>(data[0]);
     QEvent *event = static_cast<QEvent *>(data[1]);
-//    bool *result = static_cast<bool *>(data[2]);
+    //    bool *result = static_cast<bool *>(data[2]);
 
     if (event->type() == QEvent::Timer) {
         const QTimerEvent *const timerEvent = static_cast<QTimerEvent *>(event);
-        const QTimer *const timer = qobject_cast<QTimer*>(receiver);
+        const QTimer *const timer = qobject_cast<QTimer *>(receiver);
 
         // If there is a QTimer associated with this timer ID, don't handle it here, it will be handled
         // by the signal hooks preSignalActivate/postSignalActivate.
@@ -382,7 +366,7 @@ void TimerModel::preSignalActivate(QObject *caller, int methodIndex)
     if (methodIndex != m_qmlTimerRunningChangedIndex) {
         if (it.value().functionCallTimer.isValid()) {
             cout << "TimerModel::preSignalActivate(): Recursive timeout for timer "
-                 << (void *)caller << "!" << endl;
+                 << ( void * )caller << "!" << endl;
             return;
         }
         it.value().functionCallTimer.start();
@@ -411,7 +395,7 @@ void TimerModel::postSignalActivate(QObject *caller, int methodIndex)
     if (methodIndex != m_qmlTimerRunningChangedIndex) {
         if (!it.value().functionCallTimer.isValid()) {
             cout << "TimerModel::postSignalActivate(): Timer not active: "
-                 << (void *)caller << "!" << endl;
+                 << ( void * )caller << "!" << endl;
             return;
         }
     }
@@ -458,13 +442,12 @@ void TimerModel::setSourceModel(QAbstractItemModel *sourceModel)
 QModelIndex TimerModel::index(int row, int column, const QModelIndex &parent) const
 {
     if (hasIndex(row, column, parent)) {
-        if (row < m_sourceModel->rowCount())  {
+        if (row < m_sourceModel->rowCount()) {
             const QModelIndex sourceIndex = m_sourceModel->index(row, 0);
             QObject *const timerObject = sourceIndex.data(ObjectModel::ObjectRole).value<QObject *>();
             return createIndex(row, column, timerObject);
-        } else {
-            return createIndex(row, column, row - m_sourceModel->rowCount());
         }
+        return createIndex(row, column, row - m_sourceModel->rowCount());
     }
 
     return {};
@@ -528,23 +511,20 @@ QVariant TimerModel::data(const QModelIndex &index, int role) const
             return QVariant();
 
         switch (role) {
-            case ObjectModel::ObjectIdRole:
-            {
-                Q_ASSERT(index.row() >= m_sourceModel->rowCount() || object == index.internalPointer());
-                return QVariant::fromValue(ObjectId(object));
-            }
-            case ObjectModel::CreationLocationRole:
-            {
-                const auto loc = ObjectDataProvider::creationLocation(object);
-                return loc.isValid() ? QVariant::fromValue(loc) : QVariant();
-            }
-            case ObjectModel::DeclarationLocationRole:
-            {
-                const auto loc = ObjectDataProvider::declarationLocation(object);
-                return loc.isValid() ? QVariant::fromValue(loc) : QVariant();
-            }
-            case TimerTypeRole:
-                return int(timerInfo->type);
+        case ObjectModel::ObjectIdRole: {
+            Q_ASSERT(index.row() >= m_sourceModel->rowCount() || object == index.internalPointer());
+            return QVariant::fromValue(ObjectId(object));
+        }
+        case ObjectModel::CreationLocationRole: {
+            const auto loc = ObjectDataProvider::creationLocation(object);
+            return loc.isValid() ? QVariant::fromValue(loc) : QVariant();
+        }
+        case ObjectModel::DeclarationLocationRole: {
+            const auto loc = ObjectDataProvider::declarationLocation(object);
+            return loc.isValid() ? QVariant::fromValue(loc) : QVariant();
+        }
+        case TimerTypeRole:
+            return int(timerInfo->type);
         }
     }
 
@@ -614,8 +594,7 @@ void TimerModel::pushChanges()
         if (!itInfo.changed) {
             if (it.key().type() == TimerId::QObjectType) {
                 if (itInfo.info.state > TimerIdInfo::InactiveState) {
-                    if (activeQTimers.contains(itInfo.info.timerId) ||
-                            !itInfo.info.lastReceiverObject) {
+                    if (activeQTimers.contains(itInfo.info.timerId) || !itInfo.info.lastReceiverObject) {
                         itInfo.info.type = TimerId::InvalidType;
                         itInfo.info.state = TimerIdInfo::InvalidState;
                         itInfo.changed = true;

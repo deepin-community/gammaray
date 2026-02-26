@@ -1,29 +1,14 @@
 /*
-  styleinspector.cpp
+  eventmonitor.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2012-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2012 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Tim Henning <tim.henning@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "eventmonitor.h"
@@ -49,6 +34,7 @@
 #include <QMutex>
 #include <QSortFilterProxyModel>
 #include <QtCore/private/qobject_p.h>
+#include <QtGui/qtgui-config.h>
 
 using namespace GammaRay;
 
@@ -56,8 +42,8 @@ static EventModel *s_model = nullptr;
 static EventTypeModel *s_eventTypeModel = nullptr;
 static EventMonitor *s_eventMonitor = nullptr;
 
-
-QString eventTypeToClassName(QEvent::Type type) {
+static QString eventTypeToClassName(QEvent::Type type)
+{
     switch (type) {
     case QEvent::NonClientAreaMouseMove:
     case QEvent::NonClientAreaMouseButtonPress:
@@ -77,12 +63,14 @@ QString eventTypeToClassName(QEvent::Type type) {
         return QStringLiteral("QScrollPrepareEvent");
     case QEvent::Scroll:
         return QStringLiteral("QScrollEvent");
+#if QT_CONFIG(tabletevent)
     case QEvent::TabletMove:
     case QEvent::TabletPress:
     case QEvent::TabletRelease:
     case QEvent::TabletEnterProximity:
     case QEvent::TabletLeaveProximity:
         return QStringLiteral("QTabletEvent");
+#endif
     case QEvent::NativeGesture:
         return QStringLiteral("QNativeGestureEvent");
     case QEvent::KeyPress:
@@ -115,8 +103,10 @@ QString eventTypeToClassName(QEvent::Type type) {
         return QStringLiteral("QPaintEvent");
     case QEvent::Enter:
         return QStringLiteral("QEnterEvent");
+#if QT_CONFIG(wheelevent)
     case QEvent::Wheel:
         return QStringLiteral("QWheelEvent");
+#endif
     case QEvent::HoverEnter:
     case QEvent::HoverMove:
     case QEvent::HoverLeave:
@@ -132,7 +122,7 @@ QString eventTypeToClassName(QEvent::Type type) {
     case QEvent::Timer:
         return QStringLiteral("QTimerEvent");
     case QEvent::MetaCall:
-        return QStringLiteral("QMetaCallEvent");  // about to change in 5.14? see https://code.qt.io/cgit/qt/qtbase.git/commit/?h=dev&id=999c26dd83ad37fcd7a2b2fc62c0281f38c8e6e0
+        return QStringLiteral("QMetaCallEvent"); // about to change in 5.14? see https://code.qt.io/cgit/qt/qtbase.git/commit/?h=dev&id=999c26dd83ad37fcd7a2b2fc62c0281f38c8e6e0
     case QEvent::ActionAdded:
     case QEvent::ActionChanged:
     case QEvent::ActionRemoved:
@@ -156,7 +146,8 @@ QString eventTypeToClassName(QEvent::Type type) {
 }
 
 
-bool isInputEvent(QEvent::Type type) {
+static bool isInputEvent(QEvent::Type type)
+{
     switch (type) {
     case QEvent::NonClientAreaMouseMove:
     case QEvent::NonClientAreaMouseButtonPress:
@@ -193,7 +184,8 @@ bool isInputEvent(QEvent::Type type) {
 }
 
 
-bool shouldBeRecorded(QObject* receiver, QEvent* event) {
+static bool shouldBeRecorded(QObject *receiver, QEvent *event)
+{
     if (!s_model || !s_eventTypeModel || !s_eventMonitor || !Probe::instance()) {
         return false;
     }
@@ -213,52 +205,61 @@ bool shouldBeRecorded(QObject* receiver, QEvent* event) {
 }
 
 
-EventData createEventData(QObject* receiver, QEvent* event) {
+static EventData createEventData(QObject *receiver, QEvent *event)
+{
     EventData eventData;
     eventData.time = QTime::currentTime();
     eventData.type = event->type();
     eventData.receiver = receiver;
-    eventData.attributes << QPair<const char*, QVariant>{"receiver", QVariant::fromValue(receiver)};
+    eventData.attributes << QPair<const char *, QVariant> { "receiver", QVariant::fromValue(receiver) };
     eventData.eventPtr = event;
 
     // the receiver of a deferred delete event is almost always invalid when shown in the UI
     // we therefore store the name of the receiver as a string to provide at least
     // some useful information:
     if (event->type() == QEvent::DeferredDelete) {
-        eventData.attributes << QPair<const char*, QVariant>{"[receiver type]", Util::displayString(receiver)};
+        eventData.attributes << QPair<const char *, QVariant> { "[receiver type]", Util::displayString(receiver) };
     }
 
     // try to extract the method name, arguments and return value from a meta call event:
     if (event->type() == QEvent::MetaCall) {
-        eventData.attributes << QPair<const char*, QVariant>{"[receiver type]", Util::displayString(receiver)};
+        eventData.attributes << QPair<const char *, QVariant> { "[receiver type]", Util::displayString(receiver) };
         // QMetaCallEvent about to change in 5.14? see https://code.qt.io/cgit/qt/qtbase.git/commit/?h=dev&id=999c26dd83ad37fcd7a2b2fc62c0281f38c8e6e0
-        QMetaCallEvent* metaCallEvent = static_cast<QMetaCallEvent*>(event);
+        QMetaCallEvent *metaCallEvent = static_cast<QMetaCallEvent *>(event);
         if (metaCallEvent) {
             int methodIndex = metaCallEvent->id();
             if (methodIndex == int(ushort(-1))) {
                 // TODO: this is a slot call, but QMetaCall::slotObj is private
-                eventData.attributes << QPair<const char*, QVariant>{"[method name]", "[unknown slot]"};
+                eventData.attributes << QPair<const char *, QVariant> { "[method name]", "[unknown slot]" };
             } else {
                 // TODO: should first check if nargs and types is set, but both are private
                 const QMetaObject *meta = receiver->metaObject();
                 if (meta) {
                     QMetaMethod method = meta->method(metaCallEvent->id());
-                    eventData.attributes << QPair<const char*, QVariant>{"[method name]", method.name()};
-                    void** argv = metaCallEvent->args();
+                    eventData.attributes << QPair<const char *, QVariant> { "[method name]", method.name() };
+                    void **argv = metaCallEvent->args();
                     if (argv) { // nullptr e.g. for QDBusCallDeliveryEvent
                         if (method.returnType() != QMetaType::Void) {
-                            void* returnValueCopy = QMetaType::create(method.returnType(), argv[0]);
-                            eventData.attributes << QPair<const char*, QVariant>{"[return value]", QVariant(method.returnType(), returnValueCopy)};
+                            void *returnValueCopy = QMetaType::create(method.returnType(), argv[0]);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+                            eventData.attributes << QPair<const char *, QVariant> { "[return value]", QVariant(method.returnType(), returnValueCopy) };
+#else
+                            eventData.attributes << QPair<const char *, QVariant> { "[return value]", QVariant(QMetaType(method.returnType()), returnValueCopy) };
+#endif
                         }
                         int argc = method.parameterCount();
                         QVariantMap vargs;
                         for (int i = 0; i < argc; ++i) {
                             int type = method.parameterType(i);
-                            void* argumentDataCopy = QMetaType::create(type, argv[i+1]);
+                            void *argumentDataCopy = QMetaType::create(type, argv[i + 1]);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
                             vargs.insert(method.parameterNames().at(i), QVariant(type, argumentDataCopy));
+#else
+                            vargs.insert(method.parameterNames().at(i), QVariant(QMetaType(type), argumentDataCopy));
+#endif
                         }
                         if (argc > 0)
-                            eventData.attributes << QPair<const char*, QVariant>{"[arguments]", vargs};
+                            eventData.attributes << QPair<const char *, QVariant> { "[arguments]", vargs };
                     }
                 }
             }
@@ -270,10 +271,12 @@ EventData createEventData(QObject* receiver, QEvent* event) {
     if (!className.isEmpty()) {
         MetaObject *metaObj = MetaObjectRepository::instance()->metaObject(className);
         if (metaObj) {
-            for (int i=0; i<metaObj->propertyCount(); ++i) {
-                MetaProperty* prop = metaObj->propertyAt(i);
-                if (strcmp(prop->name(), "type") == 0) continue;
-                eventData.attributes << QPair<const char*, QVariant>{prop->name(), prop->value(event)};
+            const int propCount = metaObj->propertyCount();
+            for (int i = 0; i < propCount; ++i) {
+                MetaProperty *prop = metaObj->propertyAt(i);
+                if (strcmp(prop->name(), "type") == 0)
+                    continue;
+                eventData.attributes << QPair<const char *, QVariant> { prop->name(), prop->value(event) };
             }
         }
     }
@@ -288,8 +291,8 @@ void EventMonitor::addEvent(const GammaRay::EventData &event)
 
 static bool eventCallback(void **data)
 {
-    QEvent *event = reinterpret_cast<QEvent*>(data[1]);
-    QObject *receiver = reinterpret_cast<QObject*>(data[0]);
+    QEvent *event = reinterpret_cast<QEvent *>(data[1]);
+    QObject *receiver = reinterpret_cast<QObject *>(data[0]);
 
     if (!shouldBeRecorded(receiver, event))
         return false;
@@ -297,10 +300,10 @@ static bool eventCallback(void **data)
     EventData eventData = createEventData(receiver, event);
 
     if (!event->spontaneous()
-            && isInputEvent(event->type())
-            && s_model->hasEvents()
-            && s_model->lastEvent().eventPtr == eventData.eventPtr
-            && s_model->lastEvent().type == event->type()) {
+        && isInputEvent(event->type())
+        && s_model->hasEvents()
+        && s_model->lastEvent().eventPtr == eventData.eventPtr
+        && s_model->lastEvent().type == event->type()) {
         // this is an event propagated by a QQuickWindow to a child item:
         s_model->lastEvent().propagatedEvents.append(eventData);
         return false;
@@ -314,7 +317,8 @@ static bool eventCallback(void **data)
 
 EventPropagationListener::EventPropagationListener(QObject *parent)
     : QObject(parent)
-{}
+{
+}
 
 bool EventPropagationListener::eventFilter(QObject *receiver, QEvent *event)
 {
@@ -324,14 +328,14 @@ bool EventPropagationListener::eventFilter(QObject *receiver, QEvent *event)
     if (!s_model->hasEvents())
         return false;
 
-    EventData& lastEvent = s_model->lastEvent();
+    EventData &lastEvent = s_model->lastEvent();
 
     if (lastEvent.eventPtr == event && lastEvent.receiver == receiver) {
         // this is the same event we already recorded in the event callback
         return false;
     }
     if (!lastEvent.propagatedEvents.isEmpty()
-            && lastEvent.propagatedEvents.last().eventPtr == event) {
+        && lastEvent.propagatedEvents.last().eventPtr == event) {
         // this is an event propagated by QML that is already recorded in the event callback
         return false;
     }
@@ -399,7 +403,8 @@ void EventMonitor::eventSelected(const QItemSelection &selection)
     m_eventPropertyModel->setObject(eventAttributes);
 }
 
-EventMonitor::~EventMonitor() {
+EventMonitor::~EventMonitor()
+{
     s_model = nullptr;
     s_eventTypeModel = nullptr;
     s_eventMonitor = nullptr;

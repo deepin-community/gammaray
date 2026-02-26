@@ -1,29 +1,14 @@
 /*
   methodsextension.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Anton Kreuzkamp <anton.kreuzkamp@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "methodsextension.h"
@@ -99,10 +84,7 @@ void MethodsExtension::signalEmitted(QObject *sender, int signalIndex,
         prettyArgs.push_back(VariantHandler::displayString(v));
 
     m_methodLogModel->appendRow(
-        new QStandardItem(tr("%1: Signal %2 emitted, arguments: %3").arg(
-                              QTime::currentTime().toString(QStringLiteral("HH:mm:ss.zzz")),
-                              QString(sender->metaObject()->method(signalIndex).methodSignature()),
-                              prettyArgs.join(QStringLiteral(", ")))));
+        new QStandardItem(tr("%1: Signal %2 emitted, arguments: %3").arg(QTime::currentTime().toString(QStringLiteral("HH:mm:ss.zzz")), QString(sender->metaObject()->method(signalIndex).methodSignature()), prettyArgs.join(QStringLiteral(", ")))));
 }
 
 void MethodsExtension::activateMethod()
@@ -133,8 +115,7 @@ void MethodsExtension::invokeMethod(Qt::ConnectionType connectionType)
     if (!m_object) {
         m_methodLogModel->appendRow(
             new QStandardItem(
-                tr("%1: Invocation failed: Invalid object, probably got deleted in the meantime.").
-                arg(QTime::currentTime().toString(QStringLiteral("HH:mm:ss.zzz")))));
+                tr("%1: Invocation failed: Invalid object, probably got deleted in the meantime.").arg(QTime::currentTime().toString(QStringLiteral("HH:mm:ss.zzz")))));
         return;
     }
 
@@ -148,8 +129,7 @@ void MethodsExtension::invokeMethod(Qt::ConnectionType connectionType)
     if (method.methodType() == QMetaMethod::Constructor) {
         m_methodLogModel->appendRow(
             new QStandardItem(
-                tr("%1: Invocation failed: Can't invoke constructors.").
-                arg(QTime::currentTime().toString(QStringLiteral("HH:mm:ss.zzz")))));
+                tr("%1: Invocation failed: Can't invoke constructors.").arg(QTime::currentTime().toString(QStringLiteral("HH:mm:ss.zzz")))));
         return;
     }
 
@@ -164,8 +144,7 @@ void MethodsExtension::invokeMethod(Qt::ConnectionType connectionType)
     if (!result) {
         m_methodLogModel->appendRow(
             new QStandardItem(
-                tr("%1: Invocation failed..").
-                arg(QTime::currentTime().toString(QStringLiteral("HH:mm:ss.zzz")))));
+                tr("%1: Invocation failed..").arg(QTime::currentTime().toString(QStringLiteral("HH:mm:ss.zzz")))));
         return;
     }
 

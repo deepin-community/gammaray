@@ -1,4 +1,11 @@
-#!/bin/bash -e
+# This file is part of GammaRay, the Qt application inspection and manipulation tool.
+#
+# SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Contact KDAB at <info@kdab.com> for commercial licensing options.
+#
 
 # This script will create or update icon sets for macOS (icns) and windows (ico) at the same time (if possible).
 # This script can be run anywhere bash/imagemagick is installed on (Windows with linux subsystem, unix...) but
