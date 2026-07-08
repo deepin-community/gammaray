@@ -1,29 +1,14 @@
 /*
   probeabidetector.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -40,30 +25,53 @@ ProbeABIDetector::ProbeABIDetector() = default;
 
 ProbeABI ProbeABIDetector::abiForExecutable(const QString &path) const
 {
-    return abiForQtCore(qtCoreForExecutable(path));
+    const QVector<ProbeABI> abis = abiForQtCore(qtCoreForExecutable(path));
+    if (abis.isEmpty()) {
+        return {};
+    }
+    // Assume you want to run the one your system cpu is about if it exists
+    // It could be improved asking the user which of the multiple abis
+    // they want to run
+    for (const ProbeABI &abi : abis) {
+        if (abi.architecture() == QSysInfo::currentCpuArchitecture()) {
+            return abi;
+        }
+    }
+    return abis[0];
 }
 
 ProbeABI ProbeABIDetector::abiForProcess(qint64 pid) const
 {
-    return abiForQtCore(qtCoreForProcess(pid));
+    const QVector<ProbeABI> abis = abiForQtCore(qtCoreForProcess(pid));
+    if (abis.isEmpty()) {
+        return {};
+    }
+    // FIXME this is not necessarily true, since the user could have
+    // forced to run a particular abi if the OS supports so
+    for (const ProbeABI &abi : abis) {
+        if (abi.architecture() == QSysInfo::currentCpuArchitecture()) {
+            return abi;
+        }
+    }
+    return abis[0];
 }
 
-ProbeABI ProbeABIDetector::abiForQtCore(const QString &path) const
+QVector<ProbeABI> ProbeABIDetector::abiForQtCore(const QString &path) const
 {
     QFileInfo fi(path);
     if (!fi.exists())
-        return ProbeABI();
+        return {};
 
     auto it = m_abiForQtCoreCache.constFind(fi.canonicalFilePath());
     if (it != m_abiForQtCoreCache.constEnd())
         return it.value();
 
-    const ProbeABI abi = detectAbiForQtCore(fi.canonicalFilePath());
+    const QVector<ProbeABI> abi = detectAbiForQtCore(fi.canonicalFilePath());
     m_abiForQtCoreCache.insert(fi.canonicalFilePath(), abi);
     return abi;
 }
 
-QString ProbeABIDetector::qtCoreFromLsof(qint64 pid) const
+QString ProbeABIDetector::qtCoreFromLsof(qint64 pid)
 {
     QString lsofExe;
     lsofExe = QStandardPaths::findExecutable(QStringLiteral("lsof"));
@@ -71,7 +79,8 @@ QString ProbeABIDetector::qtCoreFromLsof(qint64 pid) const
     if (lsofExe.isEmpty()) {
         lsofExe = QStandardPaths::findExecutable(QStringLiteral("lsof"),
                                                  QStringList() << QStringLiteral(
-                                                     "/usr/sbin") << QStringLiteral("/sbin"));
+                                                     "/usr/sbin")
+                                                               << QStringLiteral("/sbin"));
     }
     if (lsofExe.isEmpty()) {
         lsofExe = QStringLiteral("lsof"); // maybe QProcess has more luck
@@ -80,8 +89,7 @@ QString ProbeABIDetector::qtCoreFromLsof(qint64 pid) const
     QProcess proc;
     proc.setProcessChannelMode(QProcess::SeparateChannels);
     proc.setReadChannel(QProcess::StandardOutput);
-    proc.start(lsofExe, QStringList() << QStringLiteral("-Fn") << QStringLiteral(
-                   "-n") << QStringLiteral("-p") << QString::number(pid));
+    proc.start(lsofExe, QStringList() << QStringLiteral("-Fn") << QStringLiteral("-n") << QStringLiteral("-p") << QString::number(pid));
     proc.waitForFinished();
 
     forever {
@@ -106,8 +114,7 @@ static bool checkQtCorePrefix(const QByteArray &line, int index)
     if (index >= 3 && line.indexOf("lib", index - 3) == index - 3)
         return true;
 
-    if ((line.at(index - 1) >= 'a' && line.at(index - 1) <= 'z') ||
-        (line.at(index - 1) >= 'A' && line.at(index - 1) <= 'Z'))
+    if ((line.at(index - 1) >= 'a' && line.at(index - 1) <= 'z') || (line.at(index - 1) >= 'A' && line.at(index - 1) <= 'Z'))
         return false;
 
     return true;
@@ -136,10 +143,21 @@ static bool checkQtCoreSuffix(const QByteArray &line, int index)
         ++index;
 
     // "Core" must not be followed by another part of the name, so we don't trigger on eg. "QtCoreAddon"
-    if (index < line.size() &&
-        ((line.at(index) >= 'a' && line.at(index) <= 'z') ||
-         (line.at(index) >= 'A' && line.at(index) <= 'Z')))
+    if (index < line.size() && ((line.at(index) >= 'a' && line.at(index) <= 'z') || (line.at(index) >= 'A' && line.at(index) <= 'Z')))
         return false;
+
+    // must not be followed by .abi3, (pyside)
+    if (line.lastIndexOf(".abi3", index) == index) {
+        return false;
+    }
+
+    // Sometimes when using PySide2 on Windows we end up loading QtCore.pyd, which doesn't
+    // have information about the corresponding Qt version among its file details.
+    // We can safely skip it since that will in turn load a QtCore dll file with the right
+    // information, and that will be picked up by this function.
+    if (line.endsWith(".pyd")) {
+        return false;
+    }
 
     return true;
 }
@@ -151,6 +169,10 @@ bool ProbeABIDetector::containsQtCore(const QByteArray &line)
     // Windows Qt[X]Core[d].dll
 
     for (int index = 0; (index = line.indexOf("Qt", index)) >= 0; ++index) {
+        // Path must not be something like "libqtqmlcoreplugin" which is not what we're looking for
+        if (line.contains(QByteArrayLiteral("qml")))
+            return false;
+
         if (!checkQtCorePrefix(line, index))
             continue;
 

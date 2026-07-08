@@ -1,29 +1,14 @@
 /*
   propertywidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "propertywidget.h"
@@ -32,8 +17,6 @@
 #include "common/objectbroker.h"
 #include "common/propertycontrollerinterface.h"
 
-#include <compat/qasconst.h>
-
 #include <QCoreApplication>
 #include <QTimer>
 
@@ -41,8 +24,7 @@
 
 using namespace GammaRay;
 
-QVector<PropertyWidgetTabFactoryBase *> PropertyWidget::s_tabFactories
-    = QVector<PropertyWidgetTabFactoryBase *>();
+QVector<PropertyWidgetTabFactoryBase *> PropertyWidget::s_tabFactories = QVector<PropertyWidgetTabFactoryBase *>();
 QVector<PropertyWidget *> PropertyWidget::s_propertyWidgets;
 
 PropertyWidget::PropertyWidget(QWidget *parent)
@@ -100,7 +82,7 @@ void PropertyWidget::registerTab(PropertyWidgetTabFactoryBase *factory)
     if (s_tabFactories.isEmpty())
         qAddPostRoutine(propertyWidgetCleanup);
     s_tabFactories.push_back(factory);
-    for (PropertyWidget *widget : qAsConst(s_propertyWidgets))
+    for (PropertyWidget *widget : std::as_const(s_propertyWidgets))
         widget->updateShownTabs();
 }
 
@@ -113,7 +95,7 @@ void PropertyWidget::createWidgets()
 {
     if (m_objectBaseName.isEmpty())
         return;
-    for (PropertyWidgetTabFactoryBase *factory : qAsConst(s_tabFactories)) {
+    for (PropertyWidgetTabFactoryBase *factory : std::as_const(s_tabFactories)) {
         if (!factoryInUse(factory) && extensionAvailable(factory)) {
             const PageInfo pi = { factory, factory->createWidget(this) };
             m_pages.push_back(pi);
@@ -139,7 +121,7 @@ void PropertyWidget::updateShownTabs()
     auto prevSelectedWidget = currentWidget();
 
     int tabIt = 0;
-    for (const auto &page : qAsConst(m_pages)) {
+    for (const auto &page : std::as_const(m_pages)) {
         const int index = indexOf(page.widget);
         if (extensionAvailable(page.factory)) {
             if (index != tabIt)
@@ -174,8 +156,9 @@ bool PropertyWidget::extensionAvailable(PropertyWidgetTabFactoryBase *factory) c
 bool PropertyWidget::factoryInUse(PropertyWidgetTabFactoryBase *factory) const
 {
     return std::find_if(m_pages.begin(), m_pages.end(), [factory](const PageInfo &pi) {
-        return pi.factory == factory;
-    }) != m_pages.end();
+               return pi.factory == factory;
+           })
+        != m_pages.end();
 }
 
 void PropertyWidget::slotCurrentTabChanged()

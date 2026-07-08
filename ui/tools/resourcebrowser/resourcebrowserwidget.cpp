@@ -1,29 +1,14 @@
 /*
   resourcebrowserwidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Stephen Kelly <stephen.kelly@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "resourcebrowserwidget.h"
@@ -46,6 +31,7 @@
 #include <QScrollBar>
 #include <QTimer>
 #include <QTextBlock>
+#include <QClipboard>
 
 using namespace GammaRay;
 
@@ -107,18 +93,18 @@ void ResourceBrowserWidget::setupLayout()
     // the widgets for nicer display
 
     int viewWidth = ui->treeView->columnWidth(0)
-                    +ui->treeView->columnWidth(1)
-                    +ui->treeView->columnWidth(2)
-                    +ui->treeView->contentsMargins().left()
-                    +ui->treeView->contentsMargins().right()
-                    + ui->treeView->verticalScrollBar()->width();
+        + ui->treeView->columnWidth(1)
+        + ui->treeView->columnWidth(2)
+        + ui->treeView->contentsMargins().left()
+        + ui->treeView->contentsMargins().right()
+        + ui->treeView->verticalScrollBar()->width();
     const int totalWidth = ui->mainSplitter->width();
     const int minPreviewWidth = 150;
     if (totalWidth > viewWidth + minPreviewWidth) {
         m_stateManager.setDefaultSizes(ui->mainSplitter,
                                        UISizeVector() << viewWidth
                                                       << (totalWidth - viewWidth
-                                           - ui->mainSplitter->handleWidth()));
+                                                          - ui->mainSplitter->handleWidth()));
         m_stateManager.restoreState();
     }
 }
@@ -226,36 +212,44 @@ void ResourceBrowserWidget::handleCustomContextMenu(const QPoint &pos)
         return;
 
     QMenu menu;
-    menu.addAction(style()->standardIcon(QStyle::SP_DialogSaveButton), tr("Save As..."));
-    if (!menu.exec(ui->treeView->viewport()->mapToGlobal(pos)))
+    auto saveAsAction = new QAction(style()->standardIcon(QStyle::SP_DialogSaveButton), tr("Save As..."));
+    auto copyUriAction = new QAction(style()->standardIcon(QStyle::SP_DirLinkIcon), tr("Copy URI"));
+    menu.addAction(saveAsAction);
+    menu.addAction(copyUriAction);
+    auto selectedAction = menu.exec(ui->treeView->viewport()->mapToGlobal(pos));
+
+    if (!selectedAction)
         return;
+    else if (selectedAction == saveAsAction) {
+        if (selectedIndex.model()->hasChildren(selectedIndex)) {
+            const QString sourceDirectory = selectedIndex.data(ResourceModel::FilePathRole).toString();
+            const QString targetDirectory = QFileDialog::getExistingDirectory(this, tr("Save As"));
 
-    if (selectedIndex.model()->hasChildren(selectedIndex)) {
-        const QString sourceDirectory = selectedIndex.data(ResourceModel::FilePathRole).toString();
-        const QString targetDirectory = QFileDialog::getExistingDirectory(this, tr("Save As"));
+            // create local target directory tree
+            foreach (const QString &directoryPath, collectDirectories(selectedIndex, sourceDirectory)) {
+                if (directoryPath.isEmpty())
+                    continue;
 
-        // create local target directory tree
-        foreach (const QString &directoryPath, collectDirectories(selectedIndex, sourceDirectory)) {
-            if (directoryPath.isEmpty())
-                continue;
+                QDir dir(targetDirectory + '/' + directoryPath);
+                dir.mkpath(QStringLiteral("."));
+            }
 
-            QDir dir(targetDirectory + '/' + directoryPath);
-            dir.mkpath(QStringLiteral("."));
+            // request all resource files
+            foreach (const QString &filePath, collectFiles(selectedIndex, sourceDirectory))
+                m_interface->downloadResource(sourceDirectory + filePath, targetDirectory + filePath);
+
+        } else {
+            const QString sourceFilePath = selectedIndex.data(ResourceModel::FilePathRole).toString();
+            const QString sourceFileName = sourceFilePath.mid(sourceFilePath.lastIndexOf('/') + 1);
+
+            const QString targetFilePath = QFileDialog::getSaveFileName(this, tr("Save As"), sourceFileName);
+            if (targetFilePath.isEmpty())
+                return;
+
+            m_interface->downloadResource(sourceFilePath, targetFilePath);
         }
-
-        // request all resource files
-        foreach (const QString &filePath, collectFiles(selectedIndex, sourceDirectory))
-            m_interface->downloadResource(sourceDirectory + filePath, targetDirectory + filePath);
-
-    } else {
+    } else if (selectedAction == copyUriAction) {
         const QString sourceFilePath = selectedIndex.data(ResourceModel::FilePathRole).toString();
-        const QString sourceFileName = sourceFilePath.mid(sourceFilePath.lastIndexOf('/') + 1);
-
-        const QString targetFilePath = QFileDialog::getSaveFileName(this, tr(
-                                                                        "Save As"), sourceFileName);
-        if (targetFilePath.isEmpty())
-            return;
-
-        m_interface->downloadResource(sourceFilePath, targetFilePath);
+        QApplication::clipboard()->setText(sourceFilePath, QClipboard::Clipboard);
     }
 }

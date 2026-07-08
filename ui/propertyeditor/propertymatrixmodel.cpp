@@ -1,34 +1,18 @@
 /*
   propertymatrixmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2011-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2011 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Tobias Koenig <tobias.koenig@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "propertymatrixmodel.h"
 
-#include <QMatrix>
 #include <QMatrix4x4>
 #include <QQuaternion>
 #include <QTransform>
@@ -60,18 +44,17 @@ int PropertyMatrixModel::rowCount(const QModelIndex &parent) const
     if (parent.isValid())
         return 0;
 
-    switch (m_matrix.type()) {
-    case QVariant::Vector2D:
+    switch (m_matrix.typeId()) {
+    case QMetaType::QVector2D:
         return 2;
 
-    case QVariant::Matrix:
-    case QVariant::Transform:
-    case QVariant::Vector3D:
-    case QVariant::Quaternion:
+    case QMetaType::QTransform:
+    case QMetaType::QVector3D:
+    case QMetaType::QQuaternion:
         return 3;
 
-    case QVariant::Matrix4x4:
-    case QVariant::Vector4D:
+    case QMetaType::QMatrix4x4:
+    case QMetaType::QVector4D:
         return 4;
 
     default:
@@ -84,20 +67,17 @@ int PropertyMatrixModel::columnCount(const QModelIndex &parent) const
     if (parent.isValid())
         return 0;
 
-    switch (m_matrix.type()) {
-    case QVariant::Vector2D:
-    case QVariant::Vector3D:
-    case QVariant::Vector4D:
-    case QVariant::Quaternion:
+    switch (m_matrix.typeId()) {
+    case QMetaType::QVector2D:
+    case QMetaType::QVector3D:
+    case QMetaType::QVector4D:
+    case QMetaType::QQuaternion:
         return 1;
 
-    case QVariant::Matrix:
-        return 2;
-
-    case QVariant::Transform:
+    case QMetaType::QTransform:
         return 3;
 
-    case QVariant::Matrix4x4:
+    case QMetaType::QMatrix4x4:
         return 4;
 
     default:
@@ -113,30 +93,8 @@ QVariant PropertyMatrixModel::data(const QModelIndex &index, int role) const
     if (role != Qt::DisplayRole && role != Qt::EditRole)
         return QVariant();
 
-    switch (m_matrix.type()) {
-    case QVariant::Matrix:
-    {
-        const QMatrix value = m_matrix.value<QMatrix>();
-        switch (index.row() << 4 | index.column()) {
-        case 0x00:
-            return value.m11();
-        case 0x01:
-            return value.m12();
-        case 0x10:
-            return value.m21();
-        case 0x11:
-            return value.m22();
-        case 0x20:
-            return value.dx();
-        case 0x21:
-            return value.dy();
-        }
-
-        break;
-    }
-
-    case QVariant::Transform:
-    {
+    switch (m_matrix.typeId()) {
+    case QMetaType::QTransform: {
         const QTransform value = m_matrix.value<QTransform>();
         switch (index.row() << 4 | index.column()) {
         case 0x00:
@@ -162,14 +120,12 @@ QVariant PropertyMatrixModel::data(const QModelIndex &index, int role) const
         break;
     }
 
-    case QVariant::Matrix4x4:
-    {
+    case QMetaType::QMatrix4x4: {
         const QMatrix4x4 value = m_matrix.value<QMatrix4x4>();
         return value(index.row(), index.column());
     }
 
-    case QVariant::Vector2D:
-    {
+    case QMetaType::QVector2D: {
         const QVector2D value = m_matrix.value<QVector2D>();
         switch (index.row()) {
         case 0:
@@ -181,8 +137,7 @@ QVariant PropertyMatrixModel::data(const QModelIndex &index, int role) const
         break;
     }
 
-    case QVariant::Vector3D:
-    {
+    case QMetaType::QVector3D: {
         const QVector3D value = m_matrix.value<QVector3D>();
         switch (index.row()) {
         case 0:
@@ -196,8 +151,7 @@ QVariant PropertyMatrixModel::data(const QModelIndex &index, int role) const
         break;
     }
 
-    case QVariant::Vector4D:
-    {
+    case QMetaType::QVector4D: {
         const QVector4D value = m_matrix.value<QVector4D>();
         switch (index.row()) {
         case 0:
@@ -213,8 +167,7 @@ QVariant PropertyMatrixModel::data(const QModelIndex &index, int role) const
         break;
     }
 
-    case QVariant::Quaternion:
-    {
+    case QMetaType::QQuaternion: {
         float pitch, yaw, roll;
 
         const QQuaternion value = m_matrix.value<QQuaternion>();
@@ -252,9 +205,8 @@ bool PropertyMatrixModel::setData(const QModelIndex &index, const QVariant &data
     if (!ok)
         return false;
 
-    switch (m_matrix.type()) {
-    case QVariant::Vector2D:
-    {
+    switch (m_matrix.typeId()) {
+    case QMetaType::QVector2D: {
         QVector2D value = m_matrix.value<QVector2D>();
         switch (index.row()) {
         case 0:
@@ -269,8 +221,7 @@ bool PropertyMatrixModel::setData(const QModelIndex &index, const QVariant &data
         break;
     }
 
-    case QVariant::Vector3D:
-    {
+    case QMetaType::QVector3D: {
         QVector3D value = m_matrix.value<QVector3D>();
         switch (index.row()) {
         case 0:
@@ -288,8 +239,7 @@ bool PropertyMatrixModel::setData(const QModelIndex &index, const QVariant &data
         break;
     }
 
-    case QVariant::Vector4D:
-    {
+    case QMetaType::QVector4D: {
         QVector4D value = m_matrix.value<QVector4D>();
         switch (index.row()) {
         case 0:
@@ -310,8 +260,7 @@ bool PropertyMatrixModel::setData(const QModelIndex &index, const QVariant &data
         break;
     }
 
-    case QVariant::Quaternion:
-    {
+    case QMetaType::QQuaternion: {
         float pitch, yaw, roll;
 
         const QQuaternion value = m_matrix.value<QQuaternion>();
@@ -332,43 +281,7 @@ bool PropertyMatrixModel::setData(const QModelIndex &index, const QVariant &data
         break;
     }
 
-    case QVariant::Matrix:
-    {
-        QMatrix value = m_matrix.value<QMatrix>();
-
-        switch (index.row() << 4 | index.column()) {
-        case 0x00:
-            value.setMatrix(floatData, value.m12(), value.m21(), value.m22(), value.dx(),
-                            value.dy());
-            break;
-        case 0x01:
-            value.setMatrix(value.m11(), floatData, value.m21(), value.m22(), value.dx(),
-                            value.dy());
-            break;
-        case 0x10:
-            value.setMatrix(value.m11(), value.m12(), floatData, value.m22(), value.dx(),
-                            value.dy());
-            break;
-        case 0x11:
-            value.setMatrix(value.m11(), value.m12(), value.m21(), floatData, value.dx(),
-                            value.dy());
-            break;
-        case 0x20:
-            value.setMatrix(value.m11(), value.m12(), value.m21(), value.m22(), floatData,
-                            value.dy());
-            break;
-        case 0x21:
-            value.setMatrix(value.m11(), value.m12(), value.m21(), value.m22(),
-                            value.dx(), floatData);
-            break;
-        }
-
-        m_matrix = value;
-        break;
-    }
-
-    case QVariant::Transform:
-    {
+    case QMetaType::QTransform: {
         QTransform value = m_matrix.value<QTransform>();
 
         switch (index.row() << 4 | index.column()) {
@@ -415,8 +328,7 @@ bool PropertyMatrixModel::setData(const QModelIndex &index, const QVariant &data
         break;
     }
 
-    case QVariant::Matrix4x4:
-    {
+    case QMetaType::QMatrix4x4: {
         QMatrix4x4 value = m_matrix.value<QMatrix4x4>();
 
         value(index.row(), index.column()) = floatData;
@@ -441,17 +353,9 @@ QVariant PropertyMatrixModel::headerData(int section, Qt::Orientation orientatio
         return QAbstractTableModel::headerData(section, orientation, role);
 
     if (orientation == Qt::Horizontal) {
-        switch (m_matrix.type()) {
-        case QVariant::Matrix:
-            switch (section) {
-            case 0:
-                return tr("m_1");
-            case 1:
-                return tr("m_2");
-            }
-            break;
+        switch (m_matrix.typeId()) {
 
-        case QVariant::Matrix4x4:
+        case QMetaType::QMatrix4x4:
             switch (section) {
             case 0:
                 return tr("m_1");
@@ -464,7 +368,7 @@ QVariant PropertyMatrixModel::headerData(int section, Qt::Orientation orientatio
             }
             break;
 
-        case QVariant::Transform:
+        case QMetaType::QTransform:
             switch (section) {
             case 0:
                 return tr("m_1");
@@ -475,27 +379,17 @@ QVariant PropertyMatrixModel::headerData(int section, Qt::Orientation orientatio
             }
             break;
 
-        case QVariant::Vector2D:
-        case QVariant::Vector3D:
-        case QVariant::Vector4D:
+        case QMetaType::QVector2D:
+        case QMetaType::QVector3D:
+        case QMetaType::QVector4D:
             return QString();
         default:
             break;
         }
     } else {
-        switch (m_matrix.type()) {
-        case QVariant::Matrix:
-            switch (section) {
-            case 0:
-                return tr("m1_");
-            case 1:
-                return tr("m2_");
-            case 2:
-                return tr("d x/y");
-            }
-            break;
+        switch (m_matrix.typeId()) {
 
-        case QVariant::Matrix4x4:
+        case QMetaType::QMatrix4x4:
             switch (section) {
             case 0:
                 return tr("m1_");
@@ -508,7 +402,7 @@ QVariant PropertyMatrixModel::headerData(int section, Qt::Orientation orientatio
             }
             break;
 
-        case QVariant::Transform:
+        case QMetaType::QTransform:
             switch (section) {
             case 0:
                 return tr("m1_");
@@ -519,7 +413,7 @@ QVariant PropertyMatrixModel::headerData(int section, Qt::Orientation orientatio
             }
             break;
 
-        case QVariant::Vector2D:
+        case QMetaType::QVector2D:
             switch (section) {
             case 0:
                 return tr("x");
@@ -528,7 +422,7 @@ QVariant PropertyMatrixModel::headerData(int section, Qt::Orientation orientatio
             }
             break;
 
-        case QVariant::Vector3D:
+        case QMetaType::QVector3D:
             switch (section) {
             case 0:
                 return tr("x");
@@ -539,7 +433,7 @@ QVariant PropertyMatrixModel::headerData(int section, Qt::Orientation orientatio
             }
             break;
 
-        case QVariant::Vector4D:
+        case QMetaType::QVector4D:
             switch (section) {
             case 0:
                 return tr("x");
@@ -552,7 +446,7 @@ QVariant PropertyMatrixModel::headerData(int section, Qt::Orientation orientatio
             }
             break;
 
-        case QVariant::Quaternion:
+        case QMetaType::QQuaternion:
             switch (section) {
             case 0:
                 return tr("pitch");

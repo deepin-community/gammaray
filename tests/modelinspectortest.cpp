@@ -1,29 +1,14 @@
 /*
   modelinspectortest.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "baseprobetest.h"
@@ -37,8 +22,7 @@
 #include <common/objectmodel.h>
 #include <common/objectid.h>
 
-#include <3rdparty/qt/modeltest.h>
-
+#include <QAbstractItemModelTester>
 #include <QAbstractItemView>
 #include <QItemSelectionModel>
 #include <QSignalSpy>
@@ -63,7 +47,7 @@ private slots:
 
         auto modelModel = ObjectBroker::model("com.kdab.GammaRay.ModelModel");
         QVERIFY(modelModel);
-        ModelTest modelModelTester(modelModel);
+        QAbstractItemModelTester modelModelTester(modelModel);
         QVERIFY(modelModel->rowCount() >= 1); // can contain the QEmptyModel instance too
         int topRowCount = modelModel->rowCount();
 
@@ -157,7 +141,9 @@ private slots:
 
         auto targetModel = new QStringListModel;
         targetModel->setObjectName("targetModel");
-        targetModel->setStringList(QStringList() << "item1" << "item2" << "item3");
+        targetModel->setStringList(QStringList() << "item1"
+                                                 << "item2"
+                                                 << "item3");
         QTest::qWait(1); // trigger model inspector plugin loading
 
         auto modelModel = ObjectBroker::model("com.kdab.GammaRay.ModelModel");
@@ -165,9 +151,9 @@ private slots:
 
         auto selectionModels = ObjectBroker::model("com.kdab.GammaRay.SelectionModels");
         QVERIFY(selectionModels);
-        ModelTest selModelTester(selectionModels);
+        QAbstractItemModelTester selModelTester(selectionModels);
         QCOMPARE(selectionModels->rowCount(), 0);
-        QSignalSpy resetSpy(selectionModels, SIGNAL(modelReset()));
+        QSignalSpy resetSpy(selectionModels, &QAbstractItemModel::modelReset);
         QVERIFY(resetSpy.isValid());
 
         auto targetSelModel = new QItemSelectionModel(targetModel);
@@ -182,7 +168,7 @@ private slots:
         modelSelModel->select(idx, QItemSelectionModel::ClearAndSelect);
         QCOMPARE(selectionModels->rowCount(), 1);
 
-        QSignalSpy dataChangeSpy(selectionModels, SIGNAL(dataChanged(QModelIndex,QModelIndex)));
+        QSignalSpy dataChangeSpy(selectionModels, &QAbstractItemModel::dataChanged);
         QVERIFY(dataChangeSpy.isValid());
         QCOMPARE(selectionModels->index(0, 1).data().toInt(), 0);
         QCOMPARE(selectionModels->index(0, 2).data().toInt(), 0);
@@ -219,26 +205,29 @@ private slots:
 
         auto contentModel = ObjectBroker::model("com.kdab.GammaRay.ModelContent");
         QVERIFY(contentModel);
-        ModelTest contentModelTester(contentModel);
+        QAbstractItemModelTester contentModelTester(contentModel);
         QCOMPARE(contentModel->rowCount(), 0);
 
         auto cellModel = ObjectBroker::model("com.kdab.GammaRay.ModelCellModel");
         QVERIFY(cellModel);
-        ModelTest cellModelTester(cellModel);
+        QAbstractItemModelTester cellModelTester(cellModel);
         QCOMPARE(cellModel->rowCount(), 0);
-        QSignalSpy cellContentResetSpy(cellModel, SIGNAL(modelReset()));
+        QSignalSpy cellContentResetSpy(cellModel, &QAbstractItemModel::modelReset);
         QVERIFY(cellContentResetSpy.isValid());
 
         auto targetModelIdx = searchFixedIndex(modelModel, QLatin1String("targetModel"), Qt::MatchRecursive);
         QVERIFY(targetModelIdx.isValid());
         auto modelSelModel = ObjectBroker::selectionModel(modelModel);
         QVERIFY(modelSelModel);
-        modelSelModel->select(targetModelIdx, QItemSelectionModel::ClearAndSelect);
         QCOMPARE(contentModel->rowCount(), 0);
 
         auto item = new QStandardItem("item0,0");
         item->setFlags(Qt::NoItemFlags); // should nevertheless be selectable for inspection
         targetModel->appendRow(item);
+
+        // TODO remove this when the above select does not assert in QAbstractItemModelTester
+        modelSelModel->select(targetModelIdx, QItemSelectionModel::ClearAndSelect);
+
         QCOMPARE(contentModel->rowCount(), 1);
         QCOMPARE(contentModel->columnCount(), 1);
         auto idx = contentModel->index(0, 0);
@@ -258,7 +247,7 @@ private slots:
         QVERIFY(idx.isValid());
         QCOMPARE(idx.sibling(idx.row(), 1).data().toString(), QLatin1String("item0,0"));
 
-        auto iface = ObjectBroker::object<ModelInspectorInterface*>();
+        auto iface = ObjectBroker::object<ModelInspectorInterface *>();
         QVERIFY(iface);
         auto cellData = iface->currentCellData();
         QCOMPARE(cellData.row, 0);
@@ -279,7 +268,9 @@ private slots:
 
         auto targetModel = new QStringListModel;
         targetModel->setObjectName("targetModel");
-        targetModel->setStringList(QStringList() << "item1" << "item2" << "item3");
+        targetModel->setStringList(QStringList() << "item1"
+                                                 << "item2"
+                                                 << "item3");
         QTest::qWait(1); // trigger model inspector plugin loading
 
         auto modelModel = ObjectBroker::model("com.kdab.GammaRay.ModelModel");
@@ -310,7 +301,7 @@ private slots:
         for (int i = 0; i < targetModel->rowCount(); ++i)
             QVERIFY(contentModel->index(i, 0).data(ModelContentProxyModel::SelectedRole).isNull());
 
-        QSignalSpy contentSpy(contentModel, SIGNAL(dataChanged(QModelIndex,QModelIndex)));
+        QSignalSpy contentSpy(contentModel, &QAbstractItemModel::dataChanged);
         QVERIFY(contentSpy.isValid());
 
         targetSelModel->select(contentModel->index(1, 0), QItemSelectionModel::ClearAndSelect);
@@ -330,7 +321,9 @@ private slots:
 
         std::unique_ptr<QStringListModel> targetModel(new QStringListModel);
         targetModel->setObjectName("targetModel");
-        targetModel->setStringList(QStringList() << "item1" << "item2" << "item3");
+        targetModel->setStringList(QStringList() << "item1"
+                                                 << "item2"
+                                                 << "item3");
         QTest::qWait(1); // trigger model inspector plugin loading
 
         ClientToolManager mgr;
@@ -339,7 +332,7 @@ private slots:
         QVERIFY(widget);
         widget->show();
 
-        const auto views = widget->findChildren<QAbstractItemView*>();
+        const auto views = widget->findChildren<QAbstractItemView *>();
         for (auto view : views) {
             QVERIFY(view->model());
         }

@@ -1,29 +1,14 @@
 /*
-  qmlsupport.cpp
+  quickinspector.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "quickinspector.h"
@@ -39,9 +24,7 @@
 #include "textureextension/qsgtexturegrabber.h"
 #include "textureextension/textureextension.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
 #include "quickimplicitbindingdependencyprovider.h"
-#endif
 
 #include <common/endpoint.h>
 #include <common/modelevent.h>
@@ -67,8 +50,6 @@
 #include <core/bindingaggregator.h>
 #include <core/problemcollector.h>
 
-#include <3rdparty/kde/krecursivefilterproxymodel.h>
-
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QQuickView>
@@ -93,17 +74,13 @@
 #include <QMatrix4x4>
 #include <QCoreApplication>
 #include <QMutexLocker>
+#include <QSortFilterProxyModel>
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
 #include <QSGRenderNode>
 #include <QSGRendererInterface>
-#ifndef QT_NO_OPENGL
-#include <private/qquickopenglshadereffectnode_p.h>
-#endif
 #include <private/qsgsoftwarecontext_p.h>
 #include <private/qsgsoftwarerenderer_p.h>
 #include <private/qsgsoftwarerenderablenode_p.h>
-#endif
 
 #include <private/qquickanchors_p.h>
 #include <private/qquickitem_p.h>
@@ -135,25 +112,22 @@ Q_DECLARE_METATYPE(QSGMaterial *)
 Q_DECLARE_METATYPE(QSGMaterial::Flags)
 Q_DECLARE_METATYPE(QSGTexture::WrapMode)
 Q_DECLARE_METATYPE(QSGTexture::Filtering)
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
 Q_DECLARE_METATYPE(QSGTexture::AnisotropyLevel)
-#endif
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
 Q_DECLARE_METATYPE(QSGRenderNode *)
 Q_DECLARE_METATYPE(QSGRenderNode::RenderingFlags)
 Q_DECLARE_METATYPE(QSGRenderNode::StateFlags)
-#endif
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
-Q_DECLARE_METATYPE(QSGRendererInterface*)
+Q_DECLARE_METATYPE(QSGRendererInterface *)
 Q_DECLARE_METATYPE(QSGRendererInterface::GraphicsApi)
 Q_DECLARE_METATYPE(QSGRendererInterface::ShaderCompilationTypes)
 Q_DECLARE_METATYPE(QSGRendererInterface::ShaderSourceTypes)
 Q_DECLARE_METATYPE(QSGRendererInterface::ShaderType)
-#endif
 
 using namespace GammaRay;
 
-#define E(x) { QQuickItem:: x, #x }
+#define E(x)              \
+    {                     \
+        QQuickItem::x, #x \
+    }
 static const MetaEnum::Value<QQuickItem::Flag> qqitem_flag_table[] = {
     E(ItemClipsChildrenToShape),
     E(ItemAcceptsInputMethod),
@@ -173,7 +147,10 @@ static QString qQuickPaintedItemPerformanceHintsToString(QQuickPaintedItem::Perf
     return list.join(QStringLiteral(" | "));
 }
 
-#define E(x) { QSGNode:: x, #x }
+#define E(x)           \
+    {                  \
+        QSGNode::x, #x \
+    }
 static const MetaEnum::Value<QSGNode::Flag> qsg_node_flag_table[] = {
     E(OwnedByParent),
     E(UsePreprocess),
@@ -199,12 +176,14 @@ static const MetaEnum::Value<QSGNode::DirtyStateBit> qsg_node_dirtystate_table[]
 static QString qsgMaterialFlagsToString(QSGMaterial::Flags flags)
 {
     QStringList list;
-#define F(f) if (flags & QSGMaterial::f) list.push_back(QStringLiteral(#f));
+#define F(f)                    \
+    if (flags & QSGMaterial::f) \
+        list.push_back(QStringLiteral(#f));
     F(Blending)
     F(RequiresDeterminant)
     F(RequiresFullMatrixExceptTranslate)
     F(RequiresFullMatrix)
-    F(CustomCompileStep)
+    F(NoBatching)
 #undef F
 
     if (list.isEmpty())
@@ -212,8 +191,10 @@ static QString qsgMaterialFlagsToString(QSGMaterial::Flags flags)
     return list.join(QStringLiteral(" | "));
 }
 
-#define E(x) { QSGTexture:: x, #x }
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
+#define E(x)              \
+    {                     \
+        QSGTexture::x, #x \
+    }
 static const MetaEnum::Value<QSGTexture::AnisotropyLevel> qsg_texture_anisotropy_table[] = {
     E(AnisotropyNone),
     E(Anisotropy2x),
@@ -221,7 +202,6 @@ static const MetaEnum::Value<QSGTexture::AnisotropyLevel> qsg_texture_anisotropy
     E(Anisotropy8x),
     E(Anisotropy16x)
 };
-#endif
 
 static const MetaEnum::Value<QSGTexture::Filtering> qsg_texture_filtering_table[] = {
     E(None),
@@ -232,9 +212,7 @@ static const MetaEnum::Value<QSGTexture::Filtering> qsg_texture_filtering_table[
 static const MetaEnum::Value<QSGTexture::WrapMode> qsg_texture_wrapmode_table[] = {
     E(Repeat),
     E(ClampToEdge),
-#if QT_VERSION >= QT_VERSION_CHECK(5, 10, 0)
     E(MirroredRepeat)
-#endif
 };
 
 #undef E
@@ -246,29 +224,23 @@ static bool itemHasContents(QQuickItem *item)
 
 static bool isGoodCandidateItem(QQuickItem *item, bool ignoreItemHasContents = false)
 {
-
-    if (!item->isVisible() || qFuzzyCompare(item->opacity() + qreal(1.0), qreal(1.0)) ||
-            (!ignoreItemHasContents && !itemHasContents(item))) {
-        return false;
-    }
-
-    return true;
+    return !(!item->isVisible() || qFuzzyCompare(item->opacity() + qreal(1.0), qreal(1.0)) || (!ignoreItemHasContents && !itemHasContents(item)));
 }
 
 static QByteArray renderModeToString(QuickInspectorInterface::RenderMode customRenderMode)
 {
     switch (customRenderMode) {
-        case QuickInspectorInterface::VisualizeClipping:
-            return QByteArray("clip");
-        case QuickInspectorInterface::VisualizeOverdraw:
-            return QByteArray("overdraw");
-        case QuickInspectorInterface::VisualizeBatches:
-            return QByteArray("batches");
-        case QuickInspectorInterface::VisualizeChanges:
-            return QByteArray("changes");
-        case QuickInspectorInterface::VisualizeTraces:
-        case QuickInspectorInterface::NormalRendering:
-            break;
+    case QuickInspectorInterface::VisualizeClipping:
+        return QByteArray("clip");
+    case QuickInspectorInterface::VisualizeOverdraw:
+        return QByteArray("overdraw");
+    case QuickInspectorInterface::VisualizeBatches:
+        return QByteArray("batches");
+    case QuickInspectorInterface::VisualizeChanges:
+        return QByteArray("changes");
+    case QuickInspectorInterface::VisualizeTraces:
+    case QuickInspectorInterface::NormalRendering:
+        break;
     }
     return QByteArray();
 }
@@ -301,8 +273,7 @@ void RenderModeRequest::applyOrDelay(QQuickWindow *toWindow, QuickInspectorInter
         // We do this by simply cleaning the scene graph which will recreate the renderer.
         // We need however to do that at the proper time from the gui thread.
 
-        if (!connection ||
-                (mode != customRenderMode || window != toWindow)) {
+        if (!connection || (mode != customRenderMode || window != toWindow)) {
             if (connection)
                 disconnect(connection);
             mode = customRenderMode;
@@ -321,23 +292,17 @@ void RenderModeRequest::apply()
     if (connection)
         disconnect(connection);
 
-#if QT_VERSION == QT_VERSION_CHECK(5, 14, 0) || QT_VERSION == QT_VERSION_CHECK(5, 14, 1)
-    // there's a regression in Qt 5.14...
-    return;
-#endif
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     if (window && window->rendererInterface()->graphicsApi() != QSGRendererInterface::OpenGL)
         return;
-#endif
 
     if (window) {
-        emit aboutToCleanSceneGraph();
         const QByteArray mode = renderModeToString(RenderModeRequest::mode);
         QQuickWindowPrivate *winPriv = QQuickWindowPrivate::get(window);
-        QMetaObject::invokeMethod(window, "cleanupSceneGraph", Qt::DirectConnection);
-        winPriv->customRenderMode = mode;
-        emit sceneGraphCleanedUp();
+        QObject::connect(window.get(), &QQuickWindow::beforeSynchronizing, this, [this, winPriv, mode]() {
+            emit aboutToCleanSceneGraph();
+            QMetaObject::invokeMethod(window, "cleanupSceneGraph", Qt::DirectConnection);
+            winPriv->visualizationMode = mode;
+            emit sceneGraphCleanedUp(); }, static_cast<Qt::ConnectionType>(Qt::DirectConnection | Qt::SingleShotConnection));
     }
 
     QMetaObject::invokeMethod(this, "preFinished", Qt::QueuedConnection);
@@ -362,7 +327,8 @@ QuickInspector::QuickInspector(Probe *probe, QObject *parent)
     , m_itemPropertyController(new PropertyController(QStringLiteral("com.kdab.GammaRay.QuickItem"),
                                                       this))
     , m_sgPropertyController(new PropertyController(QStringLiteral(
-                                                        "com.kdab.GammaRay.QuickSceneGraph"), this))
+                                                        "com.kdab.GammaRay.QuickSceneGraph"),
+                                                    this))
     , m_remoteView(new RemoteViewServer(QStringLiteral("com.kdab.GammaRay.QuickRemoteView"), this))
     , m_pendingRenderMode(new RenderModeRequest(this))
     , m_renderMode(QuickInspectorInterface::NormalRendering)
@@ -380,7 +346,7 @@ QuickInspector::QuickInspector(Probe *probe, QObject *parent)
     m_windowModel = proxy;
     probe->registerModel(QStringLiteral("com.kdab.GammaRay.QuickWindowModel"), m_windowModel);
 
-    auto filterProxy = new ServerProxyModel<KRecursiveFilterProxyModel>(this);
+    auto filterProxy = new ServerProxyModel<QSortFilterProxyModel>(this);
     filterProxy->setSourceModel(m_itemModel);
     filterProxy->addRole(ObjectModel::ObjectIdRole);
     probe->registerModel(QStringLiteral("com.kdab.GammaRay.QuickItemModel"), filterProxy);
@@ -391,6 +357,8 @@ QuickInspector::QuickInspector(Probe *probe, QObject *parent)
 
     connect(probe, &Probe::objectCreated, m_itemModel, &QuickItemModel::objectAdded);
     connect(probe, &Probe::objectDestroyed, m_itemModel, &QuickItemModel::objectRemoved);
+    connect(probe, &Probe::objectFavorited, m_itemModel, &QuickItemModel::objectFavorited);
+    connect(probe, &Probe::objectUnfavorited, m_itemModel, &QuickItemModel::objectUnfavorited);
     connect(probe, &Probe::objectSelected, this, &QuickInspector::qObjectSelected);
     connect(probe, &Probe::nonQObjectSelected, this, &QuickInspector::nonQObjectSelected);
 
@@ -398,11 +366,11 @@ QuickInspector::QuickInspector(Probe *probe, QObject *parent)
     connect(m_itemSelectionModel, &QItemSelectionModel::selectionChanged,
             this, &QuickInspector::itemSelectionChanged);
 
-    filterProxy = new ServerProxyModel<KRecursiveFilterProxyModel>(this);
-    filterProxy->setSourceModel(m_sgModel);
-    probe->registerModel(QStringLiteral("com.kdab.GammaRay.QuickSceneGraphModel"), filterProxy);
+    auto sgFilterProxy = new ServerProxyModel<QSortFilterProxyModel>(this);
+    sgFilterProxy->setSourceModel(m_sgModel);
+    probe->registerModel(QStringLiteral("com.kdab.GammaRay.QuickSceneGraphModel"), sgFilterProxy);
 
-    m_sgSelectionModel = ObjectBroker::selectionModel(filterProxy);
+    m_sgSelectionModel = ObjectBroker::selectionModel(sgFilterProxy);
     connect(m_sgSelectionModel, &QItemSelectionModel::selectionChanged,
             this, &QuickInspector::sgSelectionChanged);
     connect(m_sgModel, &QuickSceneGraphModel::nodeDeleted, this, &QuickInspector::sgNodeDeleted);
@@ -425,9 +393,9 @@ QuickInspector::QuickInspector(Probe *probe, QObject *parent)
     });
 
     ProblemCollector::registerProblemChecker("com.kdab.GammaRay.QuickItemChecker",
-                                          "QtQuick Item check",
-                                          "Warns about items that are visible but out of view.",
-                                          &QuickInspector::scanForProblems);
+                                             "QtQuick Item check",
+                                             "Warns about items that are visible but out of view.",
+                                             &QuickInspector::scanForProblems);
 
     // needs to be last, extensions require some of the above to be set up correctly
     registerPCExtensions();
@@ -454,7 +422,7 @@ void QuickInspector::selectWindow(QQuickWindow *window)
     }
 
     if (m_window) {
-        const QByteArray mode = QQuickWindowPrivate::get(m_window)->customRenderMode;
+        const QByteArray mode = QQuickWindowPrivate::get(m_window)->visualizationMode;
 
         if (!mode.isEmpty()) {
             auto reset = new RenderModeRequest(m_window);
@@ -488,20 +456,19 @@ void QuickInspector::selectItem(QQuickItem *item)
     Model::used(model);
     Model::used(m_sgSelectionModel->model());
 
-    const QModelIndexList indexList
-        = model->match(model->index(0, 0),
-                       ObjectModel::ObjectRole,
-                       QVariant::fromValue<QQuickItem *>(item), 1,
-                       Qt::MatchExactly | Qt::MatchRecursive | Qt::MatchWrap);
+    const QModelIndexList indexList = model->match(model->index(0, 0),
+                                                   ObjectModel::ObjectRole,
+                                                   QVariant::fromValue<QQuickItem *>(item), 1,
+                                                   Qt::MatchExactly | Qt::MatchRecursive | Qt::MatchWrap);
     if (indexList.isEmpty())
         return;
 
     const QModelIndex index = indexList.first();
     m_itemSelectionModel->select(index,
                                  QItemSelectionModel::Select
-                                 |QItemSelectionModel::Clear
-                                 |QItemSelectionModel::Rows
-                                 |QItemSelectionModel::Current);
+                                     | QItemSelectionModel::Clear
+                                     | QItemSelectionModel::Rows
+                                     | QItemSelectionModel::Current);
 }
 
 void QuickInspector::selectSGNode(QSGNode *node)
@@ -511,18 +478,19 @@ void QuickInspector::selectSGNode(QSGNode *node)
 
     const QModelIndexList indexList = model->match(model->index(0, 0), ObjectModel::ObjectRole,
                                                    QVariant::fromValue(
-                                                       node), 1,
+                                                       node),
+                                                   1,
                                                    Qt::MatchExactly | Qt::MatchRecursive
-                                                   | Qt::MatchWrap);
+                                                       | Qt::MatchWrap);
     if (indexList.isEmpty())
         return;
 
     const QModelIndex index = indexList.first();
     m_sgSelectionModel->select(index,
                                QItemSelectionModel::Select
-                               |QItemSelectionModel::Clear
-                               |QItemSelectionModel::Rows
-                               |QItemSelectionModel::Current);
+                                   | QItemSelectionModel::Clear
+                                   | QItemSelectionModel::Rows
+                                   | QItemSelectionModel::Current);
 }
 
 void QuickInspector::qObjectSelected(QObject *object)
@@ -545,8 +513,7 @@ void QuickInspector::objectCreated(QObject *object)
     if (QQuickWindow *window = qobject_cast<QQuickWindow *>(object)) {
         if (QQuickView *view = qobject_cast<QQuickView *>(object)) {
             m_probe->discoverObject(view->engine());
-        }
-        else {
+        } else {
             QQmlContext *context = QQmlEngine::contextForObject(window);
             QQmlEngine *engine = context ? context->engine() : nullptr;
 
@@ -566,6 +533,8 @@ void QuickInspector::recreateOverlay()
         disconnect(m_overlay.get(), &QObject::destroyed, this, &QuickInspector::recreateOverlay);
 
     m_overlay = AbstractScreenGrabber::get(m_window);
+    if (!m_overlay)
+        return;
 
     connect(m_overlay.get(), &AbstractScreenGrabber::grabberReadyChanged, m_remoteView, &RemoteViewServer::setGrabberReady);
     connect(m_overlay.get(), &AbstractScreenGrabber::sceneChanged, m_remoteView, &RemoteViewServer::sourceChanged);
@@ -573,8 +542,8 @@ void QuickInspector::recreateOverlay()
     // the target application might have destroyed the overlay widget
     // (e.g. because the parent of the overlay got destroyed).
     // just recreate a new one in this case
-    connect(m_overlay.get(), &QObject::destroyed, this, &QuickInspector::recreateOverlay); //FIXME Is it really needed?
-                                                                                           // It is for the widget inspector, but for qt quick?
+    connect(m_overlay.get(), &QObject::destroyed, this, &QuickInspector::recreateOverlay); // FIXME Is it really needed?
+                                                                                           //  It is for the widget inspector, but for qt quick?
     connect(this, &QuickInspectorInterface::serverSideDecorationChanged, m_overlay.get(), &AbstractScreenGrabber::setDecorationsEnabled);
     m_overlay->setDecorationsEnabled(serverSideDecorationEnabled());
 
@@ -595,14 +564,16 @@ void QuickInspector::sceneGraphCleanedUp()
 
 void QuickInspector::sendRenderedScene(const GammaRay::GrabbedFrame &grabbedFrame)
 {
+    if (!m_window)
+        return;
     RemoteViewFrame frame;
     frame.setImage(grabbedFrame.image, grabbedFrame.transform);
     frame.setSceneRect(grabbedFrame.itemsGeometryRect);
     frame.setViewRect(QRect(0, 0, m_window->width(), m_window->height()));
     if (m_overlay && m_overlay->settings().componentsTraces)
-        frame.setData(QVariant::fromValue(grabbedFrame.itemsGeometry));
+        frame.data = QVariant::fromValue(grabbedFrame.itemsGeometry);
     else if (!grabbedFrame.itemsGeometry.isEmpty())
-        frame.setData(QVariant::fromValue(grabbedFrame.itemsGeometry.at(0)));
+        frame.data = QVariant::fromValue(grabbedFrame.itemsGeometry.at(0));
     m_remoteView->sendFrame(frame);
 }
 
@@ -620,10 +591,6 @@ void QuickInspector::slotGrabWindow()
 void QuickInspector::setCustomRenderMode(
     GammaRay::QuickInspectorInterface::RenderMode customRenderMode)
 {
-#if QT_VERSION == QT_VERSION_CHECK(5, 14, 0) || QT_VERSION == QT_VERSION_CHECK(5, 14, 1)
-    // there's a regression in Qt 5.14...
-    return;
-#endif
 
     m_renderMode = customRenderMode;
 
@@ -645,17 +612,10 @@ void QuickInspector::checkFeatures()
         return;
     }
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
-#if QT_VERSION != QT_VERSION_CHECK(5, 14, 0) && QT_VERSION != QT_VERSION_CHECK(5, 14, 1)
     if (m_window->rendererInterface()->graphicsApi() == QSGRendererInterface::OpenGL)
         f = AllCustomRenderModes;
-    else
-#endif
-    if (m_window->rendererInterface()->graphicsApi() == QSGRendererInterface::Software)
+    else if (m_window->rendererInterface()->graphicsApi() == QSGRendererInterface::Software)
         f = AnalyzePainting;
-#else
-    f = AllCustomRenderModes;
-#endif
 
     emit features(f);
 }
@@ -676,22 +636,20 @@ void QuickInspector::checkOverlaySettings()
     emit overlaySettings(m_overlay ? m_overlay->settings() : QuickDecorationsSettings());
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 3) // only with 5.9.3 the SW renderer got exported
 class SGSoftwareRendererPrivacyViolater : public QSGAbstractSoftwareRenderer
 {
 public:
-#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0) && QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-    using QSGAbstractSoftwareRenderer::renderableNodes;
-#endif
-    using QSGAbstractSoftwareRenderer::renderNodes;
     using QSGAbstractSoftwareRenderer::buildRenderList;
     using QSGAbstractSoftwareRenderer::optimizeRenderList;
+    using QSGAbstractSoftwareRenderer::renderNodes;
 };
-#endif
 
+#if defined(Q_CC_CLANG) || defined(Q_CC_GNU)
+// keep it working in UBSAN
+__attribute__((no_sanitize("vptr")))
+#endif
 void QuickInspector::analyzePainting()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 3)
     if (!m_window || m_window->rendererInterface()->graphicsApi() != QSGRendererInterface::Software || !PaintAnalyzer::isAvailable())
         return;
 
@@ -699,38 +657,22 @@ void QuickInspector::analyzePainting()
     m_paintAnalyzer->setBoundingRect(QRect(QPoint(), m_window->size()));
     {
         auto w = QQuickWindowPrivate::get(m_window);
-        auto renderer = static_cast<SGSoftwareRendererPrivacyViolater*>(w->renderer);
+        auto renderer = static_cast<SGSoftwareRendererPrivacyViolater *>(w->renderer);
 
         // this replicates what QSGSoftwareRender is doing
         QPainter painter(m_paintAnalyzer->paintDevice());
         painter.setRenderHint(QPainter::Antialiasing);
-        auto rc = static_cast<QSGSoftwareRenderContext*>(w->renderer->context());
+        auto rc = static_cast<QSGSoftwareRenderContext *>(w->renderer->context());
         auto prevPainter = rc->m_activePainter;
         rc->m_activePainter = &painter;
         renderer->markDirty();
         renderer->buildRenderList();
         renderer->optimizeRenderList();
-#if QT_VERSION < QT_VERSION_CHECK(5, 12, 0) || QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
         renderer->renderNodes(&painter);
-#else
-        auto iterator = renderer->renderableNodes().begin();
-        // First node is the background and needs to painted without blending
-        auto backgroundNode = *iterator;
-        backgroundNode->renderNode(&painter, /*force opaque painting*/ true);
-        iterator++;
-
-        for (; iterator != renderer->renderableNodes().end(); ++iterator) {
-            auto node = *iterator;
-            QQuickItem *origin = m_sgModel->itemForSgNode(node->handle());
-            m_paintAnalyzer->setOrigin(ObjectId(origin));
-            node->renderNode(&painter);
-        }
-#endif
 
         rc->m_activePainter = prevPainter;
     }
     m_paintAnalyzer->endAnalyzePainting();
-#endif
 }
 
 void QuickInspector::checkSlowMode()
@@ -755,11 +697,14 @@ void QuickInspector::setSlowMode(bool slow)
 
         if (it == connections.end()) {
             connections.insert(window, connect(window, &QQuickWindow::beforeRendering, this, [this, window]() {
-                auto it = connections.find(window);
-                QUnifiedTimer::instance()->setSlowModeEnabled(m_slowDownEnabled);
-                QObject::disconnect(it.value());
-                connections.erase(it);
-            }, Qt::DirectConnection));
+                                               auto it = connections.find(window);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 11, 0)
+                                               QUnifiedTimer::instance()->setSpeedModifier(m_slowDownEnabled ? (1. / 5.) : 1.);
+#else
+                                               QUnifiedTimer::instance()->setSlowModeEnabled(m_slowDownEnabled);
+#endif
+                                               QObject::disconnect(it.value());
+                                               connections.erase(it); }, Qt::DirectConnection));
         }
     }
 
@@ -780,9 +725,9 @@ void QuickInspector::itemSelectionChanged(const QItemSelection &selection)
         auto proxy = qobject_cast<const QAbstractProxyModel *>(m_sgSelectionModel->model());
         m_sgSelectionModel->select(proxy->mapFromSource(sourceIdx),
                                    QItemSelectionModel::Select
-                                   |QItemSelectionModel::Clear
-                                   |QItemSelectionModel::Rows
-                                   |QItemSelectionModel::Current);
+                                       | QItemSelectionModel::Clear
+                                       | QItemSelectionModel::Rows
+                                       | QItemSelectionModel::Current);
     }
 
     if (m_overlay)
@@ -833,6 +778,30 @@ void QuickInspector::pickElementId(const GammaRay::ObjectId &id)
         m_probe->selectObject(item);
 }
 
+QRectF QuickInspector::combinedChildrenRect(QQuickItem *parent) const
+{
+    auto rect = parent->childrenRect();
+
+    const auto childItems = parent->childItems();
+    for (const auto child : childItems) {
+        auto childRect = child->childrenRect();
+
+        // Get Global positon of childRect
+        QPointF childGlobalPos = child->mapToScene(QPointF(0, 0));
+
+        // Convert global position to local coordinates of the parent object
+        QPointF localChildPos = parent->mapFromScene(childGlobalPos);
+
+        // Adjust childRect to be in local coordinates of the parent object
+        childRect.moveTopLeft(localChildPos.toPoint());
+
+        // Adding the childRect to the rect
+        rect = rect.united(childRect);
+    }
+
+    return rect;
+}
+
 ObjectIds QuickInspector::recursiveItemsAt(QQuickItem *parent, const QPointF &pos,
                                            GammaRay::RemoteViewInterface::RequestMode mode,
                                            int &bestCandidate, bool parentIsGoodCandidate) const
@@ -852,14 +821,13 @@ ObjectIds QuickInspector::recursiveItemsAt(QQuickItem *parent, const QPointF &po
 
     auto childItems = parent->childItems();
     std::stable_sort(childItems.begin(), childItems.end(),
-                     [](QQuickItem *lhs, QQuickItem *rhs){return lhs->z() < rhs->z();}
-    );
+                     [](QQuickItem *lhs, QQuickItem *rhs) { return lhs->z() < rhs->z(); });
 
     for (int i = childItems.size() - 1; i >= 0; --i) { // backwards to match z order
         const auto child = childItems.at(i);
         const auto requestedPoint = parent->mapToItem(child, pos);
-        if (!child->childItems().isEmpty() && (child->contains(requestedPoint) || child->childrenRect().contains(requestedPoint))) {
-            const int count = objects.count();
+        if (!child->childItems().isEmpty() && (child->contains(requestedPoint) || combinedChildrenRect(child).contains(requestedPoint))) {
+            const int count = objects.size();
             int bc; // possibly better candidate among subChildren
             objects << recursiveItemsAt(child, requestedPoint, mode, bc, parentIsGoodCandidate);
 
@@ -870,7 +838,7 @@ ObjectIds QuickInspector::recursiveItemsAt(QQuickItem *parent, const QPointF &po
 
         if (child->contains(requestedPoint)) {
             if (bestCandidate == -1 && parentIsGoodCandidate && isGoodCandidateItem(child)) {
-                bestCandidate = objects.count();
+                bestCandidate = objects.size();
             }
             objects << ObjectId(child);
         }
@@ -881,7 +849,7 @@ ObjectIds QuickInspector::recursiveItemsAt(QQuickItem *parent, const QPointF &po
     }
 
     if (bestCandidate == -1 && parentIsGoodCandidate && itemHasContents(parent)) {
-        bestCandidate = objects.count();
+        bestCandidate = objects.size();
     }
 
     objects << ObjectId(parent);
@@ -897,12 +865,12 @@ ObjectIds QuickInspector::recursiveItemsAt(QQuickItem *parent, const QPointF &po
 
 void QuickInspector::scanForProblems()
 {
-    const QVector<QObject*> &allObjects = Probe::instance()->allQObjects();
+    const QVector<QObject *> &allObjects = Probe::instance()->allQObjects();
 
     QMutexLocker lock(Probe::objectLock());
     for (QObject *obj : allObjects) {
         QQuickItem *item;
-        if (!Probe::instance()->isValidObject(obj) || !(item = qobject_cast<QQuickItem*>(obj)))
+        if (!Probe::instance()->isValidObject(obj) || !(item = qobject_cast<QQuickItem *>(obj)))
             continue;
 
         QQuickItem *ancestor = item->parentItem();
@@ -915,11 +883,7 @@ void QuickInspector::scanForProblems()
                 if (!ancestorRect.contains(rect) && !rect.intersects(ancestorRect)) {
                     Problem p;
                     p.severity = Problem::Info;
-                    p.description = QStringLiteral("QtQuick: %1 %2 (0x%3) is visible, but out of view.").arg(
-                        ObjectDataProvider::typeName(item),
-                        ObjectDataProvider::name(item),
-                        QString::number(reinterpret_cast<quintptr>(item), 16)
-                    );
+                    p.description = QStringLiteral("QtQuick: %1 %2 (0x%3) is visible, but out of view.").arg(ObjectDataProvider::typeName(item), ObjectDataProvider::name(item), QString::number(reinterpret_cast<quintptr>(item), 16));
                     p.object = ObjectId(item);
                     p.locations.push_back(ObjectDataProvider::creationLocation(item));
                     p.problemId = QStringLiteral("com.kdab.GammaRay.QuickItemChecker.OutOfView:%1").arg(reinterpret_cast<quintptr>(item));
@@ -936,10 +900,9 @@ void QuickInspector::scanForProblems()
 bool QuickInspector::eventFilter(QObject *receiver, QEvent *event)
 {
     if (event->type() == QEvent::MouseButtonRelease) {
-        QMouseEvent *mouseEv = static_cast<QMouseEvent*>(event);
-        if (mouseEv->button() == Qt::LeftButton &&
-                mouseEv->modifiers() == (Qt::ControlModifier | Qt::ShiftModifier)) {
-            QQuickWindow *window = qobject_cast<QQuickWindow*>(receiver);
+        QMouseEvent *mouseEv = static_cast<QMouseEvent *>(event);
+        if (mouseEv->button() == Qt::LeftButton && mouseEv->modifiers() == (Qt::ControlModifier | Qt::ShiftModifier)) {
+            QQuickWindow *window = qobject_cast<QQuickWindow *>(receiver);
             if (window && window->contentItem()) {
                 int bestCandidate;
                 const ObjectIds objects = recursiveItemsAt(window->contentItem(), mouseEv->pos(),
@@ -956,18 +919,19 @@ void QuickInspector::registerMetaTypes()
 {
     MetaObject *mo = nullptr;
     MO_ADD_METAOBJECT1(QQuickWindow, QWindow);
-    MO_ADD_PROPERTY(QQuickWindow, clearBeforeRendering, setClearBeforeRendering);
-    MO_ADD_PROPERTY_RO(QQuickWindow, effectiveDevicePixelRatio);
+
+    MO_ADD_PROPERTY(QQuickWindow, renderTarget, setRenderTarget);
+    MO_ADD_PROPERTY(QQuickWindow, graphicsConfiguration, setGraphicsConfiguration);
+    MO_ADD_PROPERTY(QQuickWindow, graphicsDevice, setGraphicsDevice);
+
 #ifndef QT_NO_OPENGL
-    MO_ADD_PROPERTY(QQuickWindow, isPersistentOpenGLContext, setPersistentOpenGLContext);
+    MO_ADD_PROPERTY(QQuickWindow, isPersistentGraphics, setPersistentGraphics);
 #endif
-    MO_ADD_PROPERTY(QQuickWindow, isPersistentSceneGraph, setPersistentSceneGraph);
+
     MO_ADD_PROPERTY_RO(QQuickWindow, mouseGrabberItem);
-#ifndef QT_NO_OPENGL
-    MO_ADD_PROPERTY_RO(QQuickWindow, openglContext);
-#endif
-    MO_ADD_PROPERTY_RO(QQuickWindow, renderTargetId);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
+    MO_ADD_PROPERTY(QQuickWindow, isPersistentSceneGraph, setPersistentSceneGraph);
+    MO_ADD_PROPERTY_RO(QQuickWindow, effectiveDevicePixelRatio);
+
     MO_ADD_PROPERTY_RO(QQuickWindow, rendererInterface);
 
     MO_ADD_METAOBJECT0(QSGRendererInterface);
@@ -975,7 +939,6 @@ void QuickInspector::registerMetaTypes()
     MO_ADD_PROPERTY_RO(QSGRendererInterface, shaderCompilationType);
     MO_ADD_PROPERTY_RO(QSGRendererInterface, shaderSourceType);
     MO_ADD_PROPERTY_RO(QSGRendererInterface, shaderType);
-#endif
 
     MO_ADD_METAOBJECT1(QQuickView, QQuickWindow);
     MO_ADD_PROPERTY_RO(QQuickView, engine);
@@ -1006,9 +969,7 @@ void QuickInspector::registerMetaTypes()
     MO_ADD_PROPERTY(QQuickPaintedItem, performanceHints, setPerformanceHints);
 
     MO_ADD_METAOBJECT1(QSGTexture, QObject);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
     MO_ADD_PROPERTY(QSGTexture, anisotropyLevel, setAnisotropyLevel);
-#endif
     MO_ADD_PROPERTY(QSGTexture, filtering, setFiltering);
     MO_ADD_PROPERTY_RO(QSGTexture, hasAlphaChannel);
     MO_ADD_PROPERTY_RO(QSGTexture, hasMipmaps);
@@ -1017,7 +978,7 @@ void QuickInspector::registerMetaTypes()
     MO_ADD_PROPERTY(QSGTexture, mipmapFiltering, setMipmapFiltering);
     MO_ADD_PROPERTY_RO(QSGTexture, normalizedTextureSubRect);
     // crashes without a current GL context
-    //MO_ADD_PROPERTY_RO(QSGTexture, textureId);
+    // MO_ADD_PROPERTY_RO(QSGTexture, textureId);
     MO_ADD_PROPERTY_RO(QSGTexture, textureSize);
     MO_ADD_PROPERTY(QSGTexture, verticalWrapMode, setVerticalWrapMode);
 
@@ -1026,7 +987,9 @@ void QuickInspector::registerMetaTypes()
     MO_ADD_PROPERTY_RO(QSGNode, childCount);
     MO_ADD_PROPERTY_RO(QSGNode, flags);
     MO_ADD_PROPERTY_RO(QSGNode, isSubtreeBlocked);
-    MO_ADD_PROPERTY(QSGNode, dirtyState, markDirty);
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+    MO_ADD_PROPERTY(QSGNode, dirtyState, markDirty); // NOLINT
+#endif
 
     MO_ADD_METAOBJECT1(QSGBasicGeometryNode, QSGNode);
     MO_ADD_PROPERTY_O1(QSGBasicGeometryNode, geometry);
@@ -1054,7 +1017,6 @@ void QuickInspector::registerMetaTypes()
     MO_ADD_PROPERTY(QSGOpacityNode, opacity, setOpacity);
     MO_ADD_PROPERTY(QSGOpacityNode, combinedOpacity, setCombinedOpacity);
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     MO_ADD_METAOBJECT1(QSGRenderNode, QSGNode);
     MO_ADD_PROPERTY_RO(QSGRenderNode, changedStates);
     MO_ADD_PROPERTY_RO(QSGRenderNode, flags);
@@ -1062,7 +1024,6 @@ void QuickInspector::registerMetaTypes()
     MO_ADD_PROPERTY_RO(QSGRenderNode, inheritedOpacity);
     MO_ADD_PROPERTY_RO(QSGRenderNode, matrix);
     MO_ADD_PROPERTY_RO(QSGRenderNode, clipList);
-#endif
 
     MO_ADD_METAOBJECT0(QSGMaterial);
     MO_ADD_PROPERTY_RO(QSGMaterial, flags);
@@ -1091,27 +1052,21 @@ void QuickInspector::registerMetaTypes()
 
     MO_ADD_METAOBJECT1(QSGDistanceFieldShiftedStyleTextMaterial, QSGDistanceFieldStyledTextMaterial);
     MO_ADD_PROPERTY_RO(QSGDistanceFieldShiftedStyleTextMaterial, shift);
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
-    MO_ADD_METAOBJECT1(QQuickOpenGLShaderEffectMaterial, QSGMaterial);
-    MO_ADD_PROPERTY_MEM(QQuickOpenGLShaderEffectMaterial, attributes);
-    MO_ADD_PROPERTY_MEM(QQuickOpenGLShaderEffectMaterial, cullMode);
-    MO_ADD_PROPERTY_MEM(QQuickOpenGLShaderEffectMaterial, geometryUsesTextureSubRect);
-    MO_ADD_PROPERTY_MEM(QQuickOpenGLShaderEffectMaterial, textureProviders);
-#endif
 #endif
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
-#define E(x) { QSGRendererInterface:: x, #x }
+#define E(x)                        \
+    {                               \
+        QSGRendererInterface::x, #x \
+    }
 static const MetaEnum::Value<QSGRendererInterface::GraphicsApi> qsg_graphics_api_table[] = {
     E(Unknown),
     E(Software),
     E(OpenGL),
-    E(Direct3D12),
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
-    E(OpenVG)
-#endif
+    E(OpenVG),
+    E(Direct3D11),
+    E(Vulkan),
+    E(Metal),
 };
 
 static const MetaEnum::Value<QSGRendererInterface::ShaderCompilationType> qsg_shader_compilation_type_table[] = {
@@ -1131,10 +1086,11 @@ static const MetaEnum::Value<QSGRendererInterface::ShaderType> qsg_shader_type_t
     E(HLSL)
 };
 #undef E
-#endif
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
-#define E(x) { QSGRenderNode:: x, #x }
+#define E(x)                 \
+    {                        \
+        QSGRenderNode::x, #x \
+    }
 static const MetaEnum::Value<QSGRenderNode::StateFlag> render_node_state_flags_table[] = {
     E(DepthState),
     E(StencilState),
@@ -1153,27 +1109,31 @@ static const MetaEnum::Value<QSGRenderNode::RenderingFlag> render_node_rendering
     E(OpaqueRendering)
 };
 #undef E
-#endif
 
 static QString anchorLineToString(const QQuickAnchorLine &line)
 {
     if (!line.item
-#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
-        || line.anchorLine == QQuickAnchors::InvalidAnchor
-#endif
-    ) {
+        || line.anchorLine == QQuickAnchors::InvalidAnchor) {
         return QStringLiteral("<none>");
     }
-    const auto s = Util::shortDisplayString(line.item);
+    QString s = Util::shortDisplayString(line.item);
     switch (line.anchorLine) {
-        case QQuickAnchors::LeftAnchor: return s + QStringLiteral(".left");
-        case QQuickAnchors::RightAnchor: return s + QStringLiteral(".right");
-        case QQuickAnchors::TopAnchor: return s + QStringLiteral(".top");
-        case QQuickAnchors::BottomAnchor: return s + QStringLiteral(".bottom");
-        case QQuickAnchors::HCenterAnchor: return s + QStringLiteral(".horizontalCenter");
-        case QQuickAnchors::VCenterAnchor: return s + QStringLiteral(".verticalCenter");
-        case QQuickAnchors::BaselineAnchor: return s + QStringLiteral(".baseline");
-        default: break;
+    case QQuickAnchors::LeftAnchor:
+        return s + QStringLiteral(".left");
+    case QQuickAnchors::RightAnchor:
+        return s + QStringLiteral(".right");
+    case QQuickAnchors::TopAnchor:
+        return s + QStringLiteral(".top");
+    case QQuickAnchors::BottomAnchor:
+        return s + QStringLiteral(".bottom");
+    case QQuickAnchors::HCenterAnchor:
+        return s + QStringLiteral(".horizontalCenter");
+    case QQuickAnchors::VCenterAnchor:
+        return s + QStringLiteral(".verticalCenter");
+    case QQuickAnchors::BaselineAnchor:
+        return s + QStringLiteral(".baseline");
+    default:
+        break;
     }
     return s;
 }
@@ -1183,9 +1143,7 @@ void QuickInspector::registerVariantHandlers()
     ER_REGISTER_FLAGS(QQuickItem, Flags, qqitem_flag_table);
     ER_REGISTER_FLAGS(QSGNode, DirtyState, qsg_node_dirtystate_table);
     ER_REGISTER_FLAGS(QSGNode, Flags, qsg_node_flag_table);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
     ER_REGISTER_ENUM(QSGTexture, AnisotropyLevel, qsg_texture_anisotropy_table);
-#endif
     ER_REGISTER_ENUM(QSGTexture, Filtering, qsg_texture_filtering_table);
     ER_REGISTER_ENUM(QSGTexture, WrapMode, qsg_texture_wrapmode_table);
 
@@ -1204,19 +1162,15 @@ void QuickInspector::registerVariantHandlers()
     VariantHandler::registerStringConverter<const QSGGeometry *>(Util::addressToString);
     VariantHandler::registerStringConverter<QSGMaterial *>(Util::addressToString);
     VariantHandler::registerStringConverter<QSGMaterial::Flags>(qsgMaterialFlagsToString);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     VariantHandler::registerStringConverter<QSGRenderNode *>(Util::addressToString);
     VariantHandler::registerStringConverter<QSGRenderNode::StateFlags>(MetaEnum::flagsToString_fn(render_node_state_flags_table));
     VariantHandler::registerStringConverter<QSGRenderNode::RenderingFlags>(MetaEnum::flagsToString_fn(render_node_rendering_flags_table));
-#endif
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
-    VariantHandler::registerStringConverter<QSGRendererInterface*>(Util::addressToString);
+    VariantHandler::registerStringConverter<QSGRendererInterface *>(Util::addressToString);
     VariantHandler::registerStringConverter<QSGRendererInterface::GraphicsApi>(MetaEnum::enumToString_fn(qsg_graphics_api_table));
     VariantHandler::registerStringConverter<QSGRendererInterface::ShaderCompilationTypes>(MetaEnum::flagsToString_fn(qsg_shader_compilation_type_table));
     VariantHandler::registerStringConverter<QSGRendererInterface::ShaderSourceTypes>(MetaEnum::flagsToString_fn(qsg_shader_source_type_table));
     VariantHandler::registerStringConverter<QSGRendererInterface::ShaderType>(MetaEnum::enumToString_fn(qsg_shader_type_table));
-#endif
 }
 
 void QuickInspector::registerPCExtensions()
@@ -1232,7 +1186,5 @@ void QuickInspector::registerPCExtensions()
     PropertyAdaptorFactory::registerFactory(QuickAnchorsPropertyAdaptorFactory::instance());
     PropertyFilters::registerFilter(PropertyFilter("QQuickItem", "anchors"));
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
     BindingAggregator::registerBindingProvider(std::unique_ptr<AbstractBindingProvider>(new QuickImplicitBindingDependencyProvider));
-#endif
 }

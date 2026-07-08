@@ -1,29 +1,14 @@
 /*
   eventmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Tim Henning <tim.henning@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "eventmodel.h"
@@ -56,7 +41,7 @@ EventModel::EventModel(QObject *parent)
     m_pendingEventTimer->setInterval(200);
     connect(m_pendingEventTimer, &QTimer::timeout, this, [this]() {
         Q_ASSERT(!m_pendingEvents.isEmpty());
-        beginInsertRows(QModelIndex(), m_events.count(), m_events.count() + m_pendingEvents.size() - 1);
+        beginInsertRows(QModelIndex(), m_events.size(), m_events.size() + m_pendingEvents.size() - 1);
         m_events += m_pendingEvents;
         m_pendingEvents.clear();
         endInsertRows();
@@ -76,7 +61,7 @@ void EventModel::addEvent(const EventData &event)
 void EventModel::clear()
 {
     beginResetModel();
-    m_events.clear();
+    m_events = QVector<EventData>();
     endResetModel();
 }
 
@@ -109,23 +94,21 @@ QVariant EventModel::data(const QModelIndex &index, int role) const
     int rootEventIndex = isPropagatedEvent ? int(index.internalId()) : index.row();
     Q_ASSERT(rootEventIndex >= 0 && rootEventIndex < m_events.size());
     const EventData &event = isPropagatedEvent
-            ? m_events.at(rootEventIndex).propagatedEvents.at(index.row())
-            : m_events.at(rootEventIndex);
+        ? m_events.at(rootEventIndex).propagatedEvents.at(index.row())
+        : m_events.at(rootEventIndex);
 
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
         case EventModelColumn::Time:
             return isPropagatedEvent ? "<propagated>" : event.time.toString("hh:mm:ss.zzz");
-        case EventModelColumn::Type:
-        {
+        case EventModelColumn::Type: {
             const auto s = VariantHandler::displayString(event.type);
             if (!s.isEmpty()) {
                 return s;
             }
             return event.type;
         }
-        case EventModelColumn::Receiver:
-        {
+        case EventModelColumn::Receiver: {
             QMutexLocker lock(Probe::objectLock());
             if (Probe::instance()->isValidObject(event.receiver)) {
                 return Util::displayString(event.receiver);
@@ -135,7 +118,7 @@ QVariant EventModel::data(const QModelIndex &index, int role) const
         }
     } else if (role == EventModelRole::AttributesRole) {
         QVariantMap attributesMap;
-        for (const QPair<const char *, QVariant>& pair: event.attributes) {
+        for (const QPair<const char *, QVariant> &pair : event.attributes) {
             attributesMap.insert(QString::fromUtf8(pair.first), pair.second);
         }
         return attributesMap;
@@ -184,7 +167,7 @@ QModelIndex EventModel::parent(const QModelIndex &child) const
     return createIndex(int(child.internalId()), 0, TopLevelId);
 }
 
-QMap<int, QVariant> EventModel::itemData(const QModelIndex& index) const
+QMap<int, QVariant> EventModel::itemData(const QModelIndex &index) const
 {
     auto d = QAbstractItemModel::itemData(index);
     if (index.column() == EventModelColumn::Receiver) {
@@ -198,7 +181,7 @@ bool EventModel::hasEvents() const
     return !m_events.empty() || !m_pendingEvents.empty();
 }
 
-EventData& EventModel::lastEvent()
+EventData &EventModel::lastEvent()
 {
     if (!m_pendingEvents.empty()) {
         return m_pendingEvents.last();

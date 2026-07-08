@@ -1,29 +1,14 @@
 /*
   processtracker_macos.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Filipe Azevedo <filipe.azevedo@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 // A said crossplatform way (using ptrace) is available at
@@ -46,10 +31,10 @@ ProcessTrackerBackendMacOS::ProcessTrackerBackendMacOS(QObject *parent)
 void ProcessTrackerBackendMacOS::checkProcess(qint64 pid)
 {
     GammaRay::ProcessTrackerInfo pinfo(pid);
-    int                 status;
-    int                 mib[4];
-    struct kinfo_proc   info;
-    size_t              size;
+    int status;
+    int mib[4];
+    struct kinfo_proc info;
+    size_t size;
 
     // Initialize the flags so that, if sysctl fails for some bizarre
     // reason, we get a predictable result.
@@ -64,22 +49,22 @@ void ProcessTrackerBackendMacOS::checkProcess(qint64 pid)
 
     // Call sysctl.
     size = sizeof(info);
-    status = sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, NULL, 0); //krazy:exclude=null
+    status = sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, nullptr, 0);
 
     if (status == 0) {
         // We're being debugged if the P_TRACED flag is set.
         pinfo.traced = (info.kp_proc.p_flag & P_TRACED) != 0;
 
         switch (info.kp_proc.p_stat) {
-            case SRUN:
-                pinfo.state = GammaRay::ProcessTracker::Running;
-                break;
-            case SSTOP:
-            case SSLEEP:
-                pinfo.state = GammaRay::ProcessTracker::Suspended;
-                break;
-            default:
-                break;
+        case SRUN:
+            pinfo.state = GammaRay::ProcessTracker::Running;
+            break;
+        case SSTOP:
+        case SSLEEP:
+            pinfo.state = GammaRay::ProcessTracker::Suspended;
+            break;
+        default:
+            break;
         }
     } else {
         qWarning("%s: Can not sysctl.", Q_FUNC_INFO);

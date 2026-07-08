@@ -1,35 +1,18 @@
 /*
   statemodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
-
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Stephen Kelly <stephen.kelly@kdab.com>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 #include "statemodel.h"
 #include "statemachinedebuginterface.h"
 #include "statemachinewatcher.h"
-
-#include <compat/qasconst.h>
 
 #include <core/objectmodelbase.h>
 #include <core/util.h>
@@ -40,8 +23,6 @@
 #include <QStringList>
 
 #include <algorithm>
-
-// #include <modeltest.h>
 
 using namespace GammaRay;
 
@@ -64,7 +45,7 @@ class StateModelPrivate
     }
 
     Q_DECLARE_PUBLIC(StateModel)
-    StateModel * const q_ptr;
+    StateModel *const q_ptr;
     StateMachineDebugInterface *m_stateMachine;
     QVector<State> m_lastConfiguration;
 
@@ -73,7 +54,7 @@ class StateModelPrivate
     State mapModelIndex2State(const QModelIndex &) const;
     QModelIndex indexForState(State state) const;
 
-// private slots:
+    // private slots:
     void stateConfigurationChanged();
     void handleMachineDestroyed(QObject *);
 };
@@ -123,16 +104,16 @@ void StateModelPrivate::stateConfigurationChanged()
     std::set_difference(newConfig.begin(), newConfig.end(),
                         m_lastConfiguration.begin(), m_lastConfiguration.end(),
                         std::back_inserter(difference));
-    for (State state : qAsConst(difference))
+    for (State state : std::as_const(difference))
         emitDataChangedForState(state);
     // states which became inactive
     difference.clear();
     std::set_difference(m_lastConfiguration.begin(), m_lastConfiguration.end(),
                         newConfig.begin(), newConfig.end(),
                         std::back_inserter(difference));
-    for (State state : qAsConst(difference))
+    for (State state : std::as_const(difference))
         emitDataChangedForState(state);
-    m_lastConfiguration = newConfig;
+    m_lastConfiguration = std::move(newConfig);
 }
 
 void StateModelPrivate::handleMachineDestroyed(QObject *)
@@ -233,7 +214,7 @@ QVariant StateModel::data(const QModelIndex &index, int role) const
 int StateModel::rowCount(const QModelIndex &parent) const
 {
     Q_D(const StateModel);
-    return d->children(d->mapModelIndex2State(parent)).count();
+    return d->children(d->mapModelIndex2State(parent)).size();
 }
 
 QModelIndex StateModel::index(int row, int column, const QModelIndex &parent) const

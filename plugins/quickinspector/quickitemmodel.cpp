@@ -1,29 +1,14 @@
 /*
   quickitemmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "quickitemmodel.h"
@@ -77,6 +62,8 @@ QVariant QuickItemModel::data(const QModelIndex &index, int role) const
         return m_itemFlags[item];
     if (role == ObjectModel::ObjectIdRole)
         return QVariant::fromValue(ObjectId(item));
+    if (role == ObjectModel::IsFavoriteRole)
+        return m_favorites.contains(item);
 
     return dataForObject(item, index, role);
 }
@@ -149,16 +136,14 @@ void QuickItemModel::connectItem(QQuickItem *item)
 {
     Q_ASSERT(item);
     auto itemUpdatedFunc = [this, item]() { itemUpdated(item); };
-    std::array<QMetaObject::Connection, 8> connections = {{
-        connect(item, &QQuickItem::parentChanged, this, [this, item]() { itemReparented(item); }),
-        connect(item, &QQuickItem::visibleChanged, this, itemUpdatedFunc),
-        connect(item, &QQuickItem::focusChanged, this, itemUpdatedFunc),
-        connect(item, &QQuickItem::activeFocusChanged, this, itemUpdatedFunc),
-        connect(item, &QQuickItem::widthChanged, this, itemUpdatedFunc),
-        connect(item, &QQuickItem::heightChanged, this, itemUpdatedFunc),
-        connect(item, &QQuickItem::xChanged, this, itemUpdatedFunc),
-        connect(item, &QQuickItem::yChanged, this, itemUpdatedFunc)
-    }};
+    std::array<QMetaObject::Connection, 8> connections = { { connect(item, &QQuickItem::parentChanged, this, [this, item]() { itemReparented(item); }),
+                                                             connect(item, &QQuickItem::visibleChanged, this, itemUpdatedFunc),
+                                                             connect(item, &QQuickItem::focusChanged, this, itemUpdatedFunc),
+                                                             connect(item, &QQuickItem::activeFocusChanged, this, itemUpdatedFunc),
+                                                             connect(item, &QQuickItem::widthChanged, this, itemUpdatedFunc),
+                                                             connect(item, &QQuickItem::heightChanged, this, itemUpdatedFunc),
+                                                             connect(item, &QQuickItem::xChanged, this, itemUpdatedFunc),
+                                                             connect(item, &QQuickItem::yChanged, this, itemUpdatedFunc) } };
     m_itemConnections.emplace(std::make_pair(item, std::move(connections))); // can't construct in-place, fails to compile under MSVC2010 :(
 
     item->installEventFilter(m_clickEventFilter);
@@ -246,7 +231,30 @@ void QuickItemModel::objectRemoved(QObject *obj)
     Q_ASSERT(thread() == QThread::currentThread());
     QQuickItem *item = static_cast<QQuickItem *>(obj); // this is fine, we must not deref
                                                        // obj/item at this point anyway
+    m_favorites.remove(item);
     removeItem(item, true);
+}
+
+void QuickItemModel::objectFavorited(QObject *obj)
+{
+    auto item = static_cast<QQuickItem *>(obj);
+    auto index = indexForItem(item);
+    if (!index.isValid()) {
+        return;
+    }
+    m_favorites.insert(item);
+    Q_EMIT dataChanged(index, index, { ObjectModel::IsFavoriteRole });
+}
+
+void QuickItemModel::objectUnfavorited(QObject *obj)
+{
+    auto item = static_cast<QQuickItem *>(obj);
+    auto index = indexForItem(item);
+    if (!index.isValid())
+        return;
+    Q_ASSERT(m_favorites.contains(item));
+    m_favorites.remove(item);
+    Q_EMIT dataChanged(index, index, { ObjectModel::IsFavoriteRole });
 }
 
 void QuickItemModel::removeItem(QQuickItem *item, bool danglingPointer)
@@ -322,14 +330,6 @@ void QuickItemModel::itemReparented(QQuickItem *item)
     auto dit = std::lower_bound(destSiblings.begin(), destSiblings.end(), item);
     const int destRow = std::distance(destSiblings.begin(), dit);
 
-    // as of Qt 5.10, QSFPM translates moves into layout changes, which is way worse for us than remove/insert
-#if 0
-    beginMoveRows(sourceParentIndex, sourceRow, sourceRow, destParentIndex, destRow);
-    destSiblings.insert(dit, item);
-    sourceSiblings.erase(sit);
-    m_childParentMap.insert(item, destParent);
-    endMoveRows();
-#else
     beginRemoveRows(sourceParentIndex, sourceRow, sourceRow);
     sourceSiblings.erase(sit);
     m_childParentMap.remove(item);
@@ -338,7 +338,6 @@ void QuickItemModel::itemReparented(QQuickItem *item)
     destSiblings.insert(dit, item);
     m_childParentMap.insert(item, destParent);
     endInsertRows();
-#endif
 }
 
 void QuickItemModel::itemWindowChanged(QQuickItem *item)
@@ -418,17 +417,23 @@ void QuickItemModel::updateItemFlags(QQuickItem *item)
     }
 
     m_itemFlags[item] = (!item->isVisible() || item->opacity() == 0
-                         ? QuickItemModelRole::Invisible : QuickItemModelRole::None)
-                        |(item->width() == 0 || item->height() == 0
-                          ? QuickItemModelRole::ZeroSize : QuickItemModelRole::None)
-                        |(partiallyOutOfView
-                          ? QuickItemModelRole::PartiallyOutOfView : QuickItemModelRole::None)
-                        |(outOfView
-                          ? QuickItemModelRole::OutOfView : QuickItemModelRole::None)
-                        |(item->hasFocus()
-                          ? QuickItemModelRole::HasFocus : QuickItemModelRole::None)
-                        |(item->hasActiveFocus()
-                          ? QuickItemModelRole::HasActiveFocus : QuickItemModelRole::None);
+                             ? QuickItemModelRole::Invisible
+                             : QuickItemModelRole::None)
+        | (item->width() == 0 || item->height() == 0
+               ? QuickItemModelRole::ZeroSize
+               : QuickItemModelRole::None)
+        | (partiallyOutOfView
+               ? QuickItemModelRole::PartiallyOutOfView
+               : QuickItemModelRole::None)
+        | (outOfView
+               ? QuickItemModelRole::OutOfView
+               : QuickItemModelRole::None)
+        | (item->hasFocus()
+               ? QuickItemModelRole::HasFocus
+               : QuickItemModelRole::None)
+        | (item->hasActiveFocus()
+               ? QuickItemModelRole::HasActiveFocus
+               : QuickItemModelRole::None);
 }
 
 QuickEventMonitor::QuickEventMonitor(QuickItemModel *parent)
@@ -440,27 +445,27 @@ QuickEventMonitor::QuickEventMonitor(QuickItemModel *parent)
 bool QuickEventMonitor::eventFilter(QObject *obj, QEvent *event)
 {
     switch (event->type()) {
-        // exclude some unsafe event types
-        case QEvent::DeferredDelete:
-        case QEvent::Destroy:
+    // exclude some unsafe event types
+    case QEvent::DeferredDelete:
+    case QEvent::Destroy:
 
-        // exclude some event types which occur far too often and thus cost us bandwidth
-        case QEvent::HoverMove:
-        case QEvent::MouseMove:
-        case QEvent::TouchUpdate:
-        case QEvent::Wheel: // due to high frequency creation from touch events
+    // exclude some event types which occur far too often and thus cost us bandwidth
+    case QEvent::HoverMove:
+    case QEvent::MouseMove:
+    case QEvent::TouchUpdate:
+    case QEvent::Wheel: // due to high frequency creation from touch events
 
-        // exclude event types that are unrelated to user interaction
-        case QEvent::MetaCall:
-        case QEvent::ChildAdded:
-        case QEvent::ChildPolished:
-        case QEvent::ChildRemoved:
-        case QEvent::Timer:
+    // exclude event types that are unrelated to user interaction
+    case QEvent::MetaCall:
+    case QEvent::ChildAdded:
+    case QEvent::ChildPolished:
+    case QEvent::ChildRemoved:
+    case QEvent::Timer:
 
-            return false;
+        return false;
 
-        default:
-            break;
+    default:
+        break;
     }
 
     m_model->updateItem(qobject_cast<QQuickItem *>(obj), QuickItemModelRole::ItemEvent);

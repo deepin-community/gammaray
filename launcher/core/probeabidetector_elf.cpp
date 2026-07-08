@@ -1,29 +1,14 @@
 /*
   probeabidetector_elf.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -59,7 +44,7 @@ static QString qtCoreFromLdd(const QString &path)
     return QString();
 }
 
-QString ProbeABIDetector::qtCoreForExecutable(const QString &path) const
+QString ProbeABIDetector::qtCoreForExecutable(const QString &path)
 {
     // TODO: add fast version reading the ELF file directly?
     return qtCoreFromLdd(path);
@@ -67,7 +52,11 @@ QString ProbeABIDetector::qtCoreForExecutable(const QString &path) const
 
 static bool qtCoreFromProc(qint64 pid, QString &path)
 {
+#ifdef Q_OS_LINUX
     const QString mapsPath = QStringLiteral("/proc/%1/maps").arg(pid);
+#elif defined(Q_OS_FREEBSD)
+    const QString mapsPath = QStringLiteral("/proc/%1/map").arg(pid);
+#endif
     QFile f(mapsPath);
     if (!f.open(QFile::ReadOnly)) {
         path.clear();
@@ -79,10 +68,17 @@ static bool qtCoreFromProc(qint64 pid, QString &path)
         if (line.isEmpty())
             break;
         if (ProbeABIDetector::containsQtCore(line)) {
-            const int pos = line.indexOf('/');
+            int pos = line.indexOf('/');
             if (pos <= 0)
                 continue;
             path = QString::fromLocal8Bit(line.mid(pos).trimmed());
+#ifdef Q_OS_FREEBSD
+            // With FreeBSD procfs we end up with "/usr/local/lib/qt6/libQt6Core.so.6.8.2 NCH -1"
+            // so chop it further
+            pos = path.indexOf(' ');
+            if (pos > 0)
+                path = path.left(pos);
+#endif
             return true;
         }
     }
@@ -117,9 +113,9 @@ static ProbeABI qtVersionFromExec(const QString &path)
 
     // yep, you can actually execute QtCore.so...
     QProcess proc;
-    proc.setReadChannelMode(QProcess::SeparateChannels);
+    proc.setProcessChannelMode(QProcess::SeparateChannels);
     proc.setReadChannel(QProcess::StandardOutput);
-    proc.start(path);
+    proc.start(path, {}, QProcess::ReadOnly);
     proc.waitForFinished();
     const QByteArray line = proc.readLine();
     const int pos = line.indexOf("Qt ");
@@ -187,10 +183,10 @@ static QString archFromELF(const QString &path)
     return QString();
 }
 
-ProbeABI ProbeABIDetector::detectAbiForQtCore(const QString &path) const
+QVector<ProbeABI> ProbeABIDetector::detectAbiForQtCore(const QString &path)
 {
     if (path.isEmpty())
-        return ProbeABI();
+        return {};
 
     // try to find the version
     ProbeABI abi = qtVersionFromFileName(path);
@@ -201,5 +197,5 @@ ProbeABI ProbeABIDetector::detectAbiForQtCore(const QString &path) const
     const QString arch = archFromELF(path);
     abi.setArchitecture(arch);
 
-    return abi;
+    return { abi };
 }

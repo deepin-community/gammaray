@@ -1,30 +1,13 @@
 /*
   bindingmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2017-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-  Authors: Volker Krause <volker.krause@kdab.com>
-           Anton Kreuzkamp <anton.kreuzkamp@kdab.com>
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 // Own
@@ -44,7 +27,7 @@
 
 using namespace GammaRay;
 
-BindingModel::BindingModel(QObject* parent)
+BindingModel::BindingModel(QObject *parent)
     : QAbstractItemModel(parent)
     , m_obj(nullptr)
     , m_bindings(nullptr)
@@ -64,7 +47,7 @@ void BindingModel::cleared()
     endResetModel();
 }
 
-void BindingModel::setObject(QObject* obj, std::vector<std::unique_ptr<BindingNode>> &bindings)
+void BindingModel::setObject(QObject *obj, std::vector<std::unique_ptr<BindingNode>> &bindings)
 {
     if (m_obj == obj)
         return;
@@ -82,9 +65,10 @@ void GammaRay::BindingModel::refresh(int row, std::vector<std::unique_ptr<Bindin
     refresh((*m_bindings)[row].get(), std::move(newDependencies), createIndex(row, 0, (*m_bindings)[row].get()));
 }
 
-bool BindingModel::lessThan(const std::unique_ptr<BindingNode> &a, const std::unique_ptr<BindingNode> &b) {
+bool BindingModel::lessThan(const std::unique_ptr<BindingNode> &a, const std::unique_ptr<BindingNode> &b)
+{
     return a->object() < b->object()
-           || (a->object() == b->object() && a->propertyIndex() < b->propertyIndex());
+        || (a->object() == b->object() && a->propertyIndex() < b->propertyIndex());
 }
 
 void BindingModel::refresh(BindingNode *oldBindingNode, std::vector<std::unique_ptr<BindingNode>> &&newDependencies, const QModelIndex &index)
@@ -106,7 +90,9 @@ void BindingModel::refresh(BindingNode *oldBindingNode, std::vector<std::unique_
         const auto idx = std::distance(oldDependencies.begin(), oldIt);
         if (lessThan(*oldIt, *newIt)) { // handle deleted node
             const auto firstToRemove = oldIt;
-            while (oldIt != oldDependencies.end() && lessThan(*oldIt, *newIt)) { ++oldIt; } // if more than one was removed, find all
+            while (oldIt != oldDependencies.end() && lessThan(*oldIt, *newIt)) {
+                ++oldIt;
+            } // if more than one was removed, find all
             const auto count = std::distance(firstToRemove, oldIt);
             beginRemoveRows(index, idx, idx + count - 1);
             oldIt = oldDependencies.erase(firstToRemove, oldIt);
@@ -156,13 +142,13 @@ void BindingModel::refresh(BindingNode *oldBindingNode, std::vector<std::unique_
     }
 }
 
-int BindingModel::columnCount(const QModelIndex& parent) const
+int BindingModel::columnCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);
     return 4;
 }
 
-int BindingModel::rowCount(const QModelIndex& parent) const
+int BindingModel::rowCount(const QModelIndex &parent) const
 {
     if (!m_bindings)
         return 0;
@@ -173,26 +159,28 @@ int BindingModel::rowCount(const QModelIndex& parent) const
     return static_cast<BindingNode *>(parent.internalPointer())->dependencies().size();
 }
 
-QVariant BindingModel::data(const QModelIndex& index, int role) const
+QVariant BindingModel::data(const QModelIndex &index, int role) const
 {
     if (!index.isValid())
         return QVariant();
 
-    BindingNode *binding = static_cast<BindingNode*>(index.internalPointer());
+    BindingNode *binding = static_cast<BindingNode *>(index.internalPointer());
     if (!binding)
         return QVariant();
 
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
-            case NameColumn: {
-                return binding->canonicalName();
-            }
-            case ValueColumn: return binding->cachedValue();
-            case LocationColumn: return binding->sourceLocation().displayString();
-            case DepthColumn: {
-                uint depth = binding->depth();
-                return depth == std::numeric_limits<uint>::max() ? QStringLiteral("\u221E") : QString::number(depth); // Unicode infinity sign
-            }
+        case NameColumn: {
+            return binding->canonicalName();
+        }
+        case ValueColumn:
+            return binding->cachedValue();
+        case LocationColumn:
+            return binding->sourceLocation().displayString();
+        case DepthColumn: {
+            uint depth = binding->depth();
+            return depth == std::numeric_limits<uint>::max() ? QString(QChar(0x221E)) : QString::number(depth); // Unicode infinity sign
+        }
         }
     } else if (role == ObjectModel::DeclarationLocationRole) {
         return QVariant::fromValue(binding->sourceLocation());
@@ -212,16 +200,20 @@ QVariant BindingModel::headerData(int section, Qt::Orientation orientation, int 
 {
     if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
         switch (section) {
-            case NameColumn: return tr("Property");
-            case ValueColumn: return tr("Value");
-            case LocationColumn: return tr("Source");
-            case DepthColumn: return tr("Depth");
+        case NameColumn:
+            return tr("Property");
+        case ValueColumn:
+            return tr("Value");
+        case LocationColumn:
+            return tr("Source");
+        case DepthColumn:
+            return tr("Depth");
         }
     }
     return QAbstractItemModel::headerData(section, orientation, role);
 }
 
-QModelIndex GammaRay::BindingModel::index(int row, int column, const QModelIndex& parent) const
+QModelIndex GammaRay::BindingModel::index(int row, int column, const QModelIndex &parent) const
 {
     if (!m_bindings || !hasIndex(row, column, parent)) {
         return {};
@@ -245,7 +237,7 @@ QModelIndex BindingModel::findEquivalent(const std::vector<std::unique_ptr<Bindi
     return {};
 }
 
-QModelIndex GammaRay::BindingModel::parent(const QModelIndex& child) const
+QModelIndex GammaRay::BindingModel::parent(const QModelIndex &child) const
 {
     if (!m_bindings || !child.isValid())
         return {};

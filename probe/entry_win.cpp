@@ -1,29 +1,14 @@
 /*
   entry_win.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -41,8 +26,7 @@ static const std::string PROBE_NAME = GAMMARAY_PROBE_BASENAME;
 extern "C" BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID /*lpvReserved*/)
 {
     switch (dwReason) {
-    case DLL_PROCESS_ATTACH:
-    {
+    case DLL_PROCESS_ATTACH: {
         wchar_t buffer[MAX_PATH * 2];
         const int size = GetModuleFileNameW(hInstance, buffer, MAX_PATH * 2);
         if (!size) {
@@ -62,14 +46,13 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID /*lpv
                 break;
             }
         }
-        gammaray_probe_inject inject = (gammaray_probe_inject)GetProcAddress(probe, "gammaray_probe_inject");
+        gammaray_probe_inject inject = ( gammaray_probe_inject )GetProcAddress(probe, "gammaray_probe_inject");
         if (!inject) {
             OutputDebugStringW(L"GammaRay: Failed to resolve gammaray_probe_inject");
             break;
         }
         inject();
-    }
-        break;
+    } break;
     }
     // return false to get unloaded
     return FALSE; // krazy:exclude=captruefalse

@@ -1,29 +1,14 @@
 /*
   metaobjecttreeclientproxymodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "metaobjecttreeclientproxymodel.h"
@@ -80,7 +65,7 @@ static QString issuesToString(QMetaObjectValidatorResult::Results r)
         l.push_back(MetaObjectTreeClientProxyModel::tr("overrides base class property"));
     if (r & QMetaObjectValidatorResult::UnknownPropertyType)
         l.push_back(MetaObjectTreeClientProxyModel::tr("property with type not registered with the meta type system"));
-    return MetaObjectTreeClientProxyModel::tr("Issues:<ul><li>%1</li></ul>").arg(l.join("</li><li>"));
+    return MetaObjectTreeClientProxyModel::tr("Issues:<ul><li>%1</li></ul>").arg(l.join(QStringLiteral("</li><li>")));
 }
 
 QVariant MetaObjectTreeClientProxyModel::data(const QModelIndex &index, int role) const
@@ -91,19 +76,18 @@ QVariant MetaObjectTreeClientProxyModel::data(const QModelIndex &index, int role
     if (index.column() == QMetaObjectModel::ObjectColumn) {
         const auto issues = QIdentityProxyModel::data(index, QMetaObjectModel::MetaObjectIssues).value<QMetaObjectValidatorResult::Results>();
         switch (role) {
-            case Qt::DecorationRole:
-                if (issues != QMetaObjectValidatorResult::NoIssue)
-                    return qApp->style()->standardIcon(QStyle::SP_MessageBoxWarning);
-                break;
-            case Qt::ToolTipRole:
-            {
-                if (issues != QMetaObjectValidatorResult::NoIssue)
-                    return issuesToString(issues);
-                const auto invalid = index.sibling(index.row(), QMetaObjectModel::ObjectInclusiveAliveCountColumn).data(QMetaObjectModel::MetaObjectInvalid).toBool();
-                if (invalid)
-                    return tr("This meta object might have been deleted.");
-                break;
-            }
+        case Qt::DecorationRole:
+            if (issues != QMetaObjectValidatorResult::NoIssue)
+                return qApp->style()->standardIcon(QStyle::SP_MessageBoxWarning);
+            break;
+        case Qt::ToolTipRole: {
+            if (issues != QMetaObjectValidatorResult::NoIssue)
+                return issuesToString(issues);
+            const auto invalid = index.sibling(index.row(), QMetaObjectModel::ObjectInclusiveAliveCountColumn).data(QMetaObjectModel::MetaObjectInvalid).toBool();
+            if (invalid)
+                return tr("This meta object might have been deleted.");
+            break;
+        }
         }
         return QIdentityProxyModel::data(index, role);
     }
@@ -118,10 +102,9 @@ QVariant MetaObjectTreeClientProxyModel::data(const QModelIndex &index, int role
     if (count <= 0)
         return QIdentityProxyModel::data(index, role);
 
-    const auto totalColumn = (index.column() == QMetaObjectModel::ObjectSelfCountColumn || index.column() == QMetaObjectModel::ObjectInclusiveCountColumn)?
-        QMetaObjectModel::ObjectInclusiveCountColumn : QMetaObjectModel::ObjectInclusiveAliveCountColumn;
+    const auto totalColumn = (index.column() == QMetaObjectModel::ObjectSelfCountColumn || index.column() == QMetaObjectModel::ObjectInclusiveCountColumn) ? QMetaObjectModel::ObjectInclusiveCountColumn : QMetaObjectModel::ObjectInclusiveAliveCountColumn;
     const auto totalCount = m_qobjIndex.sibling(m_qobjIndex.row(), totalColumn).data().toInt();
-    const auto ratio = (double)count / (double)totalCount;
+    const auto ratio = ( double )count / ( double )totalCount;
 
     // at this point, role can only be background or tooltip
 
@@ -136,40 +119,40 @@ QVariant MetaObjectTreeClientProxyModel::headerData(int section, Qt::Orientation
 {
     if (role == Qt::DisplayRole && orientation == Qt::Horizontal) {
         switch (section) {
-            case QMetaObjectModel::ObjectColumn:
-                return tr("Meta Object Class");
-            case QMetaObjectModel::ObjectSelfCountColumn:
-                return tr("Self Total");
-            case QMetaObjectModel::ObjectInclusiveCountColumn:
-                return tr("Incl. Total");
-            case QMetaObjectModel::ObjectSelfAliveCountColumn:
-                return tr("Self Alive");
-            case QMetaObjectModel::ObjectInclusiveAliveCountColumn:
-                return tr("Incl. Alive");
-            default:
-                return QVariant();
+        case QMetaObjectModel::ObjectColumn:
+            return tr("Meta Object Class");
+        case QMetaObjectModel::ObjectSelfCountColumn:
+            return tr("Self Total");
+        case QMetaObjectModel::ObjectInclusiveCountColumn:
+            return tr("Incl. Total");
+        case QMetaObjectModel::ObjectSelfAliveCountColumn:
+            return tr("Self Alive");
+        case QMetaObjectModel::ObjectInclusiveAliveCountColumn:
+            return tr("Incl. Alive");
+        default:
+            return QVariant();
         }
     } else if (role == Qt::ToolTipRole) {
         switch (section) {
-            case QMetaObjectModel::ObjectColumn:
-                return tr("This column shows the QMetaObject class hierarchy.");
-            case QMetaObjectModel::ObjectSelfCountColumn:
-                return tr("This column shows the number of objects created of a particular type.");
-            case QMetaObjectModel::ObjectInclusiveCountColumn:
-                return tr("This column shows the number of objects created that inherit from a particular type.");
-            case QMetaObjectModel::ObjectSelfAliveCountColumn:
-                return tr("This column shows the number of objects created and not yet destroyed of a particular type.");
-            case QMetaObjectModel::ObjectInclusiveAliveCountColumn:
-                return tr("This column shows the number of objects created and not yet destroyed that inherit from a particular type.");
-            default:
-                return QVariant();
+        case QMetaObjectModel::ObjectColumn:
+            return tr("This column shows the QMetaObject class hierarchy.");
+        case QMetaObjectModel::ObjectSelfCountColumn:
+            return tr("This column shows the number of objects created of a particular type.");
+        case QMetaObjectModel::ObjectInclusiveCountColumn:
+            return tr("This column shows the number of objects created that inherit from a particular type.");
+        case QMetaObjectModel::ObjectSelfAliveCountColumn:
+            return tr("This column shows the number of objects created and not yet destroyed of a particular type.");
+        case QMetaObjectModel::ObjectInclusiveAliveCountColumn:
+            return tr("This column shows the number of objects created and not yet destroyed that inherit from a particular type.");
+        default:
+            return QVariant();
         }
     }
 
     return QIdentityProxyModel::headerData(section, orientation, role);
 }
 
-Qt::ItemFlags MetaObjectTreeClientProxyModel::flags(const QModelIndex& index) const
+Qt::ItemFlags MetaObjectTreeClientProxyModel::flags(const QModelIndex &index) const
 {
     auto f = QIdentityProxyModel::flags(index);
     if (index.isValid()) {

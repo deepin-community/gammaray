@@ -1,29 +1,14 @@
 /*
   metaobjectbrowser.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Kevin Funk <kevin.funk@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "metaobjectbrowser.h"
@@ -40,9 +25,8 @@
 #include <common/metatypedeclarations.h>
 #include <common/tools/metaobjectbrowser/qmetaobjectmodel.h>
 
-#include <3rdparty/kde/krecursivefilterproxymodel.h>
-
 #include <QDebug>
+#include <QSortFilterProxyModel>
 #include <QItemSelectionModel>
 
 using namespace GammaRay;
@@ -53,7 +37,7 @@ MetaObjectBrowser::MetaObjectBrowser(Probe *probe, QObject *parent)
     , m_motm(new MetaObjectTreeModel(this))
     , m_model(nullptr)
 {
-    auto model = new ServerProxyModel<KRecursiveFilterProxyModel>(this);
+    auto model = new ServerProxyModel<QSortFilterProxyModel>(this);
     model->addRole(QMetaObjectModel::MetaObjectIssues);
     model->addRole(QMetaObjectModel::MetaObjectInvalid);
     model->setSourceModel(m_motm);
@@ -72,12 +56,11 @@ MetaObjectBrowser::MetaObjectBrowser(Probe *probe, QObject *parent)
 
     ObjectBroker::registerObject(QStringLiteral("com.kdab.GammaRay.MetaObjectBrowser"), this);
 
-    ProblemCollector::registerProblemChecker("com.kdab.GammaRay.MetaObjectBrowser.QMetaObjectValidator",
-                                             "QMetaObject Validator",
-                                             "Checks for common errors with meta objects, like invocable functions with unregistered parameter types.",
+    ProblemCollector::registerProblemChecker(QStringLiteral("com.kdab.GammaRay.MetaObjectBrowser.QMetaObjectValidator"),
+                                             QStringLiteral("QMetaObject Validator"),
+                                             QStringLiteral("Checks for common errors with meta objects, like invocable functions with unregistered parameter types."),
                                              &MetaObjectBrowser::scanForMetaObjectProblems,
-                                             /*enabled=*/ false
-                                            );
+                                             /*enabled=*/false);
 }
 
 void MetaObjectBrowser::rescanMetaTypes()
@@ -92,8 +75,7 @@ void MetaObjectBrowser::objectSelectionChanged(const QItemSelection &selection)
         index = selection.first().topLeft();
 
     if (index.isValid()) {
-        const QMetaObject *metaObject
-            = index.data(QMetaObjectModel::MetaObjectRole).value<const QMetaObject*>();
+        const QMetaObject *metaObject = index.data(QMetaObjectModel::MetaObjectRole).value<const QMetaObject *>();
         m_propertyController->setMetaObject(metaObject);
     } else {
         m_propertyController->setMetaObject(nullptr);
@@ -152,8 +134,8 @@ void MetaObjectBrowser::doProblemScan(const QMetaObject *parent)
 
         auto results = QMetaObjectValidator::check(mo);
         if (results != QMetaObjectValidatorResult::NoIssue) {
-            //TODO do we want the Problem descriptions have more detail, i.e. have one problem listed
-            //     for each method/property that has issues instead of one for each metaobject?
+            // TODO do we want the Problem descriptions have more detail, i.e. have one problem listed
+            //      for each method/property that has issues instead of one for each metaobject?
             Problem p;
             p.severity = Problem::Warning;
             QStringList issueList;
@@ -167,9 +149,9 @@ void MetaObjectBrowser::doProblemScan(const QMetaObject *parent)
             if (results & QMetaObjectValidatorResult::UnknownPropertyType)
                 issueList.push_back(QStringLiteral("has a property with a type not registered with the meta type system"));
 
-            p.description = QStringLiteral("%1 %2.").arg(mo->className(), issueList.join(", "));
-            p.object = ObjectId(const_cast<QMetaObject*>(mo), "const QMetaObject*");
-            p.problemId = QString("com.kdab.GammaRay.MetaObjectBrowser.QMetaObjectValidator:%1").arg(reinterpret_cast<quintptr>(mo));
+            p.description = QStringLiteral("%1 %2.").arg(mo->className(), issueList.join(QStringLiteral(", ")));
+            p.object = ObjectId(const_cast<QMetaObject *>(mo), "const QMetaObject*");
+            p.problemId = QStringLiteral("com.kdab.GammaRay.MetaObjectBrowser.QMetaObjectValidator:%1").arg(reinterpret_cast<quintptr>(mo));
             p.findingCategory = Problem::Scan;
             ProblemCollector::addProblem(p);
         }

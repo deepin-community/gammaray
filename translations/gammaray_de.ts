@@ -15,7 +15,7 @@
     </message>
     <message>
         <location line="+5"/>
-        <source>&lt;p&gt;The Qt application inspection and manipulation tool.Learn more at &lt;a href=&quot;https://www.kdab.com/gammaray&quot;&gt;https://www.kdab.com/gammaray/&lt;/a&gt;.&lt;/p&gt;&lt;p&gt;Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, &lt;a href=&quot;mailto:info@kdab.com&quot;&gt;info@kdab.com&lt;/a&gt;&lt;/p&gt;&lt;p&gt;StackWalker code Copyright (c) 2005-2019, Jochen Kalmbach, All rights reserved&lt;br&gt;lz4 fast LZ compression code Copyright (C) 2011-2015, Yann Collet, All rights reserved&lt;br&gt;backward-cpp code Copyright 2013-2017 Google Inc. All rights reserved.&lt;/p&gt;</source>
+        <source>&lt;p&gt;The Qt application inspection and manipulation tool.Learn more at &lt;a href=&quot;https://www.kdab.com/gammaray&quot;&gt;https://www.kdab.com/gammaray/&lt;/a&gt;.&lt;/p&gt;&lt;p&gt; (C) Klarälvdalens Datakonsult AB, a KDAB Group company, &lt;a href=&quot;mailto:info@kdab.com&quot;&gt;info@kdab.com&lt;/a&gt;&lt;/p&gt;&lt;p&gt;StackWalker code Copyright (c) 2005-2019, Jochen Kalmbach, All rights reserved&lt;br&gt;lz4 fast LZ compression code Copyright (C) 2011-2015, Yann Collet, All rights reserved&lt;br&gt;backward-cpp code Copyright 2013-2017 Google Inc. All rights reserved.&lt;/p&gt;</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2442,11 +2442,6 @@ Nachrichtengröße: %6 of %7 (%8%)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Qt IVI</source>
-        <translation>Qt IVI</translation>
-    </message>
-    <message>
-        <location line="+1"/>
         <source>Quick Scenes</source>
         <translation>Quick Szenen</translation>
     </message>
@@ -3236,62 +3231,6 @@ Probe verfügbar: %5</translation>
         <location line="+18"/>
         <source>Frame Graph Node @ %1</source>
         <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
-    <name>GammaRay::QtIviObjectModel</name>
-    <message>
-        <location filename="../plugins/qtivi/qtiviobjectmodel.cpp" line="+344"/>
-        <source>Name</source>
-        <translation>Name</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Value</source>
-        <translation>Wert</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Writable</source>
-        <translation>Schreibbar</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Override</source>
-        <translation>Überschreiben</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Type</source>
-        <translation>Typ</translation>
-    </message>
-</context>
-<context>
-    <name>GammaRay::QtIviPropertyModel</name>
-    <message>
-        <location filename="../plugins/qtivi/qtivipropertymodel.cpp" line="+562"/>
-        <source>Name</source>
-        <translation>Name</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Value</source>
-        <translation>Wert</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Writable</source>
-        <translation>Schreibbar</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Override</source>
-        <translation>Überschreiben</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Type</source>
-        <translation>Typ</translation>
     </message>
 </context>
 <context>

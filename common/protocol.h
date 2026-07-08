@@ -1,29 +1,14 @@
 /*
   protocol.h
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #ifndef GAMMARAY_PROTOCOL_H
@@ -57,7 +42,8 @@ static const ObjectAddress LauncherAddress = std::numeric_limits<ObjectAddress>:
 static const MessageType InvalidMessageType = 0;
 
 /*! Protocol message types. */
-enum BuildInMessageType {
+enum BuildInMessageType
+{
     // object management
     // client -> server
     ObjectMonitored = InvalidMessageType + 1,
@@ -81,6 +67,7 @@ enum BuildInMessageType {
     ModelSortRequest,
     ModelSyncBarrier,
     SelectionModelStateRequest,
+    ModelCreationDeclartionLocationRequest,
 
     // server -> client
     ModelRowColumnCountReply,
@@ -96,6 +83,7 @@ enum BuildInMessageType {
     ModelColumnsRemoved,
     ModelReset,
     ModelLayoutChanged,
+    ModelCreationDeclartionLocationReply,
 
     // server <-> client
     SelectionModelSelect,
@@ -121,7 +109,10 @@ class ModelIndexData
 {
 public:
     explicit ModelIndexData(qint32 row_ = 0, qint32 column_ = 0)
-        : row(row_), column(column_) {}
+        : row(row_)
+        , column(column_)
+    {
+    }
 
     qint32 row;
     qint32 column;
@@ -130,7 +121,8 @@ public:
 using ModelIndex = QVector<ModelIndexData>;
 
 /*! Protocol representation of an QItemSelectionRange. */
-struct ItemSelectionRange {
+struct ItemSelectionRange
+{
     ModelIndex topLeft;
     ModelIndex bottomRight;
 };
@@ -155,18 +147,18 @@ GAMMARAY_COMMON_EXPORT qint32 broadcastFormatVersion();
 
 ///@cond internal
 QT_BEGIN_NAMESPACE
-inline QDataStream& operator>>(QDataStream& s, GammaRay::Protocol::ModelIndexData& data)
+inline QDataStream &operator>>(QDataStream &s, GammaRay::Protocol::ModelIndexData &data)
 {
     s >> data.row >> data.column;
     return s;
 }
-inline QDataStream& operator<<(QDataStream& s, const GammaRay::Protocol::ModelIndexData& data)
+inline QDataStream &operator<<(QDataStream &s, const GammaRay::Protocol::ModelIndexData &data)
 {
     s << data.row << data.column;
     return s;
 }
 
-inline QDebug& operator<<(QDebug &s, const GammaRay::Protocol::ModelIndexData &data)
+inline QDebug &operator<<(QDebug &s, const GammaRay::Protocol::ModelIndexData &data)
 {
     s << '(' << data.row << ',' << data.column << ')';
     return s;

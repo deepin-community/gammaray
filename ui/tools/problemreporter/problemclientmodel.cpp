@@ -1,29 +1,14 @@
 /*
   problemclientmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "problemclientmodel.h"
@@ -39,14 +24,14 @@
 
 using namespace GammaRay;
 
-ProblemClientModel::ProblemClientModel(QObject* parent)
+ProblemClientModel::ProblemClientModel(QObject *parent)
     : QSortFilterProxyModel(parent)
 {
 }
 
 ProblemClientModel::~ProblemClientModel() = default;
 
-QVariant ProblemClientModel::data(const QModelIndex& index, int role) const
+QVariant ProblemClientModel::data(const QModelIndex &index, int role) const
 {
     if (role == Qt::DecorationRole) {
         if (index.column() != 0) {
@@ -71,10 +56,10 @@ QVariant ProblemClientModel::headerData(int section, Qt::Orientation orientation
     if (orientation == Qt::Horizontal) {
         if (role == Qt::DisplayRole) {
             switch (section) {
-                case 0:
-                    return tr("Problem Description");
-                case 1:
-                    return tr("Source Location");
+            case 0:
+                return tr("Problem Description");
+            case 1:
+                return tr("Source Location");
             }
         }
         return QVariant();
@@ -92,10 +77,10 @@ bool ProblemClientModel::filterAcceptsRow(int source_row, const QModelIndex &sou
     auto id = index.data(ProblemModelRoles::ProblemIdRole).toString();
 
     return std::none_of(m_disabledCheckers.begin(), m_disabledCheckers.end(),
-        [id](const QString &checkerId) { return id.startsWith(checkerId); });
+                        [id](const QString &checkerId) { return id.startsWith(checkerId); });
 }
 
-void ProblemClientModel::disableChecker(const QString& id)
+void ProblemClientModel::disableChecker(const QString &id)
 {
     if (m_disabledCheckers.contains(id))
         return;
@@ -103,7 +88,7 @@ void ProblemClientModel::disableChecker(const QString& id)
     m_disabledCheckers.push_back(id);
     invalidateFilter();
 }
-void ProblemClientModel::enableChecker(const QString& id)
+void ProblemClientModel::enableChecker(const QString &id)
 {
     m_disabledCheckers.erase(std::remove(m_disabledCheckers.begin(), m_disabledCheckers.end(), id), m_disabledCheckers.end());
     invalidateFilter();

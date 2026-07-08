@@ -1,29 +1,14 @@
 /*
   processtracker_windows.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Filipe Azevedo <filipe.azevedo@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 // A said crossplatform way (using ptrace) is available at
@@ -38,7 +23,7 @@
 
 #include <qt_windows.h>
 // Processthreadsapi.h on Windows 8 and Windows Server 2012
-//#include <tlhelp32.h>
+// #include <tlhelp32.h>
 
 #include <type_traits>
 #include <memory>
@@ -77,20 +62,23 @@ private:
     }
 
     // cppcheck-suppress operatorEqVarError; m_data and m_size
-    LocalBuffer &operator=(const LocalBuffer &other) {
+    LocalBuffer &operator=(const LocalBuffer &other)
+    {
         Q_UNUSED(other);
         Q_ASSERT(false);
         return *this;
     }
 
-    void allocate(DWORD size) {
-        m_data = (BYTE*)LocalAlloc(LMEM_FIXED, size);
+    void allocate(DWORD size)
+    {
+        m_data = ( BYTE * )LocalAlloc(LMEM_FIXED, size);
         if (m_data != nullptr) {
             m_size = size;
         }
     }
 
-    void free() {
+    void free()
+    {
         if (m_data != nullptr) {
             LocalFree(m_data);
             m_data = nullptr;
@@ -106,42 +94,51 @@ public:
         allocate(size);
     }
 
-    ~LocalBuffer() {
+    ~LocalBuffer()
+    {
         free();
     }
 
-    bool isValid() const {
+    bool isValid() const
+    {
         return m_data != nullptr;
     }
 
-    DWORD size() const {
+    DWORD size() const
+    {
         return m_size;
     }
 
-    BYTE *data() {
+    BYTE *data()
+    {
         return m_data;
     }
 
-    template <typename T>
-    T *data() {
+    template<typename T>
+    T *data()
+    {
         return reinterpret_cast<T *>(m_data);
     }
 
-    const BYTE *const data() const {
+    const BYTE *const data() const
+    {
         return m_data;
     }
 
-    template <typename T>
-    const T *const data() const {
-        return reinterpret_cast<const T * const>(m_data);
+    template<typename T>
+    const T *const data() const
+    {
+        return reinterpret_cast<const T *const>(m_data);
     }
 
-    void resize(DWORD size) {
+    void resize(DWORD size)
+    {
         free();
         allocate(size);
     }
 
-    void clear() {
+    void clear()
+    {
         free();
     }
 };
@@ -151,20 +148,21 @@ public:
 // https://github.com/wine-mirror/wine/blob/master/include/winternl.h
 
 typedef LONG KPRIORITY;
-//typedef LONG NTSTATUS;
+// typedef LONG NTSTATUS;
 
-#define STATUS_SUCCESS              ((NTSTATUS) 0x00000000)
-#define STATUS_INFO_LENGTH_MISMATCH ((NTSTATUS) 0xC0000004)
+#define STATUS_SUCCESS (( NTSTATUS )0x00000000)
+#define STATUS_INFO_LENGTH_MISMATCH (( NTSTATUS )0xC0000004)
 
 #ifndef NT_SUCCESS
-#define NT_SUCCESS(Status) ((NTSTATUS)(Status) >= 0)
+#define NT_SUCCESS(Status) (( NTSTATUS )(Status) >= 0)
 #endif
 
 #ifndef NT_ERROR
-#define NT_ERROR(Status) ((ULONG)(Status) >> 30 == 3)
+#define NT_ERROR(Status) (( ULONG )(Status) >> 30 == 3)
 #endif
 
-enum SYSTEM_INFORMATION_CLASS {
+enum SYSTEM_INFORMATION_CLASS
+{
     SystemBasicInformation = 0,
     SystemPerformanceInformation = 2,
     SystemTimeOfDayInformation = 3,
@@ -218,7 +216,7 @@ enum THREAD_STATE
 struct CLIENT_ID
 {
     HANDLE UniqueProcess; // Process ID
-    HANDLE UniqueThread;  // Thread ID
+    HANDLE UniqueThread; // Thread ID
 };
 
 struct SYSTEM_THREAD
@@ -253,10 +251,11 @@ struct VM_COUNTERS // virtual memory of process
     SIZE_T PrivatePageCount;
 };
 
-struct UNICODE_STRING {
+struct UNICODE_STRING
+{
     USHORT Length;
     USHORT MaximumLength;
-    PWSTR  Buffer;
+    PWSTR Buffer;
 };
 
 struct SYSTEM_PROCESS
@@ -279,7 +278,8 @@ struct SYSTEM_PROCESS
     SYSTEM_THREAD Threads[1];
 };
 
-static QString toQString(const UNICODE_STRING &string) {
+static QString toQString(const UNICODE_STRING &string)
+{
 #if defined(UNICODE)
     return QString::fromWCharArray(string.Buffer, string.Length);
 #else
@@ -290,15 +290,15 @@ static QString toQString(const UNICODE_STRING &string) {
 
 // Resolve the dll only exported symbol
 // Though the api is available with recent Windows version, we prefer to dynamically resolve it
-typedef NTSTATUS(*NtQuerySystemInformationFunc)(
+typedef NTSTATUS (*NtQuerySystemInformationFunc)(
     SYSTEM_INFORMATION_CLASS SystemInformationClass,
-    PVOID                    SystemInformation,
-    ULONG                    SystemInformationLength,
-    PULONG                   ReturnLength
-);
+    PVOID SystemInformation,
+    ULONG SystemInformationLength,
+    PULONG ReturnLength);
 
-static inline NtQuerySystemInformationFunc qt_NtQuerySystemInformation() {
-    static auto symbol = (NtQuerySystemInformationFunc)QLibrary::resolve("NtDll", "NtQuerySystemInformation");
+static inline NtQuerySystemInformationFunc qt_NtQuerySystemInformation()
+{
+    static auto symbol = ( NtQuerySystemInformationFunc )QLibrary::resolve("NtDll", "NtQuerySystemInformation");
     return symbol;
 }
 }
@@ -319,9 +319,9 @@ void ProcessTrackerBackendWindows::checkProcess(qint64 pid)
         if (pid == QCoreApplication::applicationPid()) {
             traced = IsDebuggerPresent();
         } else {
-            LocalHandlePtr processHandle(OpenProcess(READ_CONTROL | PROCESS_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)); //krazy:exclude=captruefalse
+            LocalHandlePtr processHandle(OpenProcess(READ_CONTROL | PROCESS_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)); // krazy:exclude=captruefalse
             if (!CheckRemoteDebuggerPresent(processHandle.get(), &traced)) {
-                qWarning("%s: Can not check remote debugger presence.");
+                qWarning("Can not check remote debugger presence.");
             }
         }
 
@@ -383,12 +383,12 @@ void ProcessTrackerBackendWindows::checkProcess(qint64 pid)
             SYSTEM_PROCESS *processes = buffer.data<SYSTEM_PROCESS>();
             SYSTEM_PROCESS *process = nullptr;
             while (true) {
-                if ((uintptr_t)processes->UniqueProcessId == pid) {
-                    //qWarning() << "Found process:" << pid << toQString(processes->ImageName);
+                if (( uintptr_t )processes->UniqueProcessId == pid) {
+                    // qWarning() << "Found process:" << pid << toQString(processes->ImageName);
                     process = processes;
                     break;
                 } else {
-                    //qWarning("No matching process: %lli", (uintptr_t)processes->UniqueProcessId);
+                    // qWarning("No matching process: %lli", (uintptr_t)processes->UniqueProcessId);
                 }
 
                 if (!processes->NextEntryOffset) {
@@ -396,7 +396,7 @@ void ProcessTrackerBackendWindows::checkProcess(qint64 pid)
                     break;
                 }
 
-                processes = (SYSTEM_PROCESS *)((BYTE *)processes + processes->NextEntryOffset);
+                processes = ( SYSTEM_PROCESS * )(( BYTE * )processes + processes->NextEntryOffset);
             }
 
             if (process) {
@@ -417,7 +417,7 @@ void ProcessTrackerBackendWindows::checkProcess(qint64 pid)
                     }
 
                     const bool running = !(thread->ThreadState == Waiting && thread->WaitReason == Suspended);
-                    //qWarning() << "Thread#" << i << thread->Priority << thread->BasePriority << thread->ContextSwitches << thread->ThreadState << thread->WaitReason;
+                    // qWarning() << "Thread#" << i << thread->Priority << thread->BasePriority << thread->ContextSwitches << thread->ThreadState << thread->WaitReason;
 
                     if (running) {
                         suspended = false;
@@ -425,8 +425,7 @@ void ProcessTrackerBackendWindows::checkProcess(qint64 pid)
                     }
                 }
 
-                pinfo.state = suspended ?
-                    GammaRay::ProcessTracker::Suspended : GammaRay::ProcessTracker::Running;
+                pinfo.state = suspended ? GammaRay::ProcessTracker::Suspended : GammaRay::ProcessTracker::Running;
             }
         }
     }

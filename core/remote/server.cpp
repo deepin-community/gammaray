@@ -1,29 +1,14 @@
 /*
   server.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -38,10 +23,11 @@
 #include <common/propertysyncer.h>
 
 #ifdef Q_OS_ANDROID
-# include <QDir>
+#include <QDir>
 #endif
 
 #include <QDebug>
+#include <QIODevice>
 #include <QTimer>
 #include <QMetaMethod>
 
@@ -62,25 +48,28 @@ Server::Server(QObject *parent)
     if (!ProbeSettings::value(QStringLiteral("RemoteAccessEnabled"), true).toBool())
         return;
 
-    m_serverDevice = ServerDevice::create(serverAddress(), this);
+    const auto serverAddress = serverAddress_impl();
+    m_serverDevice = ServerDevice::create(serverAddress, this);
     if (!m_serverDevice)
         return;
 
     connect(m_serverDevice, &ServerDevice::newConnection, this, &Server::newConnection);
+    connect(m_serverDevice, &ServerDevice::externalAddressChanged, this, &Server::externalAddressChanged);
 
     m_broadcastTimer->setInterval(5 * 1000);
     m_broadcastTimer->setSingleShot(false);
-#ifndef Q_OS_ANDROID
-    m_broadcastTimer->start();
-#endif
+    if (serverAddress.scheme() == QLatin1String("tcp")) {
+        m_broadcastTimer->start();
+    }
     connect(m_broadcastTimer, &QTimer::timeout, this, &Server::broadcast);
-    connect(this, &Server::disconnected, m_broadcastTimer, [this]{ m_broadcastTimer->start(); });
+    connect(this, &Server::disconnected, m_broadcastTimer, [this] { m_broadcastTimer->start(); });
 
     connect(m_signalMapper, &MultiSignalMapper::signalEmitted,
             this, &Server::forwardSignal);
 
     Endpoint::addObjectNameAddressMapping(QStringLiteral(
-                                              "com.kdab.GammaRay.PropertySyncer"), ++m_nextAddress);
+                                              "com.kdab.GammaRay.PropertySyncer"),
+                                          ++m_nextAddress);
     m_propertySyncer->setAddress(m_nextAddress);
     Endpoint::registerObject(QStringLiteral("com.kdab.GammaRay.PropertySyncer"), m_propertySyncer);
     registerMessageHandler(m_nextAddress, m_propertySyncer, "handleMessage");
@@ -116,16 +105,21 @@ bool Server::isRemoteClient() const
 
 QUrl Server::serverAddress() const
 {
+    return serverAddress_impl();
+}
+
+QUrl Server::serverAddress_impl() const
+{
 #ifdef Q_OS_ANDROID
-    QUrl url(QString(QLatin1String("local://%1/+gammaray_socket")).arg(QDir::homePath()));
+    const QString defaultServerAddr = QLatin1String("local://") + QDir::homePath() + QLatin1String("/+gammaray_socket");
 #else
-    QUrl url(ProbeSettings::value(QStringLiteral(
-                                      "ServerAddress"), GAMMARAY_DEFAULT_ANY_TCP_URL).toString());
+    const QString defaultServerAddr = QString::fromUtf8(GAMMARAY_DEFAULT_ANY_TCP_URL);
+#endif
+    QUrl url(ProbeSettings::value(QStringLiteral("ServerAddress"), defaultServerAddr).toString());
     if (url.scheme().isEmpty())
         url.setScheme(QStringLiteral("tcp"));
     if (url.port() <= 0)
         url.setPort(defaultPort());
-#endif
     return url;
 }
 
@@ -177,8 +171,7 @@ void Server::messageReceived(const Message &msg)
 {
     if (msg.address() == endpointAddress()) {
         switch (msg.type()) {
-        case Protocol::ClientDataVersionNegotiated:
-        {
+        case Protocol::ClientDataVersionNegotiated: {
             quint8 version;
             msg >> version;
 
@@ -192,8 +185,7 @@ void Server::messageReceived(const Message &msg)
             break;
         }
         case Protocol::ObjectMonitored:
-        case Protocol::ObjectUnmonitored:
-        {
+        case Protocol::ObjectUnmonitored: {
             Protocol::ObjectAddress addr;
             msg >> addr;
             Q_ASSERT(addr > Protocol::InvalidObjectAddress);
@@ -250,7 +242,7 @@ Protocol::ObjectAddress Server::registerObject(const QString &name, QObject *obj
 
     if (isConnected()) {
         Message msg(endpointAddress(), Protocol::ObjectAdded);
-        msg <<  name << m_nextAddress;
+        msg << name << m_nextAddress;
         send(msg);
     }
 
@@ -272,7 +264,7 @@ Protocol::ObjectAddress Server::registerObject(const QString &name, QObject *obj
     return address;
 }
 
-void Server::forwardSignal(QObject *sender, int signalIndex, const QVector< QVariant > &args)
+void Server::forwardSignal(QObject *sender, int signalIndex, const QVector<QVariant> &args)
 {
     if (!isConnected())
         return;
@@ -300,7 +292,7 @@ void Server::registerMonitorNotifier(Protocol::ObjectAddress address, QObject *r
     Q_ASSERT(receiver);
     Q_ASSERT(monitorNotifier);
 
-    m_monitorNotifiers.insert(address, qMakePair<QObject *, QByteArray>(receiver, monitorNotifier));
+    m_monitorNotifiers.insert(address, qMakePair<QObject *, QByteArray>(std::forward<QObject *>(receiver), monitorNotifier));
 }
 
 void Server::handlerDestroyed(Protocol::ObjectAddress objectAddress, const QString &objectName)

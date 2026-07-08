@@ -1,29 +1,14 @@
 /*
   widget3dsubtreemodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2011-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2011 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Daniel Vrátil <daniel.vratil@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "widget3dsubtreemodel.h"
@@ -34,14 +19,15 @@ class Widget3DSubtreeModel::Node
 {
 public:
     explicit Node(const QModelIndex &idx)
-        : sourceIdx(idx),
-          parent(nullptr)
-    {}
+        : sourceIdx(idx)
+        , parent(nullptr)
+    {
+    }
 
     int realChildrenCount() const
     {
         int count = 0;
-        for (int i = 0, c = children.count(); i < c; ++i) {
+        for (int i = 0, c = ( int )children.size(); i < c; ++i) {
             if (children[i]) {
                 count += 1 + children[i]->realChildrenCount();
             }
@@ -51,7 +37,7 @@ public:
 
     QPersistentModelIndex sourceIdx;
     Node *parent;
-    QList<Node*> children;
+    QList<Node *> children;
 };
 
 Widget3DSubtreeModel::Widget3DSubtreeModel(QObject *parent)
@@ -154,7 +140,7 @@ void Widget3DSubtreeModel::populate()
         mNodeLookup.insert(index.data(Widget3DModel::IdRole).toString(), node);
 
         for (int i = 0, c = sourceModel()->rowCount(index); i < c; ++i) {
-            const auto child = index.child(i, 0);
+            const auto child = this->index(i, 0, index);
             Q_ASSERT(child.isValid());
             toVisit.push_back(child);
         }
@@ -230,7 +216,7 @@ int Widget3DSubtreeModel::sourceRowsInserted(const QModelIndex &sourceParent, in
 
     // Recursively count all descendants of "parent" between 0 and "first"
     int realSiblings = 0;
-    Q_ASSERT(!parentNode || first <= parentNode->children.count());
+    Q_ASSERT(!parentNode || first <= parentNode->children.size());
     for (int i = 0; parentNode && i < first; ++i) {
         if (Node *node = parentNode->children.at(i)) {
             realSiblings += 1 + node->realChildrenCount();
@@ -279,7 +265,7 @@ int Widget3DSubtreeModel::sourceRowsInserted(const QModelIndex &sourceParent, in
         }
     }
     if (parentNode) {
-        Q_ASSERT(parentNode->children.count() == sourceModel()->rowCount(sourceParent));
+        Q_ASSERT(parentNode->children.size() == sourceModel()->rowCount(sourceParent));
     }
 
     return insertIndex - parentIdx - realSiblings;
@@ -306,7 +292,7 @@ void GammaRay::Widget3DSubtreeModel::sourceRowsAboutToBeRemoved(const QModelInde
     }
 
     for (int i = last; i >= first; --i) {
-        QModelIndex idx = parent.child(i, 0);
+        QModelIndex idx = index(i, 0, parent);
 
         // Find the node that we are removing and its position in mNodeList
         if (!parentNode->children.at(i)) {
@@ -358,14 +344,15 @@ void GammaRay::Widget3DSubtreeModel::sourceRowsAboutToBeRemoved(const QModelInde
             // Expensive assert that makes sure that we never remove anything
             // that is not a descendant of "parent"
             Q_ASSERT([parent](QModelIndex si) {
-                        while (si.isValid()) {
-                            if (si == parent) {
-                                return si;
-                            }
-                            si = si.parent();
-                        }
+                while (si.isValid()) {
+                    if (si == parent) {
                         return si;
-                    }(node->sourceIdx) == parent);
+                    }
+                    si = si.parent();
+                }
+                return si;
+            }(node->sourceIdx)
+                     == parent);
 
             mNodeLookup.remove(node->sourceIdx.data(Widget3DModel::IdRole).toString());
             delete node;
@@ -374,7 +361,7 @@ void GammaRay::Widget3DSubtreeModel::sourceRowsAboutToBeRemoved(const QModelInde
     }
     // TODO: Maybe rowCount() is not reliable at this point? Maybe compare in
     // sourceRowsRemoved()
-    Q_ASSERT(parentNode->children.count() == sourceModel()->rowCount(parent) - (last - first + 1));
+    Q_ASSERT(parentNode->children.size() == sourceModel()->rowCount(parent) - (last - first + 1));
 }
 
 void Widget3DSubtreeModel::sourceDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight)
@@ -409,12 +396,12 @@ int Widget3DSubtreeModel::columnCount(const QModelIndex &) const
 
 int Widget3DSubtreeModel::rowCount(const QModelIndex &parent) const
 {
-    return parent.isValid() ? 0 : mNodeList.count();
+    return parent.isValid() ? 0 : mNodeList.size();
 }
 
 QModelIndex Widget3DSubtreeModel::index(int row, int column, const QModelIndex &parent) const
 {
-    auto parentNode = static_cast<Node*>(parent.internalPointer());
+    auto parentNode = static_cast<Node *>(parent.internalPointer());
 
     const int parentPos = parentNode ? mNodeList.indexOf(parentNode) : 0;
     Q_ASSERT(parentPos > -1);
@@ -441,7 +428,7 @@ bool Widget3DSubtreeModel::hasChildren(const QModelIndex &parent) const
 QVariant Widget3DSubtreeModel::data(const QModelIndex &index, int role) const
 {
     Q_ASSERT(index.isValid());
-    auto node = static_cast<Node*>(index.internalPointer());
+    auto node = static_cast<Node *>(index.internalPointer());
     Q_ASSERT(node);
 
     return node->sourceIdx.data(role);
@@ -463,7 +450,7 @@ QModelIndex Widget3DSubtreeModel::mapToSource(const QModelIndex &proxyIndex) con
         return QModelIndex();
     }
 
-    auto node = static_cast<Node*>(proxyIndex.internalPointer());
+    auto node = static_cast<Node *>(proxyIndex.internalPointer());
     Q_ASSERT(node);
 
     return node->sourceIdx;

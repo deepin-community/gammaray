@@ -1,29 +1,14 @@
 /*
   actionmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2012-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2012 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Kevin Funk <kevin.funk@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "actionmodel.h"
@@ -62,9 +47,9 @@ ActionModel::ActionModel(QObject *parent)
     , m_duplicateFinder(new ActionValidator(this))
 {
     ProblemCollector::registerProblemChecker("gammaray_actioninspector.ShortcutDuplicates",
-                                          "Shortcut Duplicates",
-                                          "Scans for potential shortcut conflicts in QActions",
-                                          [this]() { scanForShortcutDuplicates(); });
+                                             "Shortcut Duplicates",
+                                             "Scans for potential shortcut conflicts in QActions",
+                                             [this]() { scanForShortcutDuplicates(); });
 }
 
 ActionModel::~ActionModel() = default;
@@ -75,7 +60,7 @@ void ActionModel::objectAdded(QObject *object)
     Q_ASSERT(QThread::currentThread() == thread());
     Q_ASSERT(object);
 
-    QAction * const action = qobject_cast<QAction *>(object);
+    QAction *const action = qobject_cast<QAction *>(object);
     if (!action)
         return;
 
@@ -96,11 +81,11 @@ void ActionModel::objectAdded(QObject *object)
 void ActionModel::objectRemoved(QObject *object)
 {
     Q_ASSERT(thread() == QThread::currentThread());
-    QAction * const action = reinterpret_cast<QAction *>(object); // never dereference this, just use for comparison
+    QAction *const action = reinterpret_cast<QAction *>(object); // never dereference this, just use for comparison
 
     auto it = std::lower_bound(m_actions.begin(),
-                                                       m_actions.end(),
-                                                       reinterpret_cast<QAction *>(object));
+                               m_actions.end(),
+                               reinterpret_cast<QAction *>(object));
     if (it == m_actions.end() || *it != action)
         return;
 
@@ -158,17 +143,17 @@ QVariant ActionModel::data(const QModelIndex &index, int role) const
             return action->icon();
     } else if (role == Qt::CheckStateRole) {
         switch (column) {
-            case AddressColumn:
-                return action->isEnabled() ? Qt::Checked : Qt::Unchecked;
-            case CheckedPropColumn:
-                if (action->isCheckable())
-                    return action->isChecked() ? Qt::Checked : Qt::Unchecked;
-                return QVariant();
+        case AddressColumn:
+            return action->isEnabled() ? Qt::Checked : Qt::Unchecked;
+        case CheckedPropColumn:
+            if (action->isCheckable())
+                return action->isChecked() ? Qt::Checked : Qt::Unchecked;
+            return QVariant();
         }
     } else if (role == ShortcutConflictRole && column == ShortcutsPropColumn) {
         return m_duplicateFinder->hasAmbiguousShortcut(action);
     } else if (role == ActionModel::ObjectRole) {
-        return QVariant::fromValue<QObject*>(action);
+        return QVariant::fromValue<QObject *>(action);
     } else if (role == ActionModel::ObjectIdRole && index.column() == 0) {
         return QVariant::fromValue(ObjectId(action));
     }
@@ -176,7 +161,7 @@ QVariant ActionModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
-Qt::ItemFlags ActionModel::flags(const QModelIndex& index) const
+Qt::ItemFlags ActionModel::flags(const QModelIndex &index) const
 {
     const auto f = QAbstractTableModel::flags(index);
     if (!index.isValid())
@@ -188,17 +173,17 @@ Qt::ItemFlags ActionModel::flags(const QModelIndex& index) const
     return f;
 }
 
-bool ActionModel::setData(const QModelIndex& index, const QVariant& value, int role)
+bool ActionModel::setData(const QModelIndex &index, const QVariant &value, int role)
 {
     if (role == Qt::CheckStateRole && index.isValid()) {
         auto action = m_actions.at(index.row());
         switch (index.column()) {
-            case AddressColumn:
-                action->setEnabled(value.toInt() == Qt::Checked);
-                return true;
-            case CheckedPropColumn:
-                action->setChecked(value.toInt() == Qt::Checked);
-                return true;
+        case AddressColumn:
+            action->setEnabled(value.toInt() == Qt::Checked);
+            return true;
+        case CheckedPropColumn:
+            action->setChecked(value.toInt() == Qt::Checked);
+            return true;
         }
     }
     return QAbstractItemModel::setData(index, value, role);
@@ -206,7 +191,7 @@ bool ActionModel::setData(const QModelIndex& index, const QVariant& value, int r
 
 void ActionModel::actionChanged()
 {
-    auto action = qobject_cast<QAction*>(sender());
+    auto action = qobject_cast<QAction *>(sender());
     if (!action)
         return;
 

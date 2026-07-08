@@ -1,0 +1,15 @@
+Description: Don't make linker warnings fatal
+Author: Adrian Bunk <bunk@debian.org>
+Debian-Bug: https://bugs.debian.org/1116277
+
+--- gammaray-3.2.2.orig/CMakeLists.txt
++++ gammaray-3.2.2/CMakeLists.txt
+@@ -419,7 +419,7 @@ if((CMAKE_SYSTEM_NAME MATCHES Linux OR C
+ )
+     set(_linker_flags "-Wl,-z,origin")
+     if(NOT ECM_ENABLE_SANITIZERS)
+-        set(_linker_flags "-Wl,--fatal-warnings -Wl,--no-undefined -lc ${_linker_flags}")
++        set(_linker_flags "-Wl,--no-undefined -lc ${_linker_flags}")
+     endif()
+     set(CMAKE_SHARED_LINKER_FLAGS "${_linker_flags} ${CMAKE_SHARED_LINKER_FLAGS}")
+     set(CMAKE_MODULE_LINKER_FLAGS "${_linker_flags} ${CMAKE_MODULE_LINKER_FLAGS}")

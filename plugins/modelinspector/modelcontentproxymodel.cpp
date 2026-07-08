@@ -1,29 +1,14 @@
 /*
-  safetyfilterproxymodel.cpp
+  modelcontentproxymodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "modelcontentproxymodel.h"
@@ -68,15 +53,6 @@ void ModelContentProxyModel::setSelectionModel(QItemSelectionModel *selectionMod
 
 QVariant ModelContentProxyModel::data(const QModelIndex &proxyIndex, int role) const
 {
-    // Work around crash in QQmlListModel for unknown roles
-#if QT_VERSION < QT_VERSION_CHECK(5, 6, 1)
-    if (sourceModel() && sourceModel()->inherits("QQmlListModel")) {
-        // data on anything not in roleNames() crashes
-        if (!sourceModel()->roleNames().contains(role))
-            return QVariant();
-    }
-#endif
-
     // we override this below, so convey enabled state via a custom role
     // since disabled is less common then enabled, only transfer disabled states
     if (role == DisabledRole) {
@@ -131,7 +107,7 @@ void ModelContentProxyModel::emitDataChangedForSelection(const QItemSelection &s
     }
 }
 
-void ModelContentProxyModel::selectionChanged(const QItemSelection& selected, const QItemSelection& deselected)
+void ModelContentProxyModel::selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
 {
     emitDataChangedForSelection(deselected);
     emitDataChangedForSelection(selected);

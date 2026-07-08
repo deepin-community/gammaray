@@ -1,29 +1,14 @@
 /*
   signalhistorymodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Mathias Hasselmann <mathias.hasselmann@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "signalhistorymodel.h"
@@ -40,6 +25,7 @@
 #include <QMutex>
 #include <QSet>
 #include <QThread>
+#include <QTimer>
 
 using namespace GammaRay;
 
@@ -72,8 +58,10 @@ static void signal_begin_callback(QObject *caller, int method_index, void **argv
         static const QMetaMethod m = s_historyModel->metaObject()->method(
             s_historyModel->metaObject()->indexOfMethod("onSignalEmitted(QObject*,int)"));
         Q_ASSERT(m.isValid());
+        // clang-format off
         m.invoke(s_historyModel, Qt::AutoConnection, Q_ARG(QObject*, caller),
                  Q_ARG(int, signalIndex));
+        // clang-format on
     }
 }
 
@@ -82,17 +70,25 @@ SignalHistoryModel::SignalHistoryModel(Probe *probe, QObject *parent)
 {
     connect(probe, &Probe::objectCreated, this, &SignalHistoryModel::onObjectAdded);
     connect(probe, &Probe::objectDestroyed, this, &SignalHistoryModel::onObjectRemoved);
+    connect(probe, &Probe::objectFavorited, this, &SignalHistoryModel::onObjectFavorited);
+    connect(probe, &Probe::objectUnfavorited, this, &SignalHistoryModel::onObjectUnfavorited);
 
     SignalSpyCallbackSet spy;
     spy.signalBeginCallback = signal_begin_callback;
     probe->registerSignalSpyCallbackSet(spy);
 
     s_historyModel = this;
+
+    m_delayInsertTimer = new QTimer(this);
+    m_delayInsertTimer->setInterval(100);
+    m_delayInsertTimer->setSingleShot(true);
+    connect(m_delayInsertTimer, &QTimer::timeout, this, &SignalHistoryModel::insertPendingObjects);
 }
 
 SignalHistoryModel::~SignalHistoryModel()
 {
     s_historyModel = nullptr;
+    qDeleteAll(m_objectsToBeInserted);
     qDeleteAll(m_tracedObjects);
 }
 
@@ -148,6 +144,10 @@ QVariant SignalHistoryModel::data(const QModelIndex &index, int role) const
         break;
     }
 
+    if (role == ObjectModel::IsFavoriteRole) {
+        return m_favorites.contains(item(index)->object);
+    }
+
     return QVariant();
 }
 
@@ -167,7 +167,7 @@ QVariant SignalHistoryModel::headerData(int section, Qt::Orientation orientation
     return QVariant();
 }
 
-QMap< int, QVariant > SignalHistoryModel::itemData(const QModelIndex &index) const
+QMap<int, QVariant> SignalHistoryModel::itemData(const QModelIndex &index) const
 {
     QMap<int, QVariant> d = QAbstractItemModel::itemData(index);
     d.insert(EventsRole, data(index, EventsRole));
@@ -176,7 +176,25 @@ QMap< int, QVariant > SignalHistoryModel::itemData(const QModelIndex &index) con
     d.insert(SignalMapRole, data(index, SignalMapRole));
     d.insert(ObjectModel::ObjectIdRole, data(index, ObjectModel::ObjectIdRole));
     d.insert(ObjectModel::DecorationIdRole, data(index, ObjectModel::DecorationIdRole));
+    d.insert(ObjectModel::IsFavoriteRole, data(index, ObjectModel::IsFavoriteRole));
     return d;
+}
+
+void SignalHistoryModel::insertPendingObjects()
+{
+    if (m_objectsToBeInserted.empty())
+        return;
+
+    beginInsertRows(QModelIndex(), ( int )m_tracedObjects.size(), m_tracedObjects.size() + ( int )m_objectsToBeInserted.size() - 1);
+
+    int oldSize = m_tracedObjects.size();
+    m_tracedObjects.append(std::move(m_objectsToBeInserted));
+    for (int i = oldSize; i < m_tracedObjects.size(); ++i) {
+        m_itemIndex.insert(m_tracedObjects[i]->object, i);
+    }
+    m_objectsToBeInserted.clear();
+
+    endInsertRows();
 }
 
 void SignalHistoryModel::onObjectAdded(QObject *object)
@@ -189,19 +207,27 @@ void SignalHistoryModel::onObjectAdded(QObject *object)
         || qstrncmp(object->metaObject()->className(), "QEventDispatcher", 16) == 0)
         return;
 
-    beginInsertRows(QModelIndex(), m_tracedObjects.size(), m_tracedObjects.size());
-
-    auto * const data = new Item(object);
-    m_itemIndex.insert(object, m_tracedObjects.size());
-    m_tracedObjects.push_back(data);
-
-    endInsertRows();
+    m_objectsToBeInserted << new Item(object);
+    if (!m_delayInsertTimer->isActive())
+        m_delayInsertTimer->start();
 }
 
 void SignalHistoryModel::onObjectRemoved(QObject *object)
 {
     Q_ASSERT(thread() == QThread::currentThread());
 
+    {
+        auto it = std::find_if(m_objectsToBeInserted.begin(), m_objectsToBeInserted.end(), [object](Item *item) {
+            return item->object == object;
+        });
+        if (it != m_objectsToBeInserted.end()) {
+            delete *it;
+            m_objectsToBeInserted.erase(it);
+            return;
+        }
+    }
+
+    m_favorites.remove(object);
     const auto it = m_itemIndex.find(object);
     if (it == m_itemIndex.end())
         return;
@@ -213,6 +239,27 @@ void SignalHistoryModel::onObjectRemoved(QObject *object)
     data->object = nullptr;
     emit dataChanged(index(itemIndex, ObjectColumn), index(itemIndex, ObjectColumn)); // for ObjectIdRole
     emit dataChanged(index(itemIndex, EventColumn), index(itemIndex, EventColumn));
+}
+
+void SignalHistoryModel::onObjectFavorited(QObject *object)
+{
+    auto it = m_itemIndex.find(object);
+    if (it == m_itemIndex.end())
+        return;
+    const int itemIndex = *it;
+    m_favorites.insert(object);
+    emit dataChanged(index(itemIndex, ObjectColumn), index(itemIndex, ObjectColumn), { ObjectModel::IsFavoriteRole });
+}
+
+void SignalHistoryModel::onObjectUnfavorited(QObject *object)
+{
+    auto it = m_itemIndex.find(object);
+    if (it == m_itemIndex.end())
+        return;
+    const int itemIndex = *it;
+    Q_ASSERT(m_favorites.contains(object));
+    m_favorites.remove(object);
+    emit dataChanged(index(itemIndex, ObjectColumn), index(itemIndex, ObjectColumn), { ObjectModel::IsFavoriteRole });
 }
 
 void SignalHistoryModel::onSignalEmitted(QObject *sender, int signalIndex)
