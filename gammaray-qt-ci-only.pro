@@ -1,12 +1,11 @@
-# qmake -> cmake wrapper for the Qt CI system
+# This file is part of GammaRay, the Qt application inspection and manipulation tool.
 #
-# DO NOT USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING!
+# SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
 #
-# This only supports a tiny subset of the CMake build system,
-# hardcoded for the needs of integration with the Qt CI system.
+# SPDX-License-Identifier: GPL-2.0-or-later
 #
-# If you are building GammaRay yourself, please use CMake as
-# described in Install. txt
+# Contact KDAB at <info@kdab.com> for commercial licensing options.
+#
 
 requires(linux:!android|win32:!winphone:!winrt|osx)
 requires(!integrity)
@@ -15,7 +14,7 @@ requires(!cross_compile)
 win32: requires(!contains(QMAKE_HOST.version_string,  $$re_escape(8.1)))
 
 message("QMake wrapper for the GammaRay build system is only supported for the Qt CI.")
-message("If you are seeing this and you are not the Qt CI, please refer to Install.txt!")
+message("If you are seeing this and you are not the Qt CI, please refer to INSTALL.md!")
 
 # additional indirection is needed as the above requires conditions don't work correctly
 # in aux templates, on some platforms

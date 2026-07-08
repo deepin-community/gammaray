@@ -1,29 +1,14 @@
 /*
   probeabi.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -31,7 +16,7 @@
 
 #include <QCoreApplication>
 #include <QObject>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QSharedData>
 #include <QString>
 #include <QStringList>
@@ -138,7 +123,7 @@ void ProbeABI::setIsDebug(bool debug)
     d->isDebug = debug;
 }
 
-bool ProbeABI::isDebugRelevant() const
+bool ProbeABI::isDebugRelevant()
 {
 #if defined(Q_OS_MAC) || defined(Q_OS_WIN)
     return true;
@@ -150,25 +135,24 @@ bool ProbeABI::isDebugRelevant() const
 bool ProbeABI::isValid() const
 {
     return hasQtVersion()
-           && !d->architecture.isEmpty()
+        && !d->architecture.isEmpty()
 #ifdef Q_OS_WIN
-           && !d->compiler.isEmpty()
-           && (!isVersionRelevant() || !d->compilerVersion.isEmpty())
+        && !d->compiler.isEmpty()
+        && (!isVersionRelevant() || !d->compilerVersion.isEmpty())
 #endif
-    ;
+        ;
 }
 
 bool ProbeABI::isCompatible(const ProbeABI &referenceABI) const
 {
     return d->majorQtVersion == referenceABI.majorQtVersion()
-           && d->minorQtVersion >= referenceABI.minorQtVersion() // we can work with older probes, since the target defines the Qt libraries being used
-           && d->architecture == referenceABI.architecture()
+        && d->minorQtVersion >= referenceABI.minorQtVersion() // we can work with older probes, since the target defines the Qt libraries being used
+        && d->architecture == referenceABI.architecture()
 #ifdef Q_OS_WIN
-           && d->compiler == referenceABI.compiler()
-           && d->compilerVersion == referenceABI.compilerVersion()
+        && d->compiler == referenceABI.compiler()
+        && d->compilerVersion == referenceABI.compilerVersion()
 #endif
-           && (isDebugRelevant() ? d->isDebug == referenceABI.isDebug() : true)
-    ;
+        && (isDebugRelevant() ? d->isDebug == referenceABI.isDebug() : true);
 }
 
 QString ProbeABI::id() const
@@ -186,9 +170,7 @@ QString ProbeABI::id() const
 #endif
 
     idParts.push_back(architecture());
-    return idParts.join(QStringLiteral("-")).append(isDebugRelevant()
-                                                    && isDebug() ? QStringLiteral(
-                                                        GAMMARAY_DEBUG_POSTFIX) : QString());
+    return idParts.join(QStringLiteral("-")).append(isDebugRelevant() && isDebug() ? QLatin1String(GAMMARAY_DEBUG_POSTFIX) : QString());
 }
 
 ProbeABI ProbeABI::fromString(const QString &id)
@@ -201,10 +183,11 @@ ProbeABI ProbeABI::fromString(const QString &id)
     ProbeABI abi;
 
     // version
-    static QRegExp versionRegExp(R"(^qt(\d+)\_(\d+)$)");
-    if (versionRegExp.indexIn(idParts.value(index++)) != 0)
+    static const QRegularExpression versionRegExp(R"(^qt(\d+)\_(\d+)$)");
+    const auto match = versionRegExp.match(idParts.value(index++));
+    if (!match.hasMatch())
         return ProbeABI();
-    abi.setQtVersion(versionRegExp.cap(1).toInt(), versionRegExp.cap(2).toInt());
+    abi.setQtVersion(match.captured(1).toInt(), match.captured(2).toInt());
 
     // compiler
 #ifdef Q_OS_WIN
@@ -217,7 +200,7 @@ ProbeABI ProbeABI::fromString(const QString &id)
         return ProbeABI();
 
     // architecture / debug/release
-    const QString postfix = QStringLiteral(GAMMARAY_DEBUG_POSTFIX);
+    const QString postfix = QLatin1String(GAMMARAY_DEBUG_POSTFIX);
     QString arch = idParts.value(index);
 
     if (!postfix.isEmpty()) {
@@ -236,7 +219,7 @@ ProbeABI ProbeABI::fromString(const QString &id)
 QString ProbeABI::displayString() const
 {
     if (!isValid())
-        return QString();
+        return ProbeABIContext::tr("Unknown ABI");
 
     QStringList details;
 #ifdef Q_OS_WIN
@@ -250,19 +233,19 @@ QString ProbeABI::displayString() const
     details.push_back(architecture());
 
     return ProbeABIContext::tr("Qt %1.%2 (%3)")
-           .arg(majorQtVersion())
-           .arg(minorQtVersion())
-           .arg(details.join(QStringLiteral(", ")));
+        .arg(majorQtVersion())
+        .arg(minorQtVersion())
+        .arg(details.join(QStringLiteral(", ")));
 }
 
 bool ProbeABI::operator==(const ProbeABI &rhs) const
 {
     return majorQtVersion() == rhs.majorQtVersion()
-           && minorQtVersion() == rhs.minorQtVersion()
-           && architecture() == rhs.architecture()
-           && compiler() == rhs.compiler()
-           && compilerVersion() == rhs.compilerVersion()
-           && isDebug() == rhs.isDebug();
+        && minorQtVersion() == rhs.minorQtVersion()
+        && architecture() == rhs.architecture()
+        && compiler() == rhs.compiler()
+        && compilerVersion() == rhs.compilerVersion()
+        && isDebug() == rhs.isDebug();
 }
 
 bool ProbeABI::operator<(const ProbeABI &rhs) const

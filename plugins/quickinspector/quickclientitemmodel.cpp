@@ -1,29 +1,14 @@
 /*
   quickclientitemmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "quickclientitemmodel.h"
@@ -59,15 +44,13 @@ QVariant QuickClientItemModel::data(const QModelIndex &index, int role) const
         if (role == Qt::ToolTipRole && flags) {
             QString tooltip = ClientDecorationIdentityProxyModel::data(index, role).toString();
             tooltip.append("<p style='white-space:pre'>");
-            //if flags has OutOfView it has also PartiallyOutOfView, no need to test both
-            if ((flags &QuickItemModelRole::PartiallyOutOfView)
+            // if flags has OutOfView it has also PartiallyOutOfView, no need to test both
+            if ((flags & QuickItemModelRole::PartiallyOutOfView)
                 && (~flags & QuickItemModelRole::Invisible)) {
                 QByteArray byteArray;
                 QBuffer buffer(&byteArray);
-                QIcon::fromTheme(QStringLiteral("dialog-warning")).pixmap(16, 16).save(&buffer,
-                                                                                       "PNG");
-                tooltip.append("<img src=\"data:image/png;base64,").
-                append(byteArray.toBase64());
+                QIcon::fromTheme(QStringLiteral("dialog-warning")).pixmap(16, 16).save(&buffer, "PNG");
+                tooltip.append("<img src=\"data:image/png;base64,").append(byteArray.toBase64());
                 if (flags & QuickItemModelRole::OutOfView)
                     tooltip.append("\"> Item is visible, but out of view.");
                 else
@@ -103,11 +86,8 @@ QVariant QuickClientItemModel::data(const QModelIndex &index, int role) const
 
                 QByteArray byteArray;
                 QBuffer buffer(&byteArray);
-                QIcon::fromTheme(QStringLiteral("dialog-information")).pixmap(16, 16).save(&buffer,
-                                                                                           "PNG");
-                tooltip.append(QStringLiteral("<img src=\"data:image/png;base64,").
-                               append(byteArray.toBase64()).
-                               append("\"> Item %1.").arg(flagStrings.join(QStringLiteral(", "))));
+                QIcon::fromTheme(QStringLiteral("dialog-information")).pixmap(16, 16).save(&buffer, "PNG");
+                tooltip.append(QStringLiteral("<img src=\"data:image/png;base64,").append(byteArray.toBase64()).append("\"> Item %1.").arg(flagStrings.join(QStringLiteral(", "))));
             }
             tooltip.append("</p>");
             return tooltip;

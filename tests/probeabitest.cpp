@@ -1,29 +1,14 @@
 /*
   probeabitest.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <launcher/core/probeabi.h>
@@ -37,7 +22,7 @@ class ProbeABITest : public QObject
 {
     Q_OBJECT
 private slots:
-    void testIsValid()
+    static void testIsValid()
     {
         ProbeABI abi;
         QVERIFY(!abi.isValid());
@@ -57,7 +42,7 @@ private slots:
         QVERIFY(abi.isValid());
     }
 
-    void testToString_data()
+    static void testToString_data()
     {
         QTest::addColumn<QString>("id", nullptr);
         QTest::addColumn<int>("majorVersion", nullptr);
@@ -70,17 +55,22 @@ private slots:
         QTest::newRow("invalid") << QString() << -1 << -1 << false << QString() << QString() << QString();
 #ifndef Q_OS_WIN
 #if defined(Q_OS_MAC)
-        QTest::newRow("mac") << "qt5_2-x86_64_debug" << 5 << 2 << true << "x86_64" << "CLANG" << QString();
+        QTest::newRow("mac") << "qt5_2-x86_64_debug" << 5 << 2 << true << "x86_64"
+                             << "CLANG" << QString();
 #else
-        QTest::newRow("unix") << "qt5_2-x86_64" << 5 << 2 << true << "x86_64" << "GCC" << QString();
+        QTest::newRow("unix") << "qt5_2-x86_64" << 5 << 2 << true << "x86_64"
+                              << "GCC" << QString();
 #endif
 #else
-        QTest::newRow("msvc") << "qt5_2-MSVC-140-x86_64d" << 5 << 2 << true << "x86_64" << "MSVC" << "140";
-        QTest::newRow("mingw") << "qt5_2-GNU-i686" << 5 << 2 << false << "i686" << "GNU" << QString();
+        QTest::newRow("msvc") << "qt5_2-MSVC-140-x86_64d" << 5 << 2 << true << "x86_64"
+                              << "MSVC"
+                              << "140";
+        QTest::newRow("mingw") << "qt5_2-GNU-i686" << 5 << 2 << false << "i686"
+                               << "GNU" << QString();
 #endif
     }
 
-    void testToString()
+    static void testToString()
     {
         QFETCH(QString, id);
         QFETCH(int, majorVersion);
@@ -100,7 +90,7 @@ private slots:
         QCOMPARE(abi.id(), id);
     }
 
-    void testFromString_data()
+    static void testFromString_data()
     {
         QTest::addColumn<QString>("id", nullptr);
         QTest::addColumn<bool>("valid", nullptr);
@@ -126,16 +116,19 @@ private slots:
         QTest::newRow("mac") << "qt5_2-x86_64_debug" << true << 5 << 2 << true << "x86_64"
                              << "CLANG" << QString();
 #else
-        QTest::newRow("unix") << "qt5_2-x86_64" << true << 5 << 2 << true << "x86_64" << "GCC" << QString();
+        QTest::newRow("unix") << "qt5_2-x86_64" << true << 5 << 2 << true << "x86_64"
+                              << "GCC" << QString();
 #endif
 #else
         QTest::newRow("msvc") << "qt5_2-MSVC-140-x86_64d" << true << 5 << 2 << true << "x86_64"
-                              << "MSVC" << "140";
-        QTest::newRow("mingw") << "qt5_2-GNU-i686d" << true << 5 << 2 << true << "i686" << "GNU" << QString();
+                              << "MSVC"
+                              << "140";
+        QTest::newRow("mingw") << "qt5_2-GNU-i686d" << true << 5 << 2 << true << "i686"
+                               << "GNU" << QString();
 #endif
     }
 
-    void testFromString()
+    static void testFromString()
     {
         QFETCH(QString, id);
         QFETCH(bool, valid);
@@ -166,25 +159,29 @@ private slots:
 #endif
     }
 
-    void testDisplayString_data()
+    static void testDisplayString_data()
     {
         QTest::addColumn<QString>("id", nullptr);
         QTest::addColumn<QString>("display", nullptr);
 
-        QTest::newRow("invalid") << QString() << QString();
+        QTest::newRow("invalid") << QString() << "Unknown ABI";
 #ifndef Q_OS_WIN
 #if defined(Q_OS_MAC)
-        QTest::newRow("mac") << "qt5_2-x86_64_debug" << "Qt 5.2 (debug, x86_64)";
+        QTest::newRow("mac") << "qt5_2-x86_64_debug"
+                             << "Qt 5.2 (debug, x86_64)";
 #else
-        QTest::newRow("unix") << "qt5_2-x86_64" << "Qt 5.2 (x86_64)";
+        QTest::newRow("unix") << "qt5_2-x86_64"
+                              << "Qt 5.2 (x86_64)";
 #endif
 #else
-        QTest::newRow("msvc") << "qt5_2-MSVC-140-x86_64d" << "Qt 5.2 (MSVC, 140, debug, x86_64)";
-        QTest::newRow("mingw") << "qt5_2-GNU-i686d" << "Qt 5.2 (GNU, debug, i686)";
+        QTest::newRow("msvc") << "qt5_2-MSVC-140-x86_64d"
+                              << "Qt 5.2 (MSVC, 140, debug, x86_64)";
+        QTest::newRow("mingw") << "qt5_2-GNU-i686d"
+                               << "Qt 5.2 (GNU, debug, i686)";
 #endif
     }
 
-    void testDisplayString()
+    static void testDisplayString()
     {
         QFETCH(QString, id);
         QFETCH(QString, display);
@@ -193,7 +190,7 @@ private slots:
         QCOMPARE(abi.displayString(), display);
     }
 
-    void testProbeABICompat()
+    static void testProbeABICompat()
     {
 #ifndef Q_OS_WIN
         const ProbeABI targetABI = ProbeABI::fromString(QStringLiteral("qt5_2-x86_64"));
@@ -241,7 +238,7 @@ private slots:
         QCOMPARE(targetABI.isCompatible(incompatABI), !compilerAbiMatters);
     }
 
-    void testProbeABISort()
+    static void testProbeABISort()
     {
         ProbeABI qt52;
         qt52.setQtVersion(5, 2);

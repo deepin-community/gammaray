@@ -1,29 +1,14 @@
 /*
   tcpserverdevice.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "tcpserverdevice.h"
@@ -49,9 +34,12 @@ bool TcpServerDevice::listen()
 {
     const QHostAddress address(m_address.host());
     // try the requested port first, and fall back to a random port otherwise
-    if (m_server->listen(address, m_address.port()))
-        return true;
-    return m_server->listen(address, 0);
+    auto result = m_server->listen(address, m_address.port());
+    if (!result) {
+        result = m_server->listen(address, 0);
+    }
+    emit externalAddressChanged();
+    return result;
 }
 
 bool TcpServerDevice::isListening() const
@@ -76,7 +64,7 @@ QString TcpServerDevice::bestAvailableIP(const QHostAddress &address) const
                 || !addr.scopeId().isEmpty())
                 continue;
 
-            //If its our desired IP (e.g. from --listen) return early
+            // If its our desired IP (e.g. from --listen) return early
             if (addr == address)
                 return addr.toString();
             if (firstHostFound.isEmpty())
@@ -94,7 +82,7 @@ QUrl TcpServerDevice::externalAddress() const
     if (address.isLoopback()) {
         myHost = address.toString();
     } else {
-        //scan Interfaces for available IPs, use requested address if we can find it.
+        // scan Interfaces for available IPs, use requested address if we can find it.
         myHost = bestAvailableIP(address);
     }
 
@@ -109,8 +97,8 @@ QUrl TcpServerDevice::externalAddress() const
             myHost = QHostAddress(QHostAddress::LocalHostIPv6).toString();
             break;
         case QAbstractSocket::UnknownNetworkLayerProtocol:
-            Q_ASSERT_X(false, "TcpServerDevice::externalAddress", "unknown TCP protocol");
-            break;
+            qWarning() << "TcpServerDevice::externalAddress - unknown TCP protocol";
+            return m_address;
         }
     }
 

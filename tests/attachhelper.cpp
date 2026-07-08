@@ -1,34 +1,19 @@
 /*
-  attachdialog.h
+  attachhelper.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Milian Wolff <milian.wolff@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "attachhelper.h"
 
-#ifdef Q_OS_WIN32
+#ifdef Q_OS_WIN
 #ifndef NOMINMAX
 // compile fix for Qt5+VS2010+QDateTime, see:
 // https://forum.qt.io/topic/21605/solved-qt5-vs2010-qdatetime-not-enough-actual-parameters-for-macro-min-max
@@ -44,6 +29,8 @@
 #include <QDebug>
 #include <QDateTime>
 
+#include <cstdlib>
+
 AttachHelper::AttachHelper(const QString &gammaray, const QString &injector,
                            const QString &debuggee, const QStringList &arguments, QObject *parent)
     : QObject(parent)
@@ -54,15 +41,15 @@ AttachHelper::AttachHelper(const QString &gammaray, const QString &injector,
 {
     m_proc->setProcessChannelMode(QProcess::ForwardedChannels);
     connect(m_proc, &QProcess::started, this, &AttachHelper::processStarted);
-    connect(m_proc, static_cast<void(QProcess::*)(int)>(&QProcess::finished), this, &AttachHelper::processFinished);
+    connect(m_proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &AttachHelper::processFinished);
     m_proc->start(debuggee, arguments);
 }
 
 void AttachHelper::processStarted()
 {
     // attach randomly after 1-1500 ms
-    qsrand(QDateTime::currentMSecsSinceEpoch());
-    const int timeout = qrand() % 1500 + 1;
+    std::srand(QDateTime::currentMSecsSinceEpoch());
+    const int timeout = std::rand() % 1500 + 1;
     qDebug() << "attaching gammaray in" << timeout << "ms";
     m_timer->setSingleShot(true);
     connect(m_timer, &QTimer::timeout, this, &AttachHelper::attach);
@@ -84,11 +71,7 @@ void AttachHelper::attach()
     gammaray.setProcessChannelMode(QProcess::ForwardedChannels);
     QStringList args;
     args << QStringLiteral("--inprocess") << QStringLiteral("-i") << m_injector;
-#ifdef Q_OS_WIN32
-    args << QStringLiteral("-p") << QString::number(m_proc->pid()->dwProcessId);
-#else
-    args << QStringLiteral("-p") << QString::number(m_proc->pid());
-#endif
+    args << QStringLiteral("-p") << QString::number(m_proc->processId());
     args << QStringLiteral("-nodialogs");
     args << QStringLiteral("--listen") << QStringLiteral("tcp://127.0.0.1/");
     const int ret = gammaray.execute(m_gammaray, args);
@@ -121,7 +104,8 @@ int main(int argc, char **argv)
     // run the self-test first, and skip the test if that fails
     // this prevents failures with Yama ptrace_scope activated for example
     if (QProcess::execute(gammaray,
-                          QStringList() << QStringLiteral("--self-test") << injector) == 1) {
+                          QStringList() << QStringLiteral("--self-test") << injector)
+        == 1) {
         qWarning() << "Skipping test due to injector self-test failure!";
         return 0;
     }

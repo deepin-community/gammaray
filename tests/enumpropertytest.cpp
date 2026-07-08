@@ -1,29 +1,14 @@
 /*
   enumpropertytest.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <core/enumutil.h>
@@ -41,7 +26,8 @@ using namespace GammaRay;
 class EnumHolder
 {
 public:
-    enum MyEnum {
+    enum MyEnum
+    {
         Value0 = 0,
         Value1 = 1,
         Value2 = 2,
@@ -61,17 +47,29 @@ static const MetaEnum::Value<EnumHolder::MyEnum> my_enum_table[] = {
     // Value3 intentionally missing
 };
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
 namespace EnumNS {
-    Q_NAMESPACE
-    enum UnscopedEnum { AVal, BVal };
-    Q_ENUM_NS(UnscopedEnum)
-    enum class ScopedEnum { CVal, DVal };
-    Q_ENUM_NS(ScopedEnum)
+Q_NAMESPACE
+enum UnscopedEnum
+{
+    AVal,
+    BVal
+};
+Q_ENUM_NS(UnscopedEnum)
+enum class ScopedEnum
+{
+    CVal,
+    DVal
+};
+Q_ENUM_NS(ScopedEnum)
 
-    enum UnscopedFlag { AFlag = 1, BFlag = 2, CFlag = 4 };
-    Q_DECLARE_FLAGS(UnscopedFlags, UnscopedFlag)
-    Q_FLAG_NS(UnscopedFlags)
+enum UnscopedFlag
+{
+    AFlag = 1,
+    BFlag = 2,
+    CFlag = 4
+};
+Q_DECLARE_FLAGS(UnscopedFlags, UnscopedFlag)
+Q_FLAG_NS(UnscopedFlags)
 #if 0 // see QTBUG-47652
     enum class ScopedFlag { DFlag = 8, EFlag = 16, FFlag = 32 };
     Q_DECLARE_FLAGS(ScopedFlags, ScopedFlag)
@@ -81,14 +79,17 @@ namespace EnumNS {
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(EnumNS::UnscopedFlags)
 // Q_DECLARE_OPERATORS_FOR_FLAGS(EnumNS::ScopedFlags)
-#endif
 
 namespace MyNS {
 class MyObject : public QObject
 {
     Q_OBJECT
 public:
-    enum MyEnum { MyValue1, MyValue2 };
+    enum MyEnum
+    {
+        MyValue1,
+        MyValue2
+    };
     Q_ENUM(MyEnum)
 };
 
@@ -102,12 +103,12 @@ class EnumPropertyTest : public QObject
 {
     Q_OBJECT
 public:
-    explicit EnumPropertyTest(QObject *parent = nullptr) :
-        QObject(parent)
+    explicit EnumPropertyTest(QObject *parent = nullptr)
+        : QObject(parent)
     {
-        qRegisterMetaType<QFrame*>();
+        qRegisterMetaType<QFrame *>();
         qRegisterMetaType<QFrame::Shadow>();
-        qRegisterMetaType<MyNS::MyObject*>();
+        qRegisterMetaType<MyNS::MyObject *>();
 
         EnumRepositoryServer::create(this);
         ER_REGISTER_ENUM(EnumHolder, MyEnum, my_enum_table);
@@ -115,11 +116,11 @@ public:
     }
 
 private slots:
-    void testEnumToString_data()
+    static void testEnumToString_data()
     {
         QTest::addColumn<QVariant>("variant", nullptr);
         QTest::addColumn<QByteArray>("name", nullptr);
-        QTest::addColumn<const QMetaObject*>("mo", nullptr);
+        QTest::addColumn<const QMetaObject *>("mo", nullptr);
         QTest::addColumn<QString>("result", nullptr);
 
         const QMetaObject *nullObj = nullptr;
@@ -135,9 +136,9 @@ private slots:
         QTest::newRow("global enum") << QVariant::fromValue<Qt::LayoutDirection>(Qt::LeftToRight) << QByteArray() << nullObj << QStringLiteral("LeftToRight");
 
         // global flag
-        QTest::newRow("global flag as int, name") << QVariant::fromValue<int>(Qt::AlignHCenter|Qt::AlignTop) << QByteArray("Qt::Alignment") << nullObj << QStringLiteral("AlignHCenter|AlignTop");
-        QTest::newRow("global flag, name") << QVariant::fromValue<Qt::Alignment>(Qt::AlignHCenter|Qt::AlignTop) << QByteArray("Qt::Alignment") << nullObj << QStringLiteral("AlignHCenter|AlignTop");
-        QTest::newRow("global flag") << QVariant::fromValue<Qt::Alignment>(Qt::AlignHCenter|Qt::AlignTop) << QByteArray() << nullObj << QStringLiteral("AlignHCenter|AlignTop");
+        QTest::newRow("global flag as int, name") << QVariant::fromValue<int>(Qt::AlignHCenter | Qt::AlignTop) << QByteArray("Qt::Alignment") << nullObj << QStringLiteral("AlignHCenter|AlignTop");
+        QTest::newRow("global flag, name") << QVariant::fromValue<Qt::Alignment>(Qt::AlignHCenter | Qt::AlignTop) << QByteArray("Qt::Alignment") << nullObj << QStringLiteral("AlignHCenter|AlignTop");
+        QTest::newRow("global flag") << QVariant::fromValue<Qt::Alignment>(Qt::AlignHCenter | Qt::AlignTop) << QByteArray() << nullObj << QStringLiteral("AlignHCenter|AlignTop");
 
         // object-local enum
         QTest::newRow("local enum as int, QMO/name") << QVariant::fromValue<int>(QFrame::Sunken) << QByteArray("QFrame::Shadow") << &QFrame::staticMetaObject << QStringLiteral("Sunken");
@@ -157,12 +158,12 @@ private slots:
         QTest::newRow("gadget enum") << QVariant::fromValue<QSizePolicy::Policy>(QSizePolicy::Maximum) << QByteArray() << nullObj << QStringLiteral("Maximum");
 
         // gadget-local flag
-        QTest::newRow("gadget flag as int, QMO/name") << QVariant::fromValue<int>(QSizePolicy::Frame|QSizePolicy::Label) << QByteArray("QSizePolicy::ControlTypes") << &QSizePolicy::staticMetaObject << QStringLiteral("Frame|Label");
-        QTest::newRow("gadget flag as int, name") << QVariant::fromValue<int>(QSizePolicy::Frame|QSizePolicy::Label) << QByteArray("QSizePolicy::ControlTypes") << nullObj << QStringLiteral("Frame|Label");
-        QTest::newRow("gadget flag, QMO/name") << QVariant::fromValue<QSizePolicy::ControlTypes>(QSizePolicy::Frame|QSizePolicy::Label) << QByteArray("QSizePolicy::ControlTypes") << &QSizePolicy::staticMetaObject << QStringLiteral("Frame|Label");
-        QTest::newRow("gadget flag, QMO") << QVariant::fromValue<QSizePolicy::ControlTypes>(QSizePolicy::Frame|QSizePolicy::Label) << QByteArray() << &QSizePolicy::staticMetaObject << QStringLiteral("Frame|Label");
-        QTest::newRow("gadget flag, name") << QVariant::fromValue<QSizePolicy::ControlTypes>(QSizePolicy::Frame|QSizePolicy::Label) << QByteArray("QSizePolicy::ControlTypes") << nullObj << QStringLiteral("Frame|Label");
-        QTest::newRow("gadget flag") << QVariant::fromValue<QSizePolicy::ControlTypes>(QSizePolicy::Frame|QSizePolicy::Label) << QByteArray() << nullObj << QStringLiteral("Frame|Label");
+        QTest::newRow("gadget flag as int, QMO/name") << QVariant::fromValue<int>(QSizePolicy::Frame | QSizePolicy::Label) << QByteArray("QSizePolicy::ControlTypes") << &QSizePolicy::staticMetaObject << QStringLiteral("Frame|Label");
+        QTest::newRow("gadget flag as int, name") << QVariant::fromValue<int>(QSizePolicy::Frame | QSizePolicy::Label) << QByteArray("QSizePolicy::ControlTypes") << nullObj << QStringLiteral("Frame|Label");
+        QTest::newRow("gadget flag, QMO/name") << QVariant::fromValue<QSizePolicy::ControlTypes>(QSizePolicy::Frame | QSizePolicy::Label) << QByteArray("QSizePolicy::ControlTypes") << &QSizePolicy::staticMetaObject << QStringLiteral("Frame|Label");
+        QTest::newRow("gadget flag, QMO") << QVariant::fromValue<QSizePolicy::ControlTypes>(QSizePolicy::Frame | QSizePolicy::Label) << QByteArray() << &QSizePolicy::staticMetaObject << QStringLiteral("Frame|Label");
+        QTest::newRow("gadget flag, name") << QVariant::fromValue<QSizePolicy::ControlTypes>(QSizePolicy::Frame | QSizePolicy::Label) << QByteArray("QSizePolicy::ControlTypes") << nullObj << QStringLiteral("Frame|Label");
+        QTest::newRow("gadget flag") << QVariant::fromValue<QSizePolicy::ControlTypes>(QSizePolicy::Frame | QSizePolicy::Label) << QByteArray() << nullObj << QStringLiteral("Frame|Label");
 
         // non-Qt enum
         QTest::newRow("plain enum, in map") << QVariant::fromValue(EnumHolder::Value2) << QByteArray() << nullObj << QStringLiteral("Value2");
@@ -172,10 +173,9 @@ private slots:
         QTest::newRow("plain flag, single, in map") << QVariant::fromValue<EnumHolder::MyFlags>(EnumHolder::Value2) << QByteArray() << nullObj << QStringLiteral("Value2");
         QTest::newRow("plain flag, double, in map") << QVariant::fromValue<EnumHolder::MyFlags>(EnumHolder::Value2 | EnumHolder::Value1) << QByteArray() << nullObj << QStringLiteral("Value1|Value2");
         QTest::newRow("plain flag, single, not in map") << QVariant::fromValue<EnumHolder::MyFlags>(EnumHolder::Value3) << QByteArray() << nullObj << QStringLiteral("flag 0x4");
-        QTest::newRow("plain flag, double, mixed") << QVariant::fromValue<EnumHolder::MyFlags>(EnumHolder::Value2|EnumHolder::Value3) << QByteArray() << nullObj << QStringLiteral("Value2|flag 0x4");
+        QTest::newRow("plain flag, double, mixed") << QVariant::fromValue<EnumHolder::MyFlags>(EnumHolder::Value2 | EnumHolder::Value3) << QByteArray() << nullObj << QStringLiteral("Value2|flag 0x4");
         QTest::newRow("plain flag, empty") << QVariant::fromValue(EnumHolder::MyFlags()) << QByteArray() << nullObj << QStringLiteral("Value0");
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
         // namespaced unscoped enum
         QTest::newRow("ns enum as int, QMO/name") << QVariant::fromValue<int>(EnumNS::BVal) << QByteArray("EnumNS::UnscopedEnum") << &EnumNS::staticMetaObject << QStringLiteral("BVal");
         QTest::newRow("ns enum as int, name") << QVariant::fromValue<int>(EnumNS::AVal) << QByteArray("EnumNS::UnscopedEnum") << nullObj << QStringLiteral("AVal");
@@ -201,14 +201,13 @@ private slots:
         QTest::newRow("ns flag") << QVariant::fromValue<EnumNS::UnscopedFlags>(EnumNS::BFlag | EnumNS::CFlag) << QByteArray() << nullObj << QStringLiteral("BFlag|CFlag");
 
 #if 0 // see QTBUG-47652
-        // namespaced scoped flag
+      // namespaced scoped flag
         QTest::newRow("ns scoped flag as int, QMO/name") << QVariant::fromValue<int>(static_cast<int>(EnumNS::ScopedFlag::EFlag | EnumNS::ScopedFlag::FFlag)) << QByteArray("EnumNS::ScopedFlags") << &EnumNS::staticMetaObject << QStringLiteral("EFlag|FFlag");
         QTest::newRow("ns scoped flag as int, name") << QVariant::fromValue<int>(static_cast<int>(EnumNS::ScopedFlag::DFlag | EnumNS::ScopedFlag::FFlag)) << QByteArray("EnumNS::ScopedFlags") << nullObj << QStringLiteral("DFlag|FFlag");
         QTest::newRow("ns scoped flag, QMO/name") << QVariant::fromValue<EnumNS::ScopedFlags>(EnumNS::ScopedFlag::EFlag | EnumNS::ScopedFlag::FFlag) << QByteArray("EnumNS::ScopedFlags") << &EnumNS::staticMetaObject << QStringLiteral("EFlag|FFlag");
         QTest::newRow("ns scoped flag, QMO") << QVariant::fromValue<EnumNS::ScopedFlags>(EnumNS::ScopedFlag::EFlag | EnumNS::ScopedFlag::FFlag) << QByteArray() << &EnumNS::staticMetaObject << QStringLiteral("EFlag|FFlag");
         QTest::newRow("ns scoped flag, name") << QVariant::fromValue<EnumNS::ScopedFlags>(EnumNS::ScopedFlag::EFlag | EnumNS::ScopedFlag::FFlag) << QByteArray("EnumNS::ScopedFlags") << nullObj << QStringLiteral("EFlag|FFlag");
         QTest::newRow("ns scoped flag") << QVariant::fromValue<EnumNS::ScopedFlags>(EnumNS::ScopedFlag::EFlag | EnumNS::ScopedFlag::FFlag) << QByteArray() << nullObj << QStringLiteral("EFlag|FFlag");
-#endif
 #endif
 
         // enums from namespace QObjects
@@ -219,7 +218,7 @@ private slots:
         QTest::newRow("ns object as int, semi-qualified enum in different object") << QVariant::fromValue<int>(MyNS::MyObject::MyValue2) << QByteArray("MyObject::MyEnum") << &MyNS::MyOtherObject::staticMetaObject << QStringLiteral("MyValue2");
     }
 
-    void testEnumToString()
+    static void testEnumToString()
     {
         QFETCH(QVariant, variant);
         QFETCH(QByteArray, name);
@@ -229,7 +228,6 @@ private slots:
         const auto str = EnumUtil::enumToString(variant, name, mo);
         QCOMPARE(str, result);
     }
-
 };
 
 QTEST_MAIN(EnumPropertyTest)

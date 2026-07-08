@@ -1,29 +1,14 @@
 /*
   probeabidetector_mac.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 // krazy:excludeall=null since used by Darwin internals
 
@@ -39,6 +24,7 @@
 #include <QString>
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <mach-o/fat.h>
 #include <mach-o/loader.h>
 
 using namespace GammaRay;
@@ -54,11 +40,10 @@ static QString resolveBundlePath(const QString &bundlePath)
         return bundlePath;
 
     const QByteArray utf8Bundle = fi.absoluteFilePath().toUtf8();
-    CFURLRef bundleUrl
-        = CFURLCreateFromFileSystemRepresentation(NULL,
-                                                  reinterpret_cast<const UInt8 *>(utf8Bundle.data()),
-                                                  utf8Bundle.length(), true);
-    CFBundleRef bundle = CFBundleCreate(NULL, bundleUrl);
+    CFURLRef bundleUrl = CFURLCreateFromFileSystemRepresentation(nullptr,
+                                                                 reinterpret_cast<const UInt8 *>(utf8Bundle.data()),
+                                                                 utf8Bundle.length(), true);
+    CFBundleRef bundle = CFBundleCreate(nullptr, bundleUrl);
     if (bundle) {
         CFURLRef url = CFBundleCopyExecutableURL(bundle);
         char executableFile[FILENAME_MAX];
@@ -108,15 +93,28 @@ static QStringList readRPaths(const QString &path)
 
     auto size = f.size();
     const uchar *data = f.map(0, size);
-    if (!data || (uint)size <= sizeof(quint32))
+    if (!data || ( uint )size <= sizeof(quint32))
         return rpaths;
 
     quint32 offset = 0;
     qint32 ncmds = 0;
     qint32 cmdsize = 0;
+    qint32 arch_header_offset = 0;
 
     const quint32 magic = *reinterpret_cast<const quint32 *>(data);
     switch (magic) {
+    case FAT_CIGAM: {
+        const fat_header *header = reinterpret_cast<const fat_header *>(data);
+        for (unsigned long i = 0; i < OSSwapInt32(header->nfat_arch); ++i) {
+            const fat_arch *arch_header = reinterpret_cast<const fat_arch *>(data + sizeof(fat_header) + sizeof(fat_arch) * i);
+            if (OSSwapInt32(arch_header->cputype) & CPU_ARCH_ABI64) {
+                arch_header_offset = OSSwapInt32(arch_header->offset);
+                readMachOHeader<mach_header_64>(data + arch_header_offset, size, offset, ncmds, cmdsize);
+                break;
+            }
+        }
+        break;
+    }
     case MH_MAGIC:
         readMachOHeader<mach_header>(data, size, offset, ncmds, cmdsize);
         break;
@@ -131,9 +129,9 @@ static QStringList readRPaths(const QString &path)
     // read load commands
     const auto pathBase = QFileInfo(path).absolutePath();
     for (int i = 0; i < ncmds; ++i) {
-        const load_command *cmd = reinterpret_cast<const load_command *>(data + offset);
+        const load_command *cmd = reinterpret_cast<const load_command *>(data + arch_header_offset + offset);
         if (cmd->cmd == LC_RPATH) {
-            const rpath_command *rpcmd = reinterpret_cast<const rpath_command *>(data + offset);
+            const rpath_command *rpcmd = reinterpret_cast<const rpath_command *>(data + arch_header_offset + offset);
             auto rpath = QString::fromUtf8(reinterpret_cast<const char *>(rpcmd) + rpcmd->path.offset);
             rpath.replace(QStringLiteral("@executable_path"), pathBase);
             rpath.replace(QStringLiteral("@loader_path"), pathBase);
@@ -156,7 +154,7 @@ static QString resolveRPath(const QString &path, const QStringList &rpaths)
     return path;
 }
 
-QString ProbeABIDetector::qtCoreForExecutable(const QString &path) const
+QString ProbeABIDetector::qtCoreForExecutable(const QString &path)
 {
     auto qtCorePath = qtCoreFromOtool(resolveBundlePath(path));
     qtCorePath = resolveRPath(qtCorePath, readRPaths(path));
@@ -166,6 +164,21 @@ QString ProbeABIDetector::qtCoreForExecutable(const QString &path) const
 QString ProbeABIDetector::qtCoreForProcess(quint64 pid) const
 {
     return qtCoreFromLsof(pid);
+}
+
+static QString archFromCpuType(cpu_type_t cputype)
+{
+    switch (cputype) {
+    case CPU_TYPE_I386:
+        return "i686";
+    case CPU_TYPE_X86_64:
+        return "x86_64";
+    case CPU_TYPE_ARM64:
+        return "arm64";
+    }
+
+    printf("archFromCpuType: Unknown cpu_type_t value: %d\n", ( int )cputype);
+    return QString();
 }
 
 template<typename T>
@@ -180,36 +193,20 @@ static QString readMachOHeader(const uchar *data, quint64 size, quint32 &offset,
     ncmds = header->ncmds;
     cmdsize = header->sizeofcmds;
 
-    switch (header->cputype) {
-    case CPU_TYPE_I386:
-        return "i686";
-    case CPU_TYPE_X86_64:
-        return "x86_64";
-    }
-
-    return QString();
+    return archFromCpuType(header->cputype);
 }
 
-static ProbeABI abiFromMachO(const QString &path, const uchar *data, qint64 size)
+template<typename T>
+static bool readAbiFromMachOHeader(const uchar *data, quint64 size, ProbeABI *abi)
 {
-    ProbeABI abi;
-    const quint32 magic = *reinterpret_cast<const quint32 *>(data);
-
     quint32 offset = 0;
     qint32 ncmds = 0;
     qint32 cmdsize = 0;
 
-    switch (magic) {
-    case MH_MAGIC:
-        abi.setArchitecture(readMachOHeader<mach_header>(data, size, offset, ncmds, cmdsize));
-        break;
-    case MH_MAGIC_64:
-        abi.setArchitecture(readMachOHeader<mach_header_64>(data, size, offset, ncmds, cmdsize));
-        break;
-    }
+    abi->setArchitecture(readMachOHeader<T>(data, size, offset, ncmds, cmdsize));
 
     if (offset >= size || ncmds <= 0 || cmdsize <= 0 || size <= offset + cmdsize)
-        return ProbeABI();
+        return false;
 
     // read load commands
     for (int i = 0; i < ncmds; ++i) {
@@ -218,31 +215,72 @@ static ProbeABI abiFromMachO(const QString &path, const uchar *data, qint64 size
             const dylib_command *dlcmd = reinterpret_cast<const dylib_command *>(data + offset);
             const int majorVersion = (dlcmd->dylib.current_version & 0x00ff0000) >> 16;
             const int minorVersion = (dlcmd->dylib.current_version & 0x0000ff00) >> 8;
-            abi.setQtVersion(majorVersion, minorVersion);
+            abi->setQtVersion(majorVersion, minorVersion);
         }
         offset += cmd->cmdsize;
+    }
+
+    return true;
+}
+
+static QVector<ProbeABI> abiFromMachO(const QString &path, const uchar *data, qint64 size)
+{
+    QVector<ProbeABI> result;
+    const quint32 magic = *reinterpret_cast<const quint32 *>(data);
+
+    switch (magic) {
+    case FAT_CIGAM: {
+        const fat_header *header = reinterpret_cast<const fat_header *>(data);
+        for (unsigned long i = 0; i < OSSwapInt32(header->nfat_arch); ++i) {
+            const fat_arch *arch_header = reinterpret_cast<const fat_arch *>(data + sizeof(fat_header) + sizeof(fat_arch) * i);
+            if (OSSwapInt32(arch_header->cputype) & CPU_ARCH_ABI64) {
+                ProbeABI abi;
+                if (readAbiFromMachOHeader<mach_header_64>(data + OSSwapInt32(arch_header->offset), size, &abi)) {
+                    result << abi;
+                }
+                abi.setArchitecture(archFromCpuType(OSSwapInt32(arch_header->cputype)));
+            }
+        }
+        break;
+    }
+    case MH_MAGIC: {
+        ProbeABI abi;
+        if (readAbiFromMachOHeader<mach_header>(data, size, &abi)) {
+            result << abi;
+        }
+        break;
+    }
+    case MH_MAGIC_64: {
+        ProbeABI abi;
+        if (readAbiFromMachOHeader<mach_header_64>(data, size, &abi)) {
+            result << abi;
+        }
+        break;
+    }
     }
 
     if (QFileInfo(path).baseName().endsWith(QStringLiteral("_debug"), Qt::CaseInsensitive)) {
         // We can probably also look for a S_ATTR_DEBUG segment, in the data, but that might not prove it's a debug
         // build as we can add debug symbols to release builds.
-        abi.setIsDebug(true);
+        for (ProbeABI &abi : result) {
+            abi.setIsDebug(true);
+        }
     }
 
-    return abi;
+    return result;
 }
 
-ProbeABI ProbeABIDetector::detectAbiForQtCore(const QString &path) const
+QVector<ProbeABI> ProbeABIDetector::detectAbiForQtCore(const QString &path)
 {
     if (path.isEmpty())
-        return ProbeABI();
+        return {};
 
     QFile f(path);
     if (!f.open(QFile::ReadOnly))
-        return ProbeABI();
+        return {};
 
     const uchar *data = f.map(0, f.size());
-    if (!data || (uint)f.size() <= sizeof(quint32))
-        return ProbeABI();
+    if (!data || ( uint )f.size() <= sizeof(quint32))
+        return {};
     return abiFromMachO(path, data, f.size());
 }

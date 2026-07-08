@@ -1,29 +1,14 @@
 /*
   styleoption.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2012-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2012 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "styleoption.h"
@@ -32,9 +17,6 @@
 
 using namespace GammaRay;
 
-// The following commit in qtbase.git deprecated versioned style class in 5.7.0
-//   95a6dc1 - QStyleOption*V<N>: mark as Q_DECL_DEPRECATED
-#if QT_VERSION >= QT_VERSION_CHECK(5, 7, 0)
 using QStyleOptionFrameCV = QStyleOptionFrame;
 using QStyleOptionToolBoxCV = QStyleOptionToolBox;
 using QStyleOptionTabCV = QStyleOptionTab;
@@ -42,22 +24,17 @@ using QStyleOptionTabBarBaseCV = QStyleOptionTabBarBase;
 using QStyleOptionTabWidgetFrameCV = QStyleOptionTabWidgetFrame;
 using QStyleOptionViewItemCV = QStyleOptionViewItem;
 using QStyleOptionProgressBarCV = QStyleOptionProgressBar;
-#else
-typedef QStyleOptionFrameV3 QStyleOptionFrameCV;
-typedef QStyleOptionToolBoxV2 QStyleOptionToolBoxCV;
-typedef QStyleOptionTabBarBaseV2 QStyleOptionTabBarBaseCV;
-typedef QStyleOptionTabV3 QStyleOptionTabCV;
-typedef QStyleOptionTabWidgetFrameV2 QStyleOptionTabWidgetFrameCV;
-typedef QStyleOptionViewItemV4 QStyleOptionViewItemCV;
-typedef QStyleOptionProgressBarV2 QStyleOptionProgressBarCV;
-#endif
 
-struct style_state_t {
+struct style_state_t
+{
     const char *name;
     QStyle::State state;
 };
 
-#define MAKE_STATE(state) { #state, QStyle:: state }
+#define MAKE_STATE(state)     \
+    {                         \
+        #state, QStyle::state \
+    }
 
 static const style_state_t styleStates[] = {
     MAKE_STATE(State_None),
@@ -225,9 +202,9 @@ QStyleOption *StyleOption::makeTitleBarStyleOption()
     auto *opt = new QStyleOptionTitleBar;
     opt->text = QStringLiteral("Title");
     opt->titleBarFlags = Qt::WindowMinMaxButtonsHint
-                         |Qt::WindowTitleHint
-                         |Qt::WindowSystemMenuHint
-                         |Qt::WindowCloseButtonHint;
+        | Qt::WindowTitleHint
+        | Qt::WindowSystemMenuHint
+        | Qt::WindowCloseButtonHint;
     return opt;
 }
 

@@ -1,29 +1,14 @@
 /*
   launchertest.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2017-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -45,7 +30,7 @@
 
 #include <memory>
 
-#ifdef Q_OS_WIN32
+#ifdef Q_OS_WIN
 #include <qt_windows.h>
 #endif
 
@@ -56,7 +41,7 @@ class LauncherTest : public QObject
 {
     Q_OBJECT
 private:
-    bool hasInjector(const char *type) const
+    static bool hasInjector(const char *type)
     {
         auto injector = InjectorFactory::createInjector(type);
         if (!injector)
@@ -76,7 +61,7 @@ private slots:
             QTest::newRow("windll") << QStringLiteral("windll");
     }
 
-    void testLauncher()
+    static void testLauncher()
     {
         QFETCH(QString, injectorType);
         if (injectorType.isEmpty())
@@ -95,23 +80,23 @@ private slots:
         options.setProbeSetting(QStringLiteral("ServerAddress"), GAMMARAY_DEFAULT_LOCAL_TCP_URL);
         Launcher launcher(options);
 
-        QSignalSpy startSpy(&launcher, SIGNAL(started()));
+        QSignalSpy startSpy(&launcher, &Launcher::started);
         QVERIFY(startSpy.isValid());
-        QSignalSpy finishSpy(&launcher, SIGNAL(finished()));
+        QSignalSpy finishSpy(&launcher, &Launcher::finished);
         QVERIFY(finishSpy.isValid());
 
         QVERIFY(launcher.start());
         startSpy.wait(60000);
-        QCOMPARE(startSpy.count(), 1);
-        QCOMPARE(finishSpy.count(), 0);
+        QCOMPARE(startSpy.size(), 1);
+        QCOMPARE(finishSpy.size(), 0);
 
         launcher.stop();
         finishSpy.wait(10000);
-        QCOMPARE(finishSpy.count(), 1);
+        QCOMPARE(finishSpy.size(), 1);
     }
 
 #ifdef HAVE_QT_WIDGETS
-    void testLauncherStyle()
+    static void testLauncherStyle()
     {
         LaunchOptions options;
         options.setUiMode(LaunchOptions::NoUi);
@@ -126,51 +111,49 @@ private slots:
         options.setProbeSetting(QStringLiteral("ServerAddress"), GAMMARAY_DEFAULT_LOCAL_TCP_URL);
         Launcher launcher(options);
 
-        QSignalSpy startSpy(&launcher, SIGNAL(started()));
+        QSignalSpy startSpy(&launcher, &Launcher::started);
         QVERIFY(startSpy.isValid());
-        QSignalSpy finishSpy(&launcher, SIGNAL(finished()));
+        QSignalSpy finishSpy(&launcher, &Launcher::finished);
         QVERIFY(finishSpy.isValid());
 
         QVERIFY(launcher.start());
         startSpy.wait(60000);
-        QCOMPARE(startSpy.count(), 1);
-        QCOMPARE(finishSpy.count(), 0);
+        QCOMPARE(startSpy.size(), 1);
+        QCOMPARE(finishSpy.size(), 0);
 
         launcher.stop();
         finishSpy.wait(10000);
-        QCOMPARE(finishSpy.count(), 1);
+        QCOMPARE(finishSpy.size(), 1);
     }
 #endif
 
-    void testAttach()
+    static void testAttach()
     {
         QProcess target;
+        auto cleanup = kdScopeGuard([&target] {
+            target.kill();
+            target.waitForFinished();
+        });
+
         target.setProcessChannelMode(QProcess::ForwardedChannels);
-        target.start(QLatin1String(TESTBIN_DIR "/minimalcoreapplication"));
+        target.start(QLatin1String(TESTBIN_DIR "/minimalcoreapplication"), {}, QProcess::ReadWrite);
         QVERIFY(target.waitForStarted());
 
         LaunchOptions options;
         options.setUiMode(LaunchOptions::NoUi);
         options.setProbeSetting(QStringLiteral("ServerAddress"), GAMMARAY_DEFAULT_LOCAL_TCP_URL);
-#ifdef Q_OS_WIN
-        options.setPid(target.pid()->dwProcessId);
-#else
-        options.setPid(target.pid());
-#endif
+        options.setPid(target.processId());
         QTest::qWait(5000); // give the target some time to actually load the QtCore DLL, otherwise ABI detection fails
         ProbeABIDetector detector;
         options.setProbeABI(ProbeFinder::findBestMatchingABI(detector.abiForProcess(options.pid())));
         Launcher launcher(options);
 
-        QSignalSpy spy(&launcher, SIGNAL(attached()));
+        QSignalSpy spy(&launcher, &Launcher::attached);
         QVERIFY(spy.isValid());
         QVERIFY(launcher.start());
 
         spy.wait(30000);
-        QCOMPARE(spy.count(), 1);
-
-        target.kill();
-        target.waitForFinished();
+        QCOMPARE(spy.size(), 1);
     }
 };
 

@@ -1,3 +1,15 @@
+/*
+  config-gammaray.h.cmake
+
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2011 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
+
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
+*/
+
 #if !defined(CONFIG_GAMMARAY_H)
 #define CONFIG_GAMMARAY_H
 
@@ -45,7 +57,6 @@
 #cmakedefine HAVE_QT_SCXML
 #cmakedefine HAVE_QT_SVG
 #cmakedefine HAVE_QT_DESIGNER
-#cmakedefine HAVE_QT_PRINTSUPPORT
 
 #cmakedefine HAVE_SYNTAX_HIGHLIGHTING
 
@@ -53,12 +64,9 @@
 #cmakedefine HAVE_SYS_ELF_H
 #cmakedefine HAVE_ELF
 
-#cmakedefine GAMMARAY_ENABLE_GPL_ONLY_FEATURES
 #cmakedefine GAMMARAY_CORE_ONLY_LAUNCHER
 #cmakedefine GAMMARAY_STATIC_PROBE
 #cmakedefine GAMMARAY_DISABLE_FEEDBACK
-
-#cmakedefine GAMMARAY_WITH_WIDGET3D
 
 #define QT_LIBINFIX "@QT_LIBINFIX@"
 

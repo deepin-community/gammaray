@@ -1,34 +1,17 @@
 /*
   test_connections.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Milian Wolff <milian.wolff@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "test_connections.h"
-
-#include <compat/qasconst.h>
 
 #include <QApplication>
 #include <QDebug>
@@ -43,7 +26,7 @@ const int TIMEOUTS = 100;
 // BEGIN TestObject
 TestObject::TestObject(QObject *parent)
     : QObject(parent)
-// test object creation in ctor
+    // test object creation in ctor
     , child(new QObject(this))
 {
     setObjectName(QStringLiteral("TestObject"));
@@ -108,7 +91,7 @@ void TestConnections::timeout()
         obj->deleteLater();
     } else {
         // delete last objects
-        for (int i = 0; i < m_objects.count(); ++i) {
+        for (int i = 0; i < m_objects.size(); ++i) {
             QObject *obj = m_objects.at(i);
             switch (m_type) {
             case Delete:
@@ -202,7 +185,7 @@ void TestWaiter::startThreadsAndWaitForFinished()
     if (m_threads.isEmpty() && m_tester.isEmpty())
         return;
 
-    for (TestThread *thread : qAsConst(m_threads)) {
+    for (TestThread *thread : std::as_const(m_threads)) {
         thread->start();
     }
 
@@ -242,11 +225,9 @@ void TestMain::run()
 {
     QFETCH(int, type);
 
-    bool manual
-        = QProcessEnvironment::systemEnvironment().value(QStringLiteral("GAMMARAY_TEST_MANUAL")).
-          toInt();
+    bool manual = QProcessEnvironment::systemEnvironment().value(QStringLiteral("GAMMARAY_TEST_MANUAL")).toInt();
     TestConnections tester(static_cast<TestConnections::Type>(type),
-                           manual ? -1 : TIMEOUTS);
+                           manual ? -1 : 15);
 
     TestWaiter waiter;
     waiter.addTester(&tester);
@@ -258,7 +239,7 @@ void TestMain::threading()
     TestWaiter waiter;
     const int timeouts = 10;
     // some testers to be run in the main thread
-    // with varying timouts
+    // with varying timeouts
     TestConnections tester1(TestConnections::NoEventLoop, timeouts, 10);
     waiter.addTester(&tester1);
     TestConnections tester2(TestConnections::Delete, timeouts, 11);

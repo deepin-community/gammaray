@@ -1,29 +1,14 @@
 /*
   probeabidetector_win.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -33,8 +18,6 @@
 #include "pefile.h"
 
 #include <common/commonutils.h>
-
-#include <compat/qasconst.h>
 
 #include <QDebug>
 #include <QDir>
@@ -70,19 +53,19 @@ static QStringList dllSearchPaths(const QString &exePath)
     TCHAR syspath[256];
     UINT len = GetSystemDirectoryW(syspath, sizeof(syspath));
     Q_ASSERT(len <= sizeof(syspath) && len > 0);
-    paths.push_back(QString::fromUtf16(reinterpret_cast<const ushort *>(syspath), len));
+    paths.push_back(QString::fromUtf16(reinterpret_cast<const char16_t *>(syspath), len));
 
     // (3) windows directory
     TCHAR dirpath[256];
     len = GetWindowsDirectoryW(dirpath, sizeof(dirpath));
     Q_ASSERT(len <= sizeof(dirpath));
-    paths.push_back(QString::fromUtf16(reinterpret_cast<const ushort *>(dirpath), len));
+    paths.push_back(QString::fromUtf16(reinterpret_cast<const char16_t *>(dirpath), len));
 
     // (4) current working dir
     paths.push_back(QDir::currentPath());
 
     // (5) PATH
-    const auto envPaths = QString::fromLocal8Bit(qgetenv("PATH"));
+    const auto envPaths = qEnvironmentVariable("PATH");
     paths += envPaths.split(';');
 
     return paths;
@@ -105,10 +88,13 @@ static QString resolveImport(const QString &import, const QStringList &searchPat
     qDebug() << "Could not resolve import" << import << "in" << searchPaths;
     return QString();
 }
-struct Version {
+struct Version
+{
     Version(int major, int minor)
-        : major(major), minor(minor)
-    {}
+        : major(major)
+        , minor(minor)
+    {
+    }
     int major;
     int minor;
 };
@@ -118,7 +104,7 @@ static Version fileVersion(const QString &path)
     // version
     DWORD pointlessHandle;
     DWORD fileVersionInfoSize = GetFileVersionInfoSize(
-                reinterpret_cast<LPCWSTR>(path.utf16()), &pointlessHandle);
+        reinterpret_cast<LPCWSTR>(path.utf16()), &pointlessHandle);
     if (fileVersionInfoSize) {
         QScopedArrayPointer<BYTE> buffer(new BYTE[fileVersionInfoSize]);
         if (GetFileVersionInfoW(reinterpret_cast<LPCWSTR>(path.utf16()), pointlessHandle,
@@ -126,7 +112,8 @@ static Version fileVersion(const QString &path)
             void *versionInfoData;
             unsigned int versionInfoSize;
             if (VerQueryValue(buffer.data(), TEXT("\\"), &versionInfoData,
-                              &versionInfoSize) && versionInfoSize) {
+                              &versionInfoSize)
+                && versionInfoSize) {
                 VS_FIXEDFILEINFO *versionInfo = reinterpret_cast<VS_FIXEDFILEINFO *>(versionInfoData);
                 if (versionInfo->dwSignature == VS_FFI_SIGNATURE)
                     return Version(versionInfo->dwFileVersionMS >> 16, versionInfo->dwFileVersionMS & 0xFFFF);
@@ -149,7 +136,7 @@ QString absoluteExecutablePath(const QString &path)
     }
 
     // attempt to appends missing .exe extensions
-    const auto pathExt = QString::fromLocal8Bit(qgetenv("PATHEXT")).toLower().split(QLatin1Char(';'));
+    const auto pathExt = qEnvironmentVariable("PATHEXT").toLower().split(QLatin1Char(';'));
     for (const auto &ext : pathExt) {
         const auto extendedPath = path + ext;
         if (QFile::exists(extendedPath)) {
@@ -160,7 +147,7 @@ QString absoluteExecutablePath(const QString &path)
     return path;
 }
 
-QString ProbeABIDetector::qtCoreForExecutable(const QString &path) const
+QString ProbeABIDetector::qtCoreForExecutable(const QString &path)
 {
     const auto exe = absoluteExecutablePath(path);
     const auto searchPaths = dllSearchPaths(exe);
@@ -168,13 +155,13 @@ QString ProbeABIDetector::qtCoreForExecutable(const QString &path) const
     QSet<QString> checkedImports;
 
     while (!resolvedImports.isEmpty()) {
-        for (const auto &import : qAsConst(resolvedImports)) {
+        for (const auto &import : std::as_const(resolvedImports)) {
             if (containsQtCore(import.toUtf8()))
                 return import;
         }
 
         QStringList resolvedSubImports;
-        for (const auto &import : qAsConst(resolvedImports)) {
+        for (const auto &import : std::as_const(resolvedImports)) {
             PEFile f(import);
             if (!f.isValid())
                 continue;
@@ -202,7 +189,7 @@ QString ProbeABIDetector::qtCoreForProcess(quint64 pid) const
     // If the function fails with ERROR_BAD_LENGTH, retry the function until it succeeds.
     do {
         snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
-    } while(GetLastError() == ERROR_BAD_LENGTH);
+    } while (GetLastError() == ERROR_BAD_LENGTH);
     if (GetLastError() == ERROR_ACCESS_DENIED) {
         return QString();
     }
@@ -210,9 +197,9 @@ QString ProbeABIDetector::qtCoreForProcess(quint64 pid) const
 
     for (bool hasNext = Module32First(snapshot, &me); hasNext;
          hasNext = Module32Next(snapshot, &me)) {
-        const QString module = QString::fromUtf16(reinterpret_cast<const ushort *>(me.szModule));
+        const QString module = QString::fromUtf16(reinterpret_cast<const char16_t *>(me.szModule));
         if (containsQtCore(module.toUtf8())) {
-            const QString path = QString::fromUtf16(reinterpret_cast<const ushort *>(me.szExePath));
+            const QString path = QString::fromUtf16(reinterpret_cast<const char16_t *>(me.szExePath));
             CloseHandle(snapshot);
             return path;
         }
@@ -226,6 +213,8 @@ static QString compilerFromLibraries(const QStringList &libraries)
     for (const QString &lib : libraries) {
         if (lib.startsWith(QLatin1String("libgcc"), Qt::CaseInsensitive))
             return "GNU";
+        if (lib.startsWith(QLatin1String("libc++."), Qt::CaseInsensitive))
+            return "Clang";
     }
 
     return "MSVC";
@@ -234,8 +223,7 @@ static QString compilerFromLibraries(const QStringList &libraries)
 static QString compilerVersionFromLibraries(const QStringList &libraries)
 {
     for (const QString &lib : libraries) {
-        if (lib.startsWith(QLatin1String("msvcp"), Qt::CaseInsensitive) ||
-            lib.startsWith(QLatin1String("vcruntime"), Qt::CaseInsensitive)) {
+        if (lib.startsWith(QLatin1String("msvcp"), Qt::CaseInsensitive) || lib.startsWith(QLatin1String("vcruntime"), Qt::CaseInsensitive)) {
             return QString::number(fileVersion(lib).major * 10);
         }
     }
@@ -247,27 +235,27 @@ static bool isDebugBuild(const QString &qtCoreDll)
     return qtCoreDll.endsWith(QLatin1String("d.dll"), Qt::CaseInsensitive);
 }
 
-ProbeABI ProbeABIDetector::detectAbiForQtCore(const QString &path) const
+QVector<ProbeABI> ProbeABIDetector::detectAbiForQtCore(const QString &path)
 {
     ProbeABI abi;
     if (path.isEmpty())
-        return abi;
+        return {};
 
     Version version = fileVersion(path);
     if (version.major == -1)
-        return abi;
+        return {};
 
     abi.setQtVersion(version.major, version.minor);
 
     // architecture and dependent libraries
     PEFile f(path);
     if (!f.isValid())
-        return ProbeABI();
+        return {};
 
     // architecture
     abi.setArchitecture(f.architecture());
     if (abi.architecture().isEmpty())
-        return ProbeABI();
+        return {};
 
     // compiler and debug mode
     QStringList libs = f.imports();
@@ -277,5 +265,5 @@ ProbeABI ProbeABIDetector::detectAbiForQtCore(const QString &path) const
         abi.setCompilerVersion(compilerVersionFromLibraries(libs));
     }
 
-    return abi;
+    return { abi };
 }

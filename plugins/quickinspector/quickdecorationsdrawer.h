@@ -1,29 +1,14 @@
 /*
   quickdecorationsdrawer.h
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Filipe Azevedo <filipe.azevedo@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #ifndef GAMMARAY_QUICKINSPECTOR_QUICKDECORATIONSDRAWER_H
@@ -56,26 +41,13 @@ struct QuickDecorationsSettings
     {
     }
 
-    bool operator==(const QuickDecorationsSettings &other) const {
-        return boundingRectColor == other.boundingRectColor &&
-                boundingRectBrush == other.boundingRectBrush &&
-                geometryRectColor == other.geometryRectColor &&
-                geometryRectBrush == other.geometryRectBrush &&
-                childrenRectColor == other.childrenRectColor &&
-                childrenRectBrush == other.childrenRectBrush &&
-                transformOriginColor == other.transformOriginColor &&
-                coordinatesColor == other.coordinatesColor &&
-                marginsColor == other.marginsColor &&
-                paddingColor == other.paddingColor &&
-                gridOffset == other.gridOffset &&
-                gridCellSize == other.gridCellSize &&
-                gridColor == other.gridColor &&
-                componentsTraces == other.componentsTraces &&
-                gridEnabled == other.gridEnabled
-                ;
+    bool operator==(const QuickDecorationsSettings &other) const
+    {
+        return boundingRectColor == other.boundingRectColor && boundingRectBrush == other.boundingRectBrush && geometryRectColor == other.geometryRectColor && geometryRectBrush == other.geometryRectBrush && childrenRectColor == other.childrenRectColor && childrenRectBrush == other.childrenRectBrush && transformOriginColor == other.transformOriginColor && coordinatesColor == other.coordinatesColor && marginsColor == other.marginsColor && paddingColor == other.paddingColor && gridOffset == other.gridOffset && gridCellSize == other.gridCellSize && gridColor == other.gridColor && componentsTraces == other.componentsTraces && gridEnabled == other.gridEnabled;
     }
 
-    bool operator!=(const QuickDecorationsSettings &other) const {
+    bool operator!=(const QuickDecorationsSettings &other) const
+    {
         return !operator==(other);
     }
 
@@ -99,40 +71,46 @@ struct QuickDecorationsSettings
 QDataStream &operator<<(QDataStream &stream, const GammaRay::QuickDecorationsSettings &settings);
 QDataStream &operator>>(QDataStream &stream, GammaRay::QuickDecorationsSettings &settings);
 
-struct QuickDecorationsBaseRenderInfo {
+struct QuickDecorationsBaseRenderInfo
+{
     QuickDecorationsBaseRenderInfo(const QuickDecorationsSettings &settings = QuickDecorationsSettings(),
                                    const QRectF &viewRect = QRectF(),
                                    qreal zoom = 1.0)
         : settings(settings)
         , viewRect(viewRect)
         , zoom(zoom)
-    { }
+    {
+    }
 
     const QuickDecorationsSettings settings;
     const QRectF viewRect;
     const qreal zoom;
 };
 
-struct QuickDecorationsRenderInfo : QuickDecorationsBaseRenderInfo {
+struct QuickDecorationsRenderInfo : QuickDecorationsBaseRenderInfo
+{
     QuickDecorationsRenderInfo(const QuickDecorationsSettings &settings = QuickDecorationsSettings(),
                                const QuickItemGeometry &itemGeometry = QuickItemGeometry(),
                                const QRectF &viewRect = QRectF(),
                                qreal zoom = 1.0)
         : QuickDecorationsBaseRenderInfo(settings, viewRect, zoom)
         , itemGeometry(itemGeometry)
-    { }
+    {
+    }
 
     const QuickItemGeometry itemGeometry;
 };
 
-struct QuickDecorationsTracesInfo : QuickDecorationsBaseRenderInfo {
+struct QuickDecorationsTracesInfo : QuickDecorationsBaseRenderInfo
+{
     QuickDecorationsTracesInfo(const QuickDecorationsSettings &settings = QuickDecorationsSettings(),
                                const QVector<QuickItemGeometry> &itemsGeometry = QVector<QuickItemGeometry>(),
                                const QRectF &viewRect = QRectF(),
                                qreal zoom = 1.0)
         : QuickDecorationsBaseRenderInfo(settings, viewRect, zoom)
         , itemsGeometry(itemsGeometry)
-    { }
+    {
+    }
 
     const QVector<QuickItemGeometry> itemsGeometry;
 };
@@ -140,7 +118,8 @@ struct QuickDecorationsTracesInfo : QuickDecorationsBaseRenderInfo {
 class QuickDecorationsDrawer
 {
 public:
-    enum Type {
+    enum Type
+    {
         Decorations,
         Traces
     };
@@ -151,7 +130,8 @@ public:
     void render();
 
 private:
-    struct DrawTextInfo {
+    struct DrawTextInfo
+    {
         DrawTextInfo(const QPen &pen = QPen(), const QRectF &rect = QRectF(),
                      const QString &label = QString(),
                      int align = Qt::AlignCenter | Qt::TextDontClip)
@@ -159,7 +139,8 @@ private:
             , rect(rect)
             , label(label)
             , align(align)
-        { }
+        {
+        }
 
         QPen pen;
         QRectF rect;

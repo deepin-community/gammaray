@@ -1,29 +1,14 @@
 /*
   signalhistorymodel.h
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Mathias Hasselmann <mathias.hasselmann@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #ifndef GAMMARAY_SIGNALHISTORYMODEL_H
@@ -36,6 +21,7 @@
 #include <QIcon>
 #include <QMetaMethod>
 #include <QByteArray>
+#include <QSet>
 
 namespace GammaRay {
 class Probe;
@@ -58,18 +44,26 @@ private:
         const qint64 startTime; // FIXME: make them all methods
         qint64 endTime() const;
 
-        qint64 timestamp(int i) const { return SignalHistoryModel::timestamp(events.at(i)); }
-        int signalIndex(int i) const { return SignalHistoryModel::signalIndex(events.at(i)); }
+        qint64 timestamp(int i) const
+        {
+            return SignalHistoryModel::timestamp(events.at(i));
+        }
+        int signalIndex(int i) const
+        {
+            return SignalHistoryModel::signalIndex(events.at(i));
+        }
     };
 
 public:
-    enum ColumnId {
+    enum ColumnId
+    {
         ObjectColumn,
         TypeColumn,
         EventColumn
     };
 
-    enum RoleId {
+    enum RoleId
+    {
         EventsRole = ObjectModel::UserRole + 1,
         StartTimeRole,
         EndTimeRole,
@@ -86,8 +80,14 @@ public:
                         int role = Qt::DisplayRole) const override;
     QMap<int, QVariant> itemData(const QModelIndex &index) const override;
 
-    static qint64 timestamp(qint64 ev) { return ev >> 16; }
-    static int signalIndex(qint64 ev) { return ev & 0xffff; }
+    static qint64 timestamp(qint64 ev)
+    {
+        return ev >> 16;
+    }
+    static int signalIndex(qint64 ev)
+    {
+        return ev & 0xffff;
+    }
 
 private:
     Item *item(const QModelIndex &index) const;
@@ -95,11 +95,18 @@ private:
 private slots:
     void onObjectAdded(QObject *object);
     void onObjectRemoved(QObject *object);
+    void onObjectFavorited(QObject *object);
+    void onObjectUnfavorited(QObject *object);
     void onSignalEmitted(QObject *sender, int signalIndex);
+    void insertPendingObjects();
 
 private:
     QVector<Item *> m_tracedObjects;
     QHash<QObject *, int> m_itemIndex;
+    QSet<QObject *> m_favorites;
+
+    QTimer *m_delayInsertTimer;
+    QVector<Item *> m_objectsToBeInserted;
 };
 } // namespace GammaRay
 

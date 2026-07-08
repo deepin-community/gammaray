@@ -1,29 +1,14 @@
 /*
   messagehandler.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Milian Wolff <milian.wolff@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "messagehandler.h"
@@ -50,18 +35,17 @@
 using namespace GammaRay;
 
 using MessageHandlerCallback = QtMessageHandler;
-static MessageHandlerCallback(*const installMessageHandler)(MessageHandlerCallback)
-    = qInstallMessageHandler;
+static MessageHandlerCallback (*const installMessageHandler)(MessageHandlerCallback) = qInstallMessageHandler;
 
 static MessageModel *s_model = nullptr;
 static MessageHandlerCallback s_handler = nullptr;
 static bool s_handlerDisabled = false;
-static QMutex s_mutex(QMutex::Recursive);
+Q_GLOBAL_STATIC(QRecursiveMutex, s_mutex)
 
 static void handleMessage(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
-    ///WARNING: do not trigger *any* kind of debug output here
-    ///         this would trigger an infinite loop and hence crash!
+    /// WARNING: do not trigger *any* kind of debug output here
+    ///          this would trigger an infinite loop and hence crash!
 
     if (s_handlerDisabled) // recursion detected
         return;
@@ -81,10 +65,9 @@ static void handleMessage(QtMsgType type, const QMessageLogContext &context, con
     }
 
     if (!message.backtrace.empty()
-        && (qgetenv("GAMMARAY_UNITTEST") == "1" || type == QtFatalMsg)) {
+        && (qEnvironmentVariableIntValue("GAMMARAY_UNITTEST") == 1 || type == QtFatalMsg)) {
         if (type == QtFatalMsg)
-            std::cerr << "QFatal in " << qPrintable(qApp->applicationName()) << " (" << qPrintable(
-                qApp->applicationFilePath()) << ')' << std::endl;
+            std::cerr << "QFatal in " << qPrintable(qApp->applicationName()) << " (" << qPrintable(qApp->applicationFilePath()) << ')' << std::endl;
         std::cerr << "START BACKTRACE:" << std::endl;
         int i = 0;
         foreach (const auto &frame, Execution::resolveAll(message.backtrace))
@@ -92,8 +75,8 @@ static void handleMessage(QtMsgType type, const QMessageLogContext &context, con
         std::cerr << "END BACKTRACE" << std::endl;
     }
 
-    if (type == QtFatalMsg && qgetenv("GAMMARAY_GDB") != "1"
-        && qgetenv("GAMMARAY_UNITTEST") != "1") {
+    if (type == QtFatalMsg && qEnvironmentVariableIntValue("GAMMARAY_GDB") != 1
+        && qEnvironmentVariableIntValue("GAMMARAY_UNITTEST") != 1) {
         // Enforce handling on the GUI thread and block until we are done.
         QMetaObject::invokeMethod(static_cast<QObject *>(s_model)->parent(), "handleFatalMessage",
                                   qApp->thread() == QThread::currentThread() ? Qt::DirectConnection : Qt::BlockingQueuedConnection,
@@ -103,7 +86,7 @@ static void handleMessage(QtMsgType type, const QMessageLogContext &context, con
     // reset msg handler so the app still works as usual
     // but make sure we don't let other threads bypass our
     // handler during that time
-    QMutexLocker lock(&s_mutex);
+    QMutexLocker lock(s_mutex());
     s_handlerDisabled = true;
     if (s_handler) { // try a direct call to the previous handler first, that avoids triggering the recursion detection in Qt5
         s_handler(type, context, msg);
@@ -156,7 +139,7 @@ MessageHandler::MessageHandler(Probe *probe, QObject *parent)
 
 MessageHandler::~MessageHandler()
 {
-    QMutexLocker lock(&s_mutex);
+    QMutexLocker lock(s_mutex());
 
     s_model = nullptr;
     MessageHandlerCallback oldHandler = installMessageHandler(s_handler);
@@ -167,9 +150,14 @@ MessageHandler::~MessageHandler()
     s_handler = nullptr;
 }
 
+void MessageHandler::generateFullTrace()
+{
+    setFullTrace(m_stackTraceModel->fullTrace());
+}
+
 void MessageHandler::ensureHandlerInstalled()
 {
-    QMutexLocker lock(&s_mutex);
+    QMutexLocker lock(s_mutex());
 
     if (s_handlerDisabled)
         return;
@@ -183,8 +171,8 @@ void MessageHandler::ensureHandlerInstalled()
 void MessageHandler::handleFatalMessage(const DebugMessage &message)
 {
     const QString app = qApp->applicationName().isEmpty()
-                        ? qApp->applicationFilePath()
-                        : qApp->applicationName();
+        ? qApp->applicationFilePath()
+        : qApp->applicationName();
     QStringList bt;
     bt.reserve(message.backtrace.size());
     foreach (const auto &frame, Execution::resolveAll(message.backtrace)) {
@@ -198,7 +186,7 @@ void MessageHandler::handleFatalMessage(const DebugMessage &message)
         Endpoint::instance()->waitForMessagesWritten();
 }
 
-void MessageHandler::messageSelected(const QItemSelection& selection)
+void MessageHandler::messageSelected(const QItemSelection &selection)
 {
     if (selection.isEmpty()) {
         setStackTraceAvailable(false);

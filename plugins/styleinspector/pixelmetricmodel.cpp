@@ -1,29 +1,14 @@
 /*
   pixelmetricmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2012-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2012 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "pixelmetricmodel.h"
@@ -33,12 +18,16 @@
 
 using namespace GammaRay;
 
-struct pixel_metric_t {
+struct pixel_metric_t
+{
     const char *name;
     QStyle::PixelMetric pixelMetric;
 };
 
-#define MAKE_PM(metric) { #metric, QStyle:: metric }
+#define MAKE_PM(metric)         \
+    {                           \
+        #metric, QStyle::metric \
+    }
 
 static const pixel_metric_t pixelMetrics[] = {
     MAKE_PM(PM_ButtonMargin),
@@ -82,9 +71,11 @@ static const pixel_metric_t pixelMetrics[] = {
     MAKE_PM(PM_IndicatorHeight),
     MAKE_PM(PM_ExclusiveIndicatorWidth),
     MAKE_PM(PM_ExclusiveIndicatorHeight),
+#if QT_VERSION < QT_VERSION_CHECK(6, 8, 0)
     MAKE_PM(PM_DialogButtonsSeparator),
     MAKE_PM(PM_DialogButtonsButtonWidth),
     MAKE_PM(PM_DialogButtonsButtonHeight),
+#endif
     MAKE_PM(PM_MdiSubWindowFrameWidth),
     MAKE_PM(PM_MdiSubWindowMinimizedWidth),
     MAKE_PM(PM_HeaderMargin),
@@ -100,9 +91,6 @@ static const pixel_metric_t pixelMetrics[] = {
     MAKE_PM(PM_ToolBarSeparatorExtent),
     MAKE_PM(PM_ToolBarExtensionExtent),
     MAKE_PM(PM_SpinBoxSliderHeight),
-    MAKE_PM(PM_DefaultTopLevelMargin),
-    MAKE_PM(PM_DefaultChildMargin),
-    MAKE_PM(PM_DefaultLayoutSpacing),
     MAKE_PM(PM_ToolBarIconSize),
     MAKE_PM(PM_ListViewIconSize),
     MAKE_PM(PM_IconViewIconSize),
@@ -130,7 +118,12 @@ static const pixel_metric_t pixelMetrics[] = {
     MAKE_PM(PM_TabCloseIndicatorWidth),
     MAKE_PM(PM_TabCloseIndicatorHeight),
     MAKE_PM(PM_ScrollView_ScrollBarSpacing),
-    MAKE_PM(PM_SubMenuOverlap)
+    MAKE_PM(PM_SubMenuOverlap),
+    MAKE_PM(PM_TreeViewIndentation),
+    MAKE_PM(PM_HeaderDefaultSectionSizeHorizontal),
+    MAKE_PM(PM_HeaderDefaultSectionSizeVertical),
+    MAKE_PM(PM_TitleBarButtonIconSize),
+    MAKE_PM(PM_TitleBarButtonSize),
 };
 
 PixelMetricModel::PixelMetricModel(QObject *parent)
@@ -188,7 +181,7 @@ bool PixelMetricModel::setData(const QModelIndex &index, const QVariant &value, 
     if (!index.isValid()
         || index.column() != 1
         || !value.isValid()
-        || !value.canConvert(QVariant::Int)
+        || !value.canConvert(QMetaType(QMetaType::Int))
         || role != Qt::EditRole)
         return false;
 

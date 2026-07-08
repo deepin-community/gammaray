@@ -1,29 +1,14 @@
 /*
   mainwindow.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -65,6 +50,7 @@
 #include <private/qguiapplication_p.h>
 
 #include <QAction>
+#include <QActionGroup>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDesktopServices>
@@ -88,38 +74,36 @@ using namespace GammaRay;
 
 namespace {
 
-struct IdeSettings {
-    const char * const app;
-    const char * const args;
-    const char * const name;
-    const char * const icon;
+struct IdeSettings
+{
+    const char *const app;
+    const char *const args;
+    const char *const name;
+    const char *const icon;
 };
 
 static const IdeSettings ideSettings[] = {
-#if defined(Q_OS_WIN) || defined(Q_OS_OSX)
-    {"", "", "", ""          }                                                          // Dummy content, because we can't have empty arrays.
-#else
-    { "kdevelop", "%f:%l:%c", QT_TRANSLATE_NOOP("GammaRay::MainWindow", "KDevelop"), "kdevelop"  },
+    { "kdevelop", "%f:%l:%c", QT_TRANSLATE_NOOP("GammaRay::MainWindow", "KDevelop"), "kdevelop" },
     { "kate", "%f --line %l --column %c", QT_TRANSLATE_NOOP("GammaRay::MainWindow", "Kate"),
-      "kate"      },
+      "kate" },
     { "kwrite", "%f --line %l --column %c", QT_TRANSLATE_NOOP("GammaRay::MainWindow", "KWrite"),
-      nullptr     },
+      nullptr },
     { "gedit", "%f +%l:%c", QT_TRANSLATE_NOOP("GammaRay::MainWindow", "gedit"),
-      nullptr     },
+      nullptr },
     { "gvim", "%f +%l", QT_TRANSLATE_NOOP("GammaRay::MainWindow", "gvim"),
-      nullptr     },
-    { "qtcreator", "%f:%l:%c", QT_TRANSLATE_NOOP("GammaRay::MainWindow", "Qt Creator"), nullptr     }
-#endif
+      nullptr },
+    { "qtcreator", "-client %f:%l:%c", QT_TRANSLATE_NOOP("GammaRay::MainWindow", "Qt Creator"), nullptr },
+    { "code", "-g %f:%l:%c", QT_TRANSLATE_NOOP("GammaRay::MainWindow", "Visual Studio Code"), nullptr },
+    { "codium", "-g %f:%l:%c", QT_TRANSLATE_NOOP("GammaRay::MainWindow", "VSCodium"), nullptr },
 };
-#if defined(Q_OS_WIN) || defined(Q_OS_OSX) // Remove this #if branch when adding real data to ideSettings for Windows/OSX.
-static const int ideSettingsSize = 0;
-#else
 static const int ideSettingsSize = sizeof(ideSettings) / sizeof(IdeSettings);
-#endif
+
+static const int IDE_SETTING_CUSTOM = -2;
+static const int IDE_SETTING_DEFAULT = -1;
 
 QStyle *gammarayStyleOverride()
 {
-    const auto styleNameOverride = QString::fromLocal8Bit(qgetenv("GAMMARAY_STYLE"));
+    const auto styleNameOverride = qEnvironmentVariable("GAMMARAY_STYLE");
     if (styleNameOverride.isEmpty()) {
         return nullptr;
     }
@@ -135,8 +119,7 @@ QStyle *gammarayStyleOverride()
 QStyle *gammarayDefaultStyle()
 {
     foreach (const QString &styleName,
-             QGuiApplicationPrivate::platform_theme->themeHint(QPlatformTheme::StyleNames).
-             toStringList()) {
+             QGuiApplicationPrivate::platform_theme->themeHint(QPlatformTheme::StyleNames).toStringList()) {
         if (auto style = QStyleFactory::create(styleName)) {
             return style;
         }
@@ -177,7 +160,7 @@ MainWindow::MainWindow(QWidget *parent)
 
         // check if the style is not already overwritten
         if (!styleOverride) {
-            if (auto defaultStyle= gammarayDefaultStyle()) {
+            if (auto defaultStyle = gammarayDefaultStyle()) {
                 applyStyle(defaultStyle);
             }
         }
@@ -189,7 +172,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->actionRetractProbe, &QAction::triggered, this, &MainWindow::detachProbe);
 
-    connect(QApplication::instance(), &QCoreApplication::aboutToQuit, this, &QWidget::close);
+    connect(QApplication::instance(), &QCoreApplication::aboutToQuit, this, [this] {
+        m_detaching = true;
+        close();
+    });
     connect(ui->actionQuit, &QAction::triggered, this, &MainWindow::quitHost);
     ui->actionQuit->setIcon(QIcon::fromTheme(QStringLiteral("application-exit")));
 
@@ -201,7 +187,7 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::aboutPlugins);
     connect(ui->actionMessageStatistics, &QAction::triggered, this, &MainWindow::showMessageStatistics);
     connect(ui->actionAboutQt, &QAction::triggered,
-            qobject_cast<QApplication*>(QApplication::instance()), &QApplication::aboutQt);
+            qobject_cast<QApplication *>(QApplication::instance()), &QApplication::aboutQt);
     connect(ui->actionAboutGammaRay, &QAction::triggered, this, &MainWindow::about);
     connect(ui->actionAboutKDAB, &QAction::triggered, this, &MainWindow::aboutKDAB);
 
@@ -249,7 +235,17 @@ MainWindow::MainWindow(QWidget *parent)
     group->setExclusive(true);
 
     settings.beginGroup(QStringLiteral("CodeNavigation"));
-    const auto currentIdx = settings.value(QStringLiteral("IDE"), -1).toInt();
+    const auto currentIdx = settings.value(QStringLiteral("IDE"), IDE_SETTING_DEFAULT).toInt();
+
+    auto *systemDefaultAction = new QAction(menu);
+    systemDefaultAction->setText(tr("System Default"));
+    systemDefaultAction->setCheckable(true);
+    systemDefaultAction->setChecked(currentIdx == IDE_SETTING_DEFAULT);
+    systemDefaultAction->setData(IDE_SETTING_DEFAULT);
+    group->addAction(systemDefaultAction);
+    menu->addAction(systemDefaultAction);
+
+    menu->addSeparator();
 
     for (int i = 0; i < ideSettingsSize; ++i) {
         auto action = new QAction(menu);
@@ -269,12 +265,12 @@ MainWindow::MainWindow(QWidget *parent)
     auto *action = new QAction(menu);
     action->setText(tr("Custom..."));
     action->setCheckable(true);
-    action->setChecked(currentIdx == -1);
-    action->setData(-1);
+    action->setChecked(currentIdx == IDE_SETTING_CUSTOM);
+    action->setData(IDE_SETTING_CUSTOM);
     group->addAction(action);
     menu->addAction(action);
 
-#if defined(Q_OS_WIN) || defined(Q_OS_OSX)
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     // This is a workaround for the cases, where we can't safely do assumptions
     // about the install location of the IDE
     action = new QAction(menu);
@@ -298,7 +294,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(UiIntegration::instance(), &UiIntegration::navigateToCode, this,
             &MainWindow::navigateToCode);
 
-    const bool developerModeEnabled = !qgetenv("GAMMARAY_DEVELOPERMODE").isEmpty();
+    const bool developerModeEnabled = !qEnvironmentVariableIsEmpty("GAMMARAY_DEVELOPERMODE");
     if (developerModeEnabled) {
         connect(Endpoint::instance(), &Endpoint::logTransmissionRate,
                 this, &MainWindow::logTransmissionRate);
@@ -396,7 +392,7 @@ void MainWindow::aboutKDAB()
     dialog.setWindowTitle(tr("About KDAB"));
     dialog.setWindowIcon(UIResources::themedPixmap(QStringLiteral("kdab-logo.png"), this));
     dialog.setThemeLogo(QStringLiteral("kdab-logo.png"));
-    dialog.setTitle(trUtf8("Klarälvdalens Datakonsult AB (KDAB)"));
+    dialog.setTitle(tr("Klarälvdalens Datakonsult AB (KDAB)"));
     dialog.setText(
         tr("<qt><p>GammaRay is supported and maintained by KDAB</p>"
            "<p>The KDAB Group is the global No.1 software consultancy for Qt, C++ and "
@@ -404,7 +400,9 @@ void MainWindow::aboutKDAB()
 
            "<p>The KDAB Group provides consulting and mentoring for developing legacy "
            "Qt applications from scratch and in porting from all popular and frameworks "
-           "to Qt.  We continue to help develop parts of Qt and are one of the major " "contributors to the Qt Project.  We can give advanced or standard trainings " "anywhere around the globe on Qt as well as C++, OpenGL, 3D and more.</p>"
+           "to Qt.  We continue to help develop parts of Qt and are one of the major "
+           "contributors to the Qt Project.  We can give advanced or standard trainings "
+           "anywhere around the globe on Qt as well as C++, OpenGL, 3D and more.</p>"
 
            "<p>If you would like to have a custom plugin for GammaRay to visualize, profile "
            "or debug your own specific components or applications, get in touch with us "
@@ -431,9 +429,7 @@ bool MainWindow::selectTool(const QString &id)
         return false;
 
     const QItemSelectionModel::SelectionFlags selectionFlags =
-        QItemSelectionModel::ClearAndSelect |
-        QItemSelectionModel::Rows |
-        QItemSelectionModel::Current;
+        QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows | QItemSelectionModel::Current;
     const Qt::MatchFlags matchFlags = Qt::MatchExactly | Qt::MatchRecursive | Qt::MatchWrap;
     const QAbstractItemModel *model = ui->toolSelector->model();
     const QModelIndex toolIndex =
@@ -462,8 +458,7 @@ void MainWindow::toolSelected()
     QWidget *toolWidget = mi.data(ToolModelRole::ToolWidget).value<QWidget *>();
     if (!toolWidget) {
         toolWidget = createErrorPage(mi);
-        ui->toolSelector->model()->setData(mi, QVariant::fromValue(
-                                               toolWidget), ToolModelRole::ToolWidget);
+        ui->toolSelector->model()->setData(mi, QVariant::fromValue(toolWidget), ToolModelRole::ToolWidget);
     }
 
     Q_ASSERT(toolWidget);
@@ -513,7 +508,7 @@ void MainWindow::toolContextMenu(QPoint pos)
 void MainWindow::navigateToCode(const QUrl &url, int lineNumber, int columnNumber)
 {
     // Show Qt resources in our qrc browser
-    if (url.scheme() == "qrc") {
+    if (url.scheme() == QLatin1String("qrc")) {
         if (selectTool(QStringLiteral("GammaRay::ResourceBrowser"))) {
             QMetaObject::invokeMethod(ui->toolStack->currentWidget(), "selectResource",
                                       Q_ARG(QString, url.toString()),
@@ -522,17 +517,14 @@ void MainWindow::navigateToCode(const QUrl &url, int lineNumber, int columnNumbe
     } else {
         QSettings settings;
         settings.beginGroup(QStringLiteral("CodeNavigation"));
-        const auto ideIdx = settings.value(QStringLiteral("IDE"), -1).toInt();
+        const auto ideIdx = settings.value(QStringLiteral("IDE"), IDE_SETTING_DEFAULT).toInt();
 
         QString command;
-#if !defined(Q_OS_WIN) && !defined(Q_OS_OSX) // Remove this #if branch when adding real data to ideSettings for Windows/OSX.
         if (ideIdx >= 0 && ideIdx < ideSettingsSize) {
             command += ideSettings[ideIdx].app;
             command += ' ';
             command += ideSettings[ideIdx].args;
-        } else
-#endif
-        if (ideIdx == -1) {
+        } else if (ideIdx == IDE_SETTING_CUSTOM) {
             command = settings.value(QStringLiteral("CustomCommand")).toString();
         } else {
             QDesktopServices::openUrl(QUrl(url));
@@ -545,9 +537,19 @@ void MainWindow::navigateToCode(const QUrl &url, int lineNumber, int columnNumbe
 
         if (!command.isEmpty()) {
             std::cout << "Detaching: " << qPrintable(command) << std::endl;
-            QProcess::startDetached(command);
+            // TODO refactor this to avoid the command splitting altogether, so we don't fail with e.g. spaces in paths
+            auto s = command.split(QLatin1Char(' '));
+            const QString program = s.takeFirst();
+            QProcess::startDetached(program, s);
         }
     }
+}
+
+void MainWindow::closeEvent(QCloseEvent *e)
+{
+    if (!m_detaching)
+        detachProbe();
+    QMainWindow::closeEvent(e);
 }
 
 void MainWindow::logTransmissionRate(quint64 bytesRead, quint64 bytesWritten)
@@ -555,9 +557,7 @@ void MainWindow::logTransmissionRate(quint64 bytesRead, quint64 bytesWritten)
     const double transmissionRateRX = (bytesRead * 8 / 1024.0 / 1024.0); // in Mpbs
     const double transmissionRateTX = (bytesWritten * 8 / 1024.0 / 1024.0); // in Mpbs
     ui->statusBar->showMessage(
-        tr("Transmission rate: RX %1 Mbps, TX %2 Mbps").
-            arg(transmissionRateRX, 7, 'f', 3).
-            arg(transmissionRateTX, 7, 'f', 3));
+        tr("Transmission rate: RX %1 Mbps, TX %2 Mbps").arg(transmissionRateRX, 7, 'f', 3).arg(transmissionRateTX, 7, 'f', 3));
 }
 
 void GammaRay::MainWindow::setCodeNavigationIDE(QAction *action)
@@ -565,16 +565,15 @@ void GammaRay::MainWindow::setCodeNavigationIDE(QAction *action)
     QSettings settings;
     settings.beginGroup(QStringLiteral("CodeNavigation"));
 
-    if (action->data() == -1) {
+    if (action->data() == IDE_SETTING_CUSTOM) {
         const auto customCmd = QInputDialog::getText(
             this, tr("Custom Code Navigation"),
             tr(
                 "Specify command to use for code navigation, '%f' will be replaced by the file name, '%l' by the line number and '%c' by the column number."),
-            QLineEdit::Normal, settings.value(QStringLiteral("CustomCommand")).toString()
-            );
+            QLineEdit::Normal, settings.value(QStringLiteral("CustomCommand")).toString());
         if (!customCmd.isEmpty()) {
             settings.setValue(QStringLiteral("CustomCommand"), customCmd);
-            settings.setValue(QStringLiteral("IDE"), -1);
+            settings.setValue(QStringLiteral("IDE"), IDE_SETTING_CUSTOM);
         }
         return;
     }
@@ -609,12 +608,20 @@ QWidget *MainWindow::createErrorPage(const QModelIndex &index)
 
 void MainWindow::quitHost()
 {
+    if (m_detaching)
+        return;
+
+    m_detaching = true;
     emit targetQuitRequested();
     ObjectBroker::object<ProbeControllerInterface *>()->quitHost();
 }
 
 void MainWindow::detachProbe()
 {
+    if (m_detaching)
+        return;
+
+    m_detaching = true;
     emit targetQuitRequested();
     ObjectBroker::object<ProbeControllerInterface *>()->detachProbe();
 }

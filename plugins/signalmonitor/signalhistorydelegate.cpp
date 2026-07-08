@@ -1,29 +1,14 @@
 /*
   signalhistorydelegate.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Mathias Hasselmann <mathias.hasselmann@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "signalhistorydelegate.h"
@@ -67,12 +52,10 @@ void SignalHistoryDelegate::paint(QPainter *painter, const QStyleOptionViewItem 
     const qint64 startTime = m_visibleOffset;
     const qint64 endTime = startTime + interval;
 
-    const QAbstractItemModel * const model = index.model();
-    const QVector<qint64> &events
-        = model->data(index, SignalHistoryModel::EventsRole).value<QVector<qint64> >();
-    const qint64 t0
-        = qMax(static_cast<qint64>(0),
-               model->data(index, SignalHistoryModel::StartTimeRole).value<qint64>() - startTime);
+    const QAbstractItemModel *const model = index.model();
+    const QVector<qint64> &events = model->data(index, SignalHistoryModel::EventsRole).value<QVector<qint64>>();
+    const qint64 t0 = qMax(static_cast<qint64>(0),
+                           model->data(index, SignalHistoryModel::StartTimeRole).value<qint64>() - startTime);
     qint64 t1 = model->data(index, SignalHistoryModel::EndTimeRole).value<qint64>();
     if (t1 < 0) // still alive
         t1 = m_totalInterval;
@@ -102,7 +85,7 @@ void SignalHistoryDelegate::paint(QPainter *painter, const QStyleOptionViewItem 
 
 QSize SignalHistoryDelegate::sizeHint(const QStyleOptionViewItem &option, const QModelIndex &) const
 {
-    return {0, option.fontMetrics.lineSpacing()}; // FIXME: minimum height
+    return { 0, option.fontMetrics.lineSpacing() }; // FIXME: minimum height
 }
 
 void SignalHistoryDelegate::setVisibleInterval(qint64 interval)
@@ -153,13 +136,18 @@ bool SignalHistoryDelegate::isActive() const
     return m_updateTimer->isActive();
 }
 
-QString SignalHistoryDelegate::toolTipAt(const QModelIndex &index, int position, int width)
+qint64 SignalHistoryDelegate::intervalForPosition(int position,
+                                                  int width) const
 {
-    const QAbstractItemModel * const model = index.model();
-    const QVector<qint64> &events
-        = model->data(index, SignalHistoryModel::EventsRole).value<QVector<qint64> >();
+    return ((m_visibleInterval * position) / width) + m_visibleOffset;
+}
 
-    const qint64 t = m_visibleInterval * position / width + m_visibleOffset;
+QString SignalHistoryDelegate::toolTipAt(const QModelIndex &index, int position, int width) const
+{
+    const QAbstractItemModel *const model = index.model();
+    const QVector<qint64> &events = model->data(index, SignalHistoryModel::EventsRole).value<QVector<qint64>>();
+
+    const qint64 t = intervalForPosition(position, width);
     qint64 dtMin = std::numeric_limits<qint64>::max();
     int signalIndex = -1;
     qint64 signalTimestamp = -1;
@@ -177,8 +165,7 @@ QString SignalHistoryDelegate::toolTipAt(const QModelIndex &index, int position,
     if (signalIndex < 0)
         return QString();
 
-    const auto signalNames
-        = index.data(SignalHistoryModel::SignalMapRole).value<QHash<int, QByteArray> >();
+    const auto signalNames = index.data(SignalHistoryModel::SignalMapRole).value<QHash<int, QByteArray>>();
     const auto it = signalNames.constFind(signalIndex);
     QString signalName;
     // see SignalHistoryModel, we store this with offset 1 to fit unknown ones into an unsigned value

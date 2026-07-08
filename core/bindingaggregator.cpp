@@ -1,30 +1,13 @@
 /*
   bindingaggregator.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2017-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
-  Authors: Volker Krause <volker.krause@kdab.com>
-           Anton Kreuzkamp <anton.kreuzkamp@kdab.com>
+  SPDX-FileCopyrightText: 2017 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 // Own
@@ -52,15 +35,16 @@ void BindingAggregator::registerBindingProvider(std::unique_ptr<AbstractBindingP
     s_providers()->push_back(std::move(provider));
 }
 
-bool GammaRay::BindingAggregator::providerAvailableFor(QObject* object)
+bool GammaRay::BindingAggregator::providerAvailableFor(QObject *object)
 {
     return std::find_if(s_providers()->begin(), s_providers()->end(),
-                                        [object](const std::unique_ptr<AbstractBindingProvider>& provider) {
-                                            return provider->canProvideBindingsFor(object);
-                                        }) != s_providers()->end();
+                        [object](const std::unique_ptr<AbstractBindingProvider> &provider) {
+                            return provider->canProvideBindingsFor(object);
+                        })
+        != s_providers()->end();
 }
 
-std::vector<std::unique_ptr<BindingNode>> BindingAggregator::findDependenciesFor(BindingNode* node)
+std::vector<std::unique_ptr<BindingNode>> BindingAggregator::findDependenciesFor(BindingNode *node)
 {
     std::vector<std::unique_ptr<BindingNode>> allDependencies;
     if (node->isPartOfBindingLoop())
@@ -78,12 +62,11 @@ std::vector<std::unique_ptr<BindingNode>> BindingAggregator::findDependenciesFor
         allDependencies.end(),
         [](const std::unique_ptr<BindingNode> &a, const std::unique_ptr<BindingNode> &b) {
             return a->object() < b->object() || (a->object() == b->object() && a->propertyIndex() < b->propertyIndex());
-        }
-    );
+        });
     return allDependencies;
 }
 
-std::vector<std::unique_ptr<BindingNode>> BindingAggregator::bindingTreeForObject(QObject* obj)
+std::vector<std::unique_ptr<BindingNode>> BindingAggregator::bindingTreeForObject(QObject *obj)
 {
     std::vector<std::unique_ptr<BindingNode>> bindings;
     if (obj) {
@@ -92,14 +75,14 @@ std::vector<std::unique_ptr<BindingNode>> BindingAggregator::bindingTreeForObjec
             for (auto &&newBinding : newBindings) {
                 BindingNode *node = newBinding.get();
                 if (std::find_if(bindings.begin(), bindings.end(),
-                    [node](const std::unique_ptr<BindingNode> &other){ return *node == *other; }) != bindings.end()) {
+                                 [node](const std::unique_ptr<BindingNode> &other) { return *node == *other; })
+                    != bindings.end()) {
                     continue; // apparently this is a duplicate.
                 }
                 node->dependencies() = findDependenciesFor(node);
 
                 bindings.push_back(std::move(newBinding));
             }
-
         }
     }
     return bindings;
@@ -107,7 +90,7 @@ std::vector<std::unique_ptr<BindingNode>> BindingAggregator::bindingTreeForObjec
 
 void BindingAggregator::scanForBindingLoops()
 {
-    const QVector<QObject*> &allObjects = Probe::instance()->allQObjects();
+    const QVector<QObject *> &allObjects = Probe::instance()->allQObjects();
 
     QMutexLocker lock(Probe::objectLock());
     for (QObject *obj : allObjects) {
@@ -119,10 +102,10 @@ void BindingAggregator::scanForBindingLoops()
             if (bindingNode->isPartOfBindingLoop()) {
                 Problem p;
                 p.severity = Problem::Error;
-                p.description = QStringLiteral("Object %1 / Property %2 has a binding loop.").arg(ObjectDataProvider::typeName(bindingNode->object())).arg(bindingNode->canonicalName());
+                p.description = QStringLiteral("Object %1 / Property %2 has a binding loop.").arg(ObjectDataProvider::typeName(bindingNode->object()), bindingNode->canonicalName());
                 p.object = ObjectId(bindingNode->object());
                 p.locations.push_back(bindingNode->sourceLocation());
-                p.problemId = QString("com.kdab.GammaRay.ObjectInspector.BindingLoopScan:%1.%2").arg(reinterpret_cast<quintptr>(bindingNode->object())).arg(bindingNode->propertyIndex());
+                p.problemId = QStringLiteral("com.kdab.GammaRay.ObjectInspector.BindingLoopScan:%1.%2").arg(reinterpret_cast<quintptr>(bindingNode->object())).arg(bindingNode->propertyIndex()); // no multi arg, both are ints
                 p.findingCategory = Problem::Scan;
                 ProblemCollector::addProblem(p);
             }

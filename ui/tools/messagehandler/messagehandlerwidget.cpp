@@ -1,29 +1,14 @@
 /*
   messagehandlerwidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Milian Wolff <milian.wolff@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "messagehandlerwidget.h"
@@ -39,6 +24,7 @@
 #include <common/endpoint.h>
 #include <common/objectbroker.h>
 #include <common/tools/messagehandler/messagemodelroles.h>
+#include <common/tools/messagehandler/messagehandlerinterface.h>
 
 #include <QSortFilterProxyModel>
 #include <QDialog>
@@ -51,6 +37,8 @@
 #include <QClipboard>
 #include <QApplication>
 #include <QUrl>
+#include <QFileDialog>
+#include <QFile>
 
 using namespace GammaRay;
 
@@ -101,10 +89,14 @@ MessageHandlerWidget::MessageHandlerWidget(QWidget *parent)
     ui->backtraceView->setItemDelegate(new PropertyEditorDelegate(ui->backtraceView));
     connect(handler, &MessageHandlerInterface::stackTraceAvailableChanged, ui->backtraceView, &QWidget::setVisible);
     connect(ui->backtraceView, &QWidget::customContextMenuRequested, this, &MessageHandlerWidget::stackTraceContextMenu);
+    connect(ui->saveAllConf, &QPushButton::clicked, this, &MessageHandlerWidget::saveFileAllLogConfig);
+    connect(ui->saveModConf, &QPushButton::clicked, this, &MessageHandlerWidget::saveFileModLogConfig);
+    connect(ui->copyModConf, &QPushButton::clicked, this, &MessageHandlerWidget::exportModLogConfig);
 
     ui->categoriesView->setModel(ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.LoggingCategoryModel")));
 
-    m_stateManager.setDefaultSizes(ui->mainSplitter, UISizeVector() << "50%" << "50%");
+    m_stateManager.setDefaultSizes(ui->mainSplitter, UISizeVector() << "50%"
+                                                                    << "50%");
     m_stateManager.setDefaultSizes(ui->messageView->header(),
                                    UISizeVector() << -1 << 300 << -1 << -1 << -1);
 }
@@ -115,8 +107,7 @@ void MessageHandlerWidget::fatalMessageReceived(const QString &app, const QStrin
                                                 const QTime &time, const QStringList &backtrace)
 {
     if (Endpoint::isConnected()
-        && !qobject_cast<MessageHandlerClient *>(ObjectBroker::object<MessageHandlerInterface *>()))
-    {
+        && !qobject_cast<MessageHandlerClient *>(ObjectBroker::object<MessageHandlerInterface *>())) {
         // only show on remote side
         return;
     }
@@ -149,8 +140,8 @@ void MessageHandlerWidget::fatalMessageReceived(const QString &app, const QStrin
         QPushButton *copyBacktraceButton = new QPushButton(tr("Copy Backtrace"));
         buttons->addButton(copyBacktraceButton, QDialogButtonBox::ActionRole);
 
-        auto joinedBacktrace = backtrace.join(QStringLiteral("\n"));
-        connect(copyBacktraceButton, &QPushButton::clicked, this, [this, joinedBacktrace] { copyToClipboard(joinedBacktrace); });
+        auto joinedBacktrace = backtrace.join(u'\n');
+        connect(copyBacktraceButton, &QPushButton::clicked, this, [joinedBacktrace] { copyToClipboard(joinedBacktrace); });
     }
 
     buttons->addButton(QDialogButtonBox::Close);
@@ -190,6 +181,23 @@ void MessageHandlerWidget::messageContextMenu(const QPoint &pos)
     ContextMenuExtension cme;
     cme.setLocation(ContextMenuExtension::ShowSource, SourceLocation::fromOneBased(QUrl(fileName), line));
     cme.populateMenu(&contextMenu);
+
+    MessageHandlerInterface *handler = ObjectBroker::object<MessageHandlerInterface *>();
+    auto copyAction = contextMenu.addAction(QIcon::fromTheme(QStringLiteral("edit-copy")), tr("Copy Backtrace"));
+    copyAction->setVisible(handler->stackTraceAvailable());
+    connect(handler, &MessageHandlerInterface::stackTraceAvailableChanged, copyAction, &QAction::setVisible);
+
+    connect(copyAction, &QAction::triggered, this, [this, handler] {
+        delete m_backtraceFetchContext;
+        m_backtraceFetchContext = new QObject(handler);
+
+        connect(handler, &MessageHandlerInterface::fullTraceChanged, m_backtraceFetchContext, [handler] {
+            qApp->clipboard()->setText(handler->fullTrace().join(QStringLiteral("\n")));
+        });
+
+        handler->generateFullTrace();
+    });
+
     contextMenu.exec(ui->messageView->viewport()->mapToGlobal(pos));
 }
 
@@ -208,4 +216,44 @@ void MessageHandlerWidget::stackTraceContextMenu(QPoint pos)
     cme.setLocation(ContextMenuExtension::ShowSource, loc);
     cme.populateMenu(&contextMenu);
     contextMenu.exec(ui->backtraceView->viewport()->mapToGlobal(pos));
+}
+
+void MessageHandlerWidget::saveFileAllLogConfig()
+{
+    saveFileLogConfig(true);
+}
+
+void MessageHandlerWidget::saveFileModLogConfig()
+{
+    saveFileLogConfig(false);
+}
+
+void MessageHandlerWidget::saveFileLogConfig(bool all)
+{
+    QString fileName = QFileDialog::getSaveFileName(this,
+                                                    tr("Save File"),
+                                                    {},
+                                                    tr("Config Files (*.ini)"));
+
+    if (!fileName.isEmpty()) {
+        QFile file(fileName);
+        if (!file.open(QFile::WriteOnly)) {
+            qWarning() << "Failed to save file" << fileName << file.errorString();
+            return;
+        }
+
+        QByteArray config;
+        auto model = ui->categoriesView->model();
+        model->metaObject()->invokeMethod(model, "exportLoggingConfig", Q_RETURN_ARG(QByteArray, config), Q_ARG(bool, all), Q_ARG(bool, true));
+        file.write(config);
+    }
+}
+
+void MessageHandlerWidget::exportModLogConfig()
+{
+    QByteArray config;
+    auto model = ui->categoriesView->model();
+    model->metaObject()->invokeMethod(model, "exportLoggingConfig", Q_RETURN_ARG(QByteArray, config), Q_ARG(bool, false), Q_ARG(bool, false));
+    QString env = QLatin1String("QT_LOGGING_RULES='") + QString::fromLatin1(config) + QLatin1Char('\'');
+    QGuiApplication::clipboard()->setText(env);
 }

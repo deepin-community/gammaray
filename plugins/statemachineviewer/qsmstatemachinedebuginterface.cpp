@@ -1,27 +1,14 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  qsmstatemachinedebuginterface.cpp
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Jan Arne Petersen <jan.petersen@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "qsmstatemachinedebuginterface.h"
@@ -44,28 +31,33 @@ Q_DECLARE_METATYPE(Qt::KeyboardModifiers)
 
 namespace GammaRay {
 
-static QAbstractState *fromState(State state) {
+static QAbstractState *fromState(State state)
+{
     return reinterpret_cast<QAbstractState *>(static_cast<quintptr>(state));
 }
 
-static State toState(QAbstractState *state = nullptr) {
+static State toState(QAbstractState *state = nullptr)
+{
     return State(reinterpret_cast<quintptr>(state));
 }
 
-static QAbstractTransition *fromTransition(Transition transition) {
+static QAbstractTransition *fromTransition(Transition transition)
+{
     return reinterpret_cast<QAbstractTransition *>(static_cast<quintptr>(transition));
 }
 
-static Transition toTransition(QAbstractTransition *transition) {
+static Transition toTransition(QAbstractTransition *transition)
+{
     return Transition(reinterpret_cast<quintptr>(transition));
 }
 
-template <typename T>
-static QVector<T*> childrenOfType(QObject *parent) {
+template<typename T>
+static QVector<T *> childrenOfType(QObject *parent)
+{
     Q_ASSERT(parent);
-    QVector<T*> v;
+    QVector<T *> v;
     foreach (auto obj, parent->children()) {
-        if (auto child = qobject_cast<T*>(obj))
+        if (auto child = qobject_cast<T *>(obj))
             v.push_back(child);
     }
     return v;
@@ -193,8 +185,7 @@ StateType QSMStateMachineDebugInterface::stateType(State stateId) const
     if (qobject_cast<QFinalState *>(state)) {
         type = FinalState;
     } else if (auto historyState = qobject_cast<QHistoryState *>(state)) {
-        type = historyState->historyType() == QHistoryState::ShallowHistory ? ShallowHistoryState :
-                                                                              DeepHistoryState;
+        type = historyState->historyType() == QHistoryState::ShallowHistory ? ShallowHistoryState : DeepHistoryState;
     } else if (qobject_cast<QStateMachine *>(state)) {
         type = StateMachineState;
     }
@@ -245,27 +236,27 @@ QString QSMStateMachineDebugInterface::transitionLabel(Transition t) const
         str += signal;
         return str;
     }
-        // QKeyEventTransition is in QtWidgets, so this is a bit dirty to avoid a hard dependency
+    // QKeyEventTransition is in QtWidgets, so this is a bit dirty to avoid a hard dependency
     else if (transition->inherits("QKeyEventTransition")) {
         QString s;
         const auto modifiers = transition->property("modifierMask").value<Qt::KeyboardModifiers>();
         if (modifiers != Qt::NoModifier) {
-            const auto modIdx = staticQtMetaObject.indexOfEnumerator("KeyboardModifiers");
+            const auto modIdx = staticMetaObject.indexOfEnumerator("KeyboardModifiers");
             if (modIdx < 0) {
                 return Util::displayString(transition);
             }
 
-            const auto modEnum = staticQtMetaObject.enumerator(modIdx);
+            const auto modEnum = staticMetaObject.enumerator(modIdx);
             s += modEnum.valueToKey(modifiers) + QStringLiteral(" + ");
         }
 
         const auto key = transition->property("key").toInt();
-        const auto keyIdx = staticQtMetaObject.indexOfEnumerator("Key");
+        const auto keyIdx = staticMetaObject.indexOfEnumerator("Key");
         if (keyIdx < 0) {
             return Util::displayString(transition);
         }
 
-        const auto keyEnum = staticQtMetaObject.enumerator(keyIdx);
+        const auto keyEnum = staticMetaObject.enumerator(keyIdx);
         s += keyEnum.valueToKey(key);
         return s;
     }

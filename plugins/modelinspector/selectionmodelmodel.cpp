@@ -1,29 +1,14 @@
 /*
   selectionmodelmodel.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "selectionmodelmodel.h"
@@ -36,18 +21,18 @@
 
 using namespace GammaRay;
 
-SelectionModelModel::SelectionModelModel(QObject *parent) :
-    ObjectModelBase<QAbstractTableModel>(parent),
-    m_model(nullptr)
+SelectionModelModel::SelectionModelModel(QObject *parent)
+    : ObjectModelBase<QAbstractTableModel>(parent)
+    , m_model(nullptr)
 {
 }
 
 SelectionModelModel::~SelectionModelModel() = default;
 
-void SelectionModelModel::objectCreated(QObject* obj)
+void SelectionModelModel::objectCreated(QObject *obj)
 {
     Q_ASSERT(obj);
-    auto model = qobject_cast<QItemSelectionModel*>(obj);
+    auto model = qobject_cast<QItemSelectionModel *>(obj);
     if (!model)
         return;
 
@@ -62,24 +47,27 @@ void SelectionModelModel::objectCreated(QObject* obj)
         return;
 
     it = std::lower_bound(m_currentSelectionModels.begin(), m_currentSelectionModels.end(), model);
-   const  auto row = std::distance(m_currentSelectionModels.begin(), it);
+    const auto row = std::distance(m_currentSelectionModels.begin(), it);
     beginInsertRows(QModelIndex(), row, row);
     m_currentSelectionModels.insert(it, model);
     endInsertRows();
 }
 
-void SelectionModelModel::objectDestroyed(QObject* obj)
+void SelectionModelModel::objectDestroyed(QObject *obj)
 {
     Q_ASSERT(obj);
-    auto model = static_cast<QItemSelectionModel*>(obj); // do not dereference!
 
-    auto it = std::lower_bound(m_selectionModels.begin(), m_selectionModels.end(), model);
-    if (it == m_selectionModels.end() || *it != model)
+    // do not dereference!
+    QItemSelectionModel *unsafeModelPtr = nullptr;
+    memcpy(&unsafeModelPtr, &obj, sizeof(unsafeModelPtr));
+
+    auto it = std::lower_bound(m_selectionModels.begin(), m_selectionModels.end(), unsafeModelPtr);
+    if (it == m_selectionModels.end() || *it != unsafeModelPtr)
         return;
     m_selectionModels.erase(it);
 
-    it = std::lower_bound(m_currentSelectionModels.begin(), m_currentSelectionModels.end(), model);
-    if (it == m_currentSelectionModels.end() || *it != model)
+    it = std::lower_bound(m_currentSelectionModels.begin(), m_currentSelectionModels.end(), unsafeModelPtr);
+    if (it == m_currentSelectionModels.end() || *it != unsafeModelPtr)
         return;
     const auto row = std::distance(m_currentSelectionModels.begin(), it);
     beginRemoveRows(QModelIndex(), row, row);
@@ -89,7 +77,7 @@ void SelectionModelModel::objectDestroyed(QObject* obj)
 
 void SelectionModelModel::sourceModelChanged()
 {
-    auto model = qobject_cast<QItemSelectionModel*>(sender());
+    auto model = qobject_cast<QItemSelectionModel *>(sender());
     Q_ASSERT(model);
 
     auto it = std::lower_bound(m_currentSelectionModels.begin(), m_currentSelectionModels.end(), model);
@@ -113,7 +101,7 @@ void SelectionModelModel::sourceModelChanged()
 
 void SelectionModelModel::selectionChanged()
 {
-    auto model = qobject_cast<QItemSelectionModel*>(sender());
+    auto model = qobject_cast<QItemSelectionModel *>(sender());
     Q_ASSERT(model);
 
     if (model->model() != m_model)
@@ -125,7 +113,7 @@ void SelectionModelModel::selectionChanged()
     emit dataChanged(index(row, 1), index(row, 3));
 }
 
-void SelectionModelModel::setModel(QAbstractItemModel* model)
+void SelectionModelModel::setModel(QAbstractItemModel *model)
 {
     if (model == m_model)
         return;
@@ -137,8 +125,8 @@ void SelectionModelModel::setModel(QAbstractItemModel* model)
     }
 
     m_model = model;
-    QVector<QItemSelectionModel*> models;
-    std::copy_if(m_selectionModels.constBegin(), m_selectionModels.constEnd(), std::back_inserter(models), [this](QItemSelectionModel* model) {
+    QVector<QItemSelectionModel *> models;
+    std::copy_if(m_selectionModels.constBegin(), m_selectionModels.constEnd(), std::back_inserter(models), [this](QItemSelectionModel *model) {
         return model->model() == m_model;
     });
 
@@ -146,7 +134,7 @@ void SelectionModelModel::setModel(QAbstractItemModel* model)
         return;
 
     beginInsertRows(QModelIndex(), 0, models.size() - 1);
-    m_currentSelectionModels = models;
+    m_currentSelectionModels = std::move(models);
     endInsertRows();
 }
 
@@ -171,10 +159,14 @@ QVariant SelectionModelModel::data(const QModelIndex &index, int role) const
 
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
-            case 1: return model->selectedIndexes().size();
-            case 2: return model->selectedRows().size();
-            case 3: return model->selectedColumns().size();
-            case 4: return ObjectDataProvider::typeName(model);
+        case 1:
+            return model->selectedIndexes().size();
+        case 2:
+            return model->selectedRows().size();
+        case 3:
+            return model->selectedColumns().size();
+        case 4:
+            return ObjectDataProvider::typeName(model);
         }
     }
 
@@ -185,11 +177,16 @@ QVariant SelectionModelModel::headerData(int section, Qt::Orientation orientatio
 {
     if (orientation == Qt::Horizontal && role == Qt::DisplayRole) {
         switch (section) {
-            case 0: return tr("Object");
-            case 1: return tr("#Items");
-            case 2: return tr("#Rows");
-            case 3: return tr("#Columns");
-            case 4: return tr("Type");
+        case 0:
+            return tr("Object");
+        case 1:
+            return tr("#Items");
+        case 2:
+            return tr("#Rows");
+        case 3:
+            return tr("#Columns");
+        case 4:
+            return tr("Type");
         }
     }
     return QAbstractTableModel::headerData(section, orientation, role);

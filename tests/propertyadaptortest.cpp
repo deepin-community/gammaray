@@ -1,29 +1,14 @@
 /*
   propertyadaptortest.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2015-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2015 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <core/propertyadaptor.h>
@@ -32,6 +17,7 @@
 #include <core/propertydata.h>
 #include <core/metaobject.h>
 #include <core/metaobjectrepository.h>
+#include <core/enumrepositoryserver.h>
 
 #include <shared/propertytestobject.h>
 
@@ -42,7 +28,7 @@
 #include <QSignalSpy>
 #include <QTest>
 
-Q_DECLARE_METATYPE(QVector<int>)
+Q_DECLARE_METATYPE(QList<int>)
 Q_DECLARE_METATYPE(QPen *)
 
 using namespace GammaRay;
@@ -51,8 +37,8 @@ class PropertyAdaptorTest : public QObject
 {
     Q_OBJECT
 private:
-    void testProperty(PropertyAdaptor *adaptor, const char *name, const char *typeName,
-                      const char *className, PropertyData::AccessFlags flags)
+    static void testProperty(PropertyAdaptor *adaptor, const char *name, const char *typeName,
+                             const char *className, PropertyData::AccessFlags flags)
     {
         for (int i = 0; i < adaptor->count(); ++i) {
             auto prop = adaptor->propertyData(i);
@@ -67,7 +53,7 @@ private:
         QVERIFY(!"property not found");
     }
 
-    void verifyPropertyData(PropertyAdaptor *adaptor)
+    static void verifyPropertyData(PropertyAdaptor *adaptor)
     {
         for (int i = 0; i < adaptor->count(); ++i) {
             auto data = adaptor->propertyData(i);
@@ -77,7 +63,7 @@ private:
         }
     }
 
-    int indexOfProperty(PropertyAdaptor *adaptor, const char *name)
+    static int indexOfProperty(PropertyAdaptor *adaptor, const char *name)
     {
         for (int i = 0; i < adaptor->count(); ++i) {
             auto prop = adaptor->propertyData(i);
@@ -90,6 +76,7 @@ private:
 private slots:
     void initTestCase()
     {
+        EnumRepositoryServer::create(this);
         MetaObject *mo;
         MO_ADD_METAOBJECT0(QPen);
         MO_ADD_PROPERTY(QPen, color, setColor);
@@ -100,9 +87,9 @@ private slots:
     {
         Gadget gadget;
 
-        auto adaptor
-            = PropertyAdaptorFactory::create(ObjectInstance(&gadget,
-                                                            &Gadget::staticMetaObject), this);
+        auto adaptor = PropertyAdaptorFactory::create(ObjectInstance(&gadget,
+                                                                     &Gadget::staticMetaObject),
+                                                      this);
         QVERIFY(adaptor);
         QCOMPARE(adaptor->count(), 1);
         verifyPropertyData(adaptor);
@@ -110,7 +97,7 @@ private slots:
                      PropertyData::Writable | PropertyData::Resettable);
         QVERIFY(!adaptor->canAddProperty());
 
-        QSignalSpy spy(adaptor, SIGNAL(propertyChanged(int,int)));
+        QSignalSpy spy(adaptor, &PropertyAdaptor::propertyChanged);
         QVERIFY(spy.isValid());
 
         QCOMPARE(adaptor->propertyData(0).value(), QVariant(42));
@@ -147,7 +134,7 @@ private slots:
         QVERIFY(adaptor->count() > 3);
         verifyPropertyData(adaptor);
 
-        QSignalSpy spy(adaptor, SIGNAL(propertyChanged(int,int)));
+        QSignalSpy spy(adaptor, &PropertyAdaptor::propertyChanged);
         QVERIFY(spy.isValid());
 
         auto idx = indexOfProperty(adaptor, "priority");
@@ -164,14 +151,14 @@ private slots:
 
     void testSequentialContainer()
     {
-        auto v = QVector<int>() << 2 << 3 << 5 << 12;
+        auto v = QList<int>() << 2 << 3 << 5 << 12;
         auto adaptor = PropertyAdaptorFactory::create(ObjectInstance(QVariant::fromValue(v)), this);
 
         QVERIFY(adaptor);
         QCOMPARE(adaptor->count(), 4);
         verifyPropertyData(adaptor);
-        testProperty(adaptor, "0", "int", "QVector<int>", PropertyData::Readable);
-        testProperty(adaptor, "3", "int", "QVector<int>", PropertyData::Readable);
+        testProperty(adaptor, "0", "int", "QList<int>", PropertyData::Readable);
+        testProperty(adaptor, "3", "int", "QList<int>", PropertyData::Readable);
         QVERIFY(!adaptor->canAddProperty());
     }
 
@@ -210,7 +197,7 @@ private slots:
         testProperty(adaptor, "dynamicProperty", "int", "<dynamic>",
                      PropertyData::Writable | PropertyData::Deletable);
 
-        QSignalSpy changeSpy(adaptor, SIGNAL(propertyChanged(int,int)));
+        QSignalSpy changeSpy(adaptor, &PropertyAdaptor::propertyChanged);
         QVERIFY(changeSpy.isValid());
 
         auto propIdx = indexOfProperty(adaptor, "intProp");
@@ -249,9 +236,9 @@ private slots:
         QCOMPARE(changeSpy.at(0).at(1).toInt(), propIdx);
         QCOMPARE(obj->property("dynamicProperty").toInt(), 12);
 
-        QSignalSpy addSpy(adaptor, SIGNAL(propertyAdded(int,int)));
+        QSignalSpy addSpy(adaptor, &PropertyAdaptor::propertyAdded);
         QVERIFY(addSpy.isValid());
-        QSignalSpy removeSpy(adaptor, SIGNAL(propertyRemoved(int,int)));
+        QSignalSpy removeSpy(adaptor, &PropertyAdaptor::propertyRemoved);
         QVERIFY(removeSpy.isValid());
 
         QVERIFY(adaptor->canAddProperty());
@@ -270,7 +257,7 @@ private slots:
         QCOMPARE(removeSpy.size(), 1);
         QCOMPARE(addSpy.size(), 1);
 
-        QSignalSpy invalidatedSpy(adaptor, SIGNAL(objectInvalidated()));
+        QSignalSpy invalidatedSpy(adaptor, &PropertyAdaptor::objectInvalidated);
         QVERIFY(invalidatedSpy.isValid());
         delete obj;
         QVERIFY(!invalidatedSpy.isEmpty());
@@ -278,10 +265,9 @@ private slots:
 
     void testQtMetaObject()
     {
-        auto adaptor
-            = PropertyAdaptorFactory::create(ObjectInstance(nullptr,
-                                                            &PropertyTestObject::staticMetaObject),
-                                             this);
+        auto adaptor = PropertyAdaptorFactory::create(ObjectInstance(nullptr,
+                                                                     &PropertyTestObject::staticMetaObject),
+                                                      this);
         QVERIFY(adaptor);
         QVERIFY(adaptor->count() >= 5);
         verifyPropertyData(adaptor);

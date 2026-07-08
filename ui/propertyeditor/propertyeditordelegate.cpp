@@ -1,29 +1,14 @@
 /*
   propertyeditordelegate.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "propertyeditordelegate.h"
@@ -34,7 +19,6 @@
 
 #include <QApplication>
 #include <QDebug>
-#include <QMatrix>
 #include <QMatrix4x4>
 #include <QPainter>
 #include <QQuaternion>
@@ -45,38 +29,25 @@
 using namespace GammaRay;
 
 namespace {
-template<typename T> struct matrix_trait {};
-template<> struct matrix_trait<QMatrix> {
-    static const int rows = 3;
-    static const int columns = 2;
-    static qreal value(const QMatrix &matrix, int r, int c)
+template<typename T>
+struct matrix_trait
+{
+};
+
+template<>
+struct matrix_trait<QMatrix4x4>
+{
+    static const int rows = 4;
+    static const int columns = 4;
+    static qreal value(const QMatrix4x4 &matrix, int r, int c)
     {
-        switch (r << 4 | c) {
-        case 0x00:
-            return matrix.m11();
-        case 0x01:
-            return matrix.m12();
-        case 0x10:
-            return matrix.m21();
-        case 0x11:
-            return matrix.m22();
-        case 0x20:
-            return matrix.dx();
-        case 0x21:
-            return matrix.dy();
-        }
-        Q_ASSERT(false);
-        return 0.0;
+        return matrix(r, c);
     }
 };
 
-template<> struct matrix_trait<QMatrix4x4> {
-    static const int rows = 4;
-    static const int columns = 4;
-    static qreal value(const QMatrix4x4 &matrix, int r, int c) { return matrix(r, c); }
-};
-
-template<> struct matrix_trait<QTransform> {
+template<>
+struct matrix_trait<QTransform>
+{
     static const int rows = 3;
     static const int columns = 3;
     static qreal value(const QTransform &matrix, int r, int c)
@@ -106,25 +77,42 @@ template<> struct matrix_trait<QTransform> {
     }
 };
 
-template<> struct matrix_trait<QVector2D> {
+template<>
+struct matrix_trait<QVector2D>
+{
     static const int rows = 2;
     static const int columns = 1;
-    static qreal value(const QVector2D &vec, int r, int) { return vec[r]; }
+    static qreal value(const QVector2D &vec, int r, int)
+    {
+        return vec[r];
+    }
 };
 
-template<> struct matrix_trait<QVector3D> {
+template<>
+struct matrix_trait<QVector3D>
+{
     static const int rows = 3;
     static const int columns = 1;
-    static qreal value(const QVector3D &vec, int r, int) { return vec[r]; }
+    static qreal value(const QVector3D &vec, int r, int)
+    {
+        return vec[r];
+    }
 };
 
-template<> struct matrix_trait<QVector4D> {
+template<>
+struct matrix_trait<QVector4D>
+{
     static const int rows = 4;
     static const int columns = 1;
-    static qreal value(const QVector4D &vec, int r, int) { return vec[r]; }
+    static qreal value(const QVector4D &vec, int r, int)
+    {
+        return vec[r];
+    }
 };
 
-template<> struct matrix_trait<QQuaternion> {
+template<>
+struct matrix_trait<QQuaternion>
+{
     static const int rows = 3;
     static const int columns = 1;
     static qreal value(const QQuaternion &quaternion, int r, int)
@@ -166,9 +154,7 @@ void PropertyEditorDelegate::paint(QPainter *painter, const QStyleOptionViewItem
     const QVariant value = index.data(Qt::EditRole);
     if (value.canConvert<QMatrix4x4>()) {
         paint(painter, option, index, value.value<QMatrix4x4>());
-    } else if (value.canConvert<QMatrix>()) {
-        paint(painter, option, index, value.value<QMatrix>());
-    } else if (value.type() == QVariant::Transform) {
+    } else if (value.typeId() == QMetaType::QTransform) {
         paint(painter, option, index, value.value<QTransform>());
     } else if (value.canConvert<QVector2D>()) {
         paint(painter, option, index, value.value<QVector2D>());
@@ -176,7 +162,7 @@ void PropertyEditorDelegate::paint(QPainter *painter, const QStyleOptionViewItem
         paint(painter, option, index, value.value<QVector3D>());
     } else if (value.canConvert<QVector4D>()) {
         paint(painter, option, index, value.value<QVector4D>());
-    } else if (value.type() == QVariant::Quaternion) {
+    } else if (value.typeId() == QMetaType::QQuaternion) {
         paint(painter, option, index, value.value<QQuaternion>());
     } else {
         QStyledItemDelegate::paint(painter, option, index);
@@ -189,9 +175,7 @@ QSize PropertyEditorDelegate::sizeHint(const QStyleOptionViewItem &option,
     const QVariant value = index.data(Qt::EditRole);
     if (value.canConvert<QMatrix4x4>()) {
         return sizeHint(option, index, value.value<QMatrix4x4>());
-    } else if (value.canConvert<QMatrix>()) {
-        return sizeHint(option, index, value.value<QMatrix>());
-    } else if (value.type() == QVariant::Transform) {
+    } else if (value.typeId() == QMetaType::QTransform) {
         return sizeHint(option, index, value.value<QTransform>());
     } else if (value.canConvert<QVector2D>()) {
         return sizeHint(option, index, value.value<QVector2D>());
@@ -199,12 +183,12 @@ QSize PropertyEditorDelegate::sizeHint(const QStyleOptionViewItem &option,
         return sizeHint(option, index, value.value<QVector3D>());
     } else if (value.canConvert<QVector4D>()) {
         return sizeHint(option, index, value.value<QVector4D>());
-    } else if (value.type() == QVariant::Quaternion) {
+    } else if (value.typeId() == QMetaType::QQuaternion) {
         return sizeHint(option, index, value.value<QQuaternion>());
     }
 
     // We don't want multiline texts for String values
-    if (value.type() == QVariant::String || value.type() == QVariant::ByteArray) {
+    if (value.typeId() == QMetaType::QString || value.typeId() == QMetaType::QByteArray) {
         QStyleOptionViewItem opt = option;
 
         QSize sh = QStyledItemDelegate::sizeHint(opt, index);
@@ -228,12 +212,13 @@ void PropertyEditorDelegate::paint(QPainter *painter, const QStyleOptionViewItem
     QRect textRect = QApplication::style()->subElementRect(QStyle::SE_ItemViewItemText, &opt,
                                                            opt.widget);
     const int textHMargin = QApplication::style()->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr,
-                                                               opt.widget) + 1;
+                                                               opt.widget)
+        + 1;
     static const int textVMargin = 1;
     textRect = textRect.adjusted(textHMargin, textVMargin, -textHMargin, -textVMargin);
 
     static const int parenthesisLineWidth = 1;
-    const int matrixSpacing = opt.fontMetrics.width(QStringLiteral("x"));
+    const int matrixSpacing = opt.fontMetrics.horizontalAdvance(QStringLiteral("x"));
     const int matrixHMargin = matrixSpacing / 2;
     const int parenthesisWidth = qMax(matrixHMargin, 3);
 
@@ -241,8 +226,9 @@ void PropertyEditorDelegate::paint(QPainter *painter, const QStyleOptionViewItem
     painter->setClipRect(textRect);
     painter->translate(textRect.topLeft());
     painter->setPen(opt.palette.color(opt.state
-                                      & QStyle::State_Selected ? QPalette::HighlightedText :
-                                      QPalette::Text));
+                                              & QStyle::State_Selected
+                                          ? QPalette::HighlightedText
+                                          : QPalette::Text));
     int xOffset = 0;
     painter->drawLine(xOffset, 0, xOffset, textRect.height());
     painter->drawLine(xOffset, 0, xOffset + parenthesisWidth, 0);
@@ -277,19 +263,21 @@ QSize PropertyEditorDelegate::sizeHint(const QStyleOptionViewItem &option, const
 
     static const int parenthesisLineWidth = 1;
     const int textHMargin = QApplication::style()->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr,
-                                                               opt.widget) + 1;
+                                                               opt.widget)
+        + 1;
     static const int textVMargin = 1;
 
     int width = 0;
     for (int col = 0; col < matrix_trait<Matrix>::columns; ++col) {
         width += columnWidth(opt, matrix, col);
     }
-    width += opt.fontMetrics.width(QStringLiteral("x")) * matrix_trait<Matrix>::columns + 2
-             * parenthesisLineWidth + 2 * textHMargin;
+    width += opt.fontMetrics.horizontalAdvance(QStringLiteral("x"))
+            * matrix_trait<Matrix>::columns
+        + 2 * parenthesisLineWidth + 2 * textHMargin;
 
-    const int height = opt.fontMetrics.lineSpacing() * matrix_trait<Matrix>::rows + 2* textVMargin;
+    const int height = opt.fontMetrics.lineSpacing() * matrix_trait<Matrix>::rows + 2 * textVMargin;
 
-    return {width, height};
+    return { width, height };
 }
 
 template<typename Matrix>
@@ -298,14 +286,12 @@ int PropertyEditorDelegate::columnWidth(const QStyleOptionViewItem &option, cons
 {
     int width = 0;
     for (int row = 0; row < matrix_trait<Matrix>::rows; ++row) {
-        width = qMax(width,
-                     option.fontMetrics.width(
-                         QString::number(matrix_trait<Matrix>::value(matrix, row, column))));
+        width = qMax(width, option.fontMetrics.horizontalAdvance(QString::number(matrix_trait<Matrix>::value(matrix, row, column))));
     }
     return width;
 }
 
-bool PropertyEditorDelegate::editorEvent(QEvent* event, QAbstractItemModel* model, const QStyleOptionViewItem& option, const QModelIndex& index)
+bool PropertyEditorDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, const QStyleOptionViewItem &option, const QModelIndex &index)
 {
     // if this is a read-only cell containing a complex type we have a suitable editor for, we'll show that in read-only mode
     if (index.isValid() && event->type() == QEvent::MouseButtonDblClick && ((index.flags() & Qt::ItemIsEditable) == 0) && (index.flags() & Qt::ItemIsEnabled)) {
@@ -314,24 +300,24 @@ bool PropertyEditorDelegate::editorEvent(QEvent* event, QAbstractItemModel* mode
             return QStyledItemDelegate::editorEvent(event, model, option, index);
 
         // special cases for strings, short ones don't benefit from the external editor
-        if (value.type() == QVariant::String && !value.toString().contains(QLatin1Char('\n')))
+        if (value.typeId() == QMetaType::QString && !value.toString().contains(QLatin1Char('\n')))
             return QStyledItemDelegate::editorEvent(event, model, option, index);
-        else if (value.type() == QVariant::ByteArray && !value.toByteArray().contains('\n'))
+        else if (value.typeId() == QMetaType::QByteArray && !value.toByteArray().contains('\n'))
             return QStyledItemDelegate::editorEvent(event, model, option, index);
 
-        const auto editor = qobject_cast<PropertyExtendedEditor*>(PropertyEditorFactory::instance()->createEditor(value.userType(), nullptr));
+        const auto editor = qobject_cast<PropertyExtendedEditor *>(PropertyEditorFactory::instance()->createEditor(value.userType(), nullptr));
         if (editor) {
             editor->setReadOnly(true);
             editor->setValue(value);
             connect(editor, &PropertyExtendedEditor::editorClosed, editor, &QObject::deleteLater);
-            editor->showEditor(const_cast<QWidget*>(option.widget));
+            editor->showEditor(const_cast<QWidget *>(option.widget));
         }
     }
 
     return QStyledItemDelegate::editorEvent(event, model, option, index);
 }
 
-QString PropertyEditorDelegate::displayText(const QVariant& value, const QLocale& locale) const
+QString PropertyEditorDelegate::displayText(const QVariant &value, const QLocale &locale) const
 {
     if (value.userType() == qMetaTypeId<SourceLocation>())
         return value.value<SourceLocation>().displayString();

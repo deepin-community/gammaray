@@ -1,29 +1,14 @@
 /*
   widgetinspectorwidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 #include <config-gammaray.h>
 
@@ -36,20 +21,16 @@
 #include "widgetmodelroles.h"
 #include "widgetremoteview.h"
 
-#ifdef GAMMARAY_WITH_WIDGET3D
-#include "widget3dview.h"
-#include <QQmlEngine>
-#include <QQmlComponent>
-#endif
-
 #include "common/objectbroker.h"
 #include "common/objectmodel.h"
+#include "common/remotemodelroles.h"
 
 #include <ui/contextmenuextension.h>
 #include <ui/paintbufferviewer.h>
 #include <ui/searchlinecontroller.h>
 #include <ui/uiresources.h>
 
+#include <QActionGroup>
 #include <QComboBox>
 #include <QDebug>
 #include <QFileDialog>
@@ -60,6 +41,7 @@
 #include <QSettings>
 #include <QLayout>
 #include <QTabBar>
+#include <QTimer>
 
 using namespace GammaRay;
 
@@ -91,12 +73,15 @@ WidgetInspectorWidget::WidgetInspectorWidget(QWidget *parent)
     ui->widgetTreeView->setDeferredResizeMode(1, QHeaderView::Interactive);
     ui->widgetTreeView->setModel(widgetModel);
     ui->widgetTreeView->setSelectionModel(ObjectBroker::selectionModel(widgetModel));
-    new SearchLineController(ui->widgetSearchLine, widgetModel);
+    new SearchLineController(ui->widgetSearchLine, widgetModel, ui->widgetTreeView);
     connect(ui->widgetTreeView->selectionModel(),
             &QItemSelectionModel::selectionChanged,
             this, &WidgetInspectorWidget::widgetSelected);
     connect(ui->widgetTreeView, &QWidget::customContextMenuRequested, this,
             &WidgetInspectorWidget::widgetTreeContextMenu);
+
+    ui->favoritesTreeView->setSourceView(ui->widgetTreeView);
+    ui->favoritesTreeView->header()->setObjectName(QStringLiteral("favoriteWidgetsHeaderView"));
 
     m_remoteView->setName(QStringLiteral("com.kdab.GammaRay.WidgetRemoteView"));
     m_remoteView->setPickSourceModel(widgetModel);
@@ -104,7 +89,7 @@ WidgetInspectorWidget::WidgetInspectorWidget(QWidget *parent)
     m_remoteView->setInvisibleMask(WidgetModelRoles::Invisible);
 
     auto layout = new QVBoxLayout;
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     auto toolbar = new QToolBar(this);
     // Our icons are 16x16 and support hidpi, so let force iconSize on every styles
     toolbar->setIconSize(QSize(16, 16));
@@ -129,7 +114,7 @@ WidgetInspectorWidget::WidgetInspectorWidget(QWidget *parent)
     zoom->setAttribute(Qt::WA_MacSmallSize);
     zoom->setModel(m_remoteView->zoomLevelModel());
     toolbar->addWidget(zoom);
-    connect(zoom, static_cast<void(QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+    connect(zoom, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             m_remoteView, &RemoteViewWidget::setZoomLevel);
     connect(m_remoteView, &RemoteViewWidget::zoomLevelChanged, zoom, &QComboBox::setCurrentIndex);
     zoom->setCurrentIndex(m_remoteView->zoomLevelIndex());
@@ -137,7 +122,6 @@ WidgetInspectorWidget::WidgetInspectorWidget(QWidget *parent)
 
     connect(ui->actionSaveAsImage, &QAction::triggered, this, &WidgetInspectorWidget::saveAsImage);
     connect(ui->actionSaveAsSvg, &QAction::triggered, this, &WidgetInspectorWidget::saveAsSvg);
-    connect(ui->actionSaveAsPdf, &QAction::triggered, this, &WidgetInspectorWidget::saveAsPdf);
     connect(ui->actionSaveAsUiFile, &QAction::triggered, this, &WidgetInspectorWidget::saveAsUiFile);
     connect(ui->actionAnalyzePainting, &QAction::triggered, this, &WidgetInspectorWidget::analyzePainting);
 
@@ -145,34 +129,18 @@ WidgetInspectorWidget::WidgetInspectorWidget(QWidget *parent)
 
     addAction(ui->actionSaveAsImage);
     addAction(ui->actionSaveAsSvg);
-    addAction(ui->actionSaveAsPdf);
     addAction(ui->actionSaveAsUiFile);
     addAction(ui->actionAnalyzePainting);
 
     updateActions();
 
-    m_stateManager.setDefaultSizes(ui->mainSplitter, UISizeVector() << "50%" << "50%");
-    m_stateManager.setDefaultSizes(ui->previewSplitter, UISizeVector() << "50%" << "50%");
-
-#ifdef GAMMARAY_WITH_WIDGET3D
-    // Check if QQC are available, there's no build-time check for this
-    QQmlEngine engine;
-    QQmlComponent comp(&engine);
-    comp.setData("import QtQuick.Controls 1.2; CheckBox {}", QUrl());
-    QScopedPointer<QObject> obj(comp.create());
-    if (!obj.isNull()) {
-        QWidget *widget3d = new QWidget(this);
-        ui->tabWidget->addTab(widget3d, tr("3D View"));
-        widget3d->setLayout(new QHBoxLayout());
-    } else {
-        qWarning() << "Disabling 3D Widget inspector: missing QtQuick Controls";
-    }
-#else
-    ui->tabWidget->findChild<QTabBar*>()->hide();
-#endif
+    m_stateManager.setDefaultSizes(ui->mainSplitter, UISizeVector() << "50%"
+                                                                    << "50%");
+    m_stateManager.setDefaultSizes(ui->previewSplitter, UISizeVector() << "50%"
+                                                                       << "50%");
+    ui->tabWidget->findChild<QTabBar *>()->hide();
 
     connect(ui->widgetPropertyWidget, &PropertyWidget::tabsUpdated, this, &WidgetInspectorWidget::propertyWidgetTabsChanged);
-    connect(ui->tabWidget, &QTabWidget::currentChanged, this, &WidgetInspectorWidget::onTabChanged);
 }
 
 WidgetInspectorWidget::~WidgetInspectorWidget() = default;
@@ -187,18 +155,6 @@ void WidgetInspectorWidget::restoreTargetState(QSettings *settings)
     m_remoteView->restoreState(settings->value("remoteViewState").toByteArray());
 }
 
-void WidgetInspectorWidget::onTabChanged(int index)
-{
-#ifdef GAMMARAY_WITH_WIDGET3D
-    if (index == 1 && m_3dView == nullptr) {
-        m_3dView = new Widget3DView(this);
-        ui->tabWidget->widget(1)->layout()->addWidget(m_3dView);
-    }
-#else
-    Q_UNUSED(index)
-#endif
-}
-
 void WidgetInspectorWidget::updateActions()
 {
     const auto model = ui->widgetTreeView->selectionModel()->selectedRows();
@@ -207,15 +163,12 @@ void WidgetInspectorWidget::updateActions()
     ui->actionSaveAsImage->setEnabled(selection);
     ui->actionSaveAsSvg->setEnabled(
         selection && m_inspector->features() & WidgetInspectorInterface::SvgExport);
-    ui->actionSaveAsPdf->setEnabled(
-        selection && m_inspector->features() & WidgetInspectorInterface::PdfExport);
     ui->actionSaveAsUiFile->setEnabled(
         selection && m_inspector->features() & WidgetInspectorInterface::UiExport);
     ui->actionAnalyzePainting->setEnabled(
         selection && m_inspector->features() & WidgetInspectorInterface::AnalyzePainting);
 
-    auto f = m_remoteView->supportedInteractionModes() &
-            ~RemoteViewWidget::InputRedirection;
+    auto f = m_remoteView->supportedInteractionModes() & ~RemoteViewWidget::InputRedirection;
     if (m_inspector->features() & WidgetInspectorInterface::InputRedirection)
         f |= RemoteViewWidget::InputRedirection;
     m_remoteView->setSupportedInteractionModes(f);
@@ -251,6 +204,7 @@ void WidgetInspectorWidget::widgetTreeContextMenu(QPoint pos)
     const auto objectId = index.data(ObjectModel::ObjectIdRole).value<ObjectId>();
     QMenu menu(tr("Widget @ %1").arg(QLatin1String("0x") + QString::number(objectId.id(), 16)));
     ContextMenuExtension ext(objectId);
+    ext.setCanFavoriteItems(true);
     ext.populateMenu(&menu);
 
     menu.exec(ui->widgetTreeView->viewport()->mapToGlobal(pos));
@@ -258,8 +212,7 @@ void WidgetInspectorWidget::widgetTreeContextMenu(QPoint pos)
 
 void WidgetInspectorWidget::saveAsImage()
 {
-    const QString fileName
-        = QFileDialog::getSaveFileName(
+    const QString fileName = QFileDialog::getSaveFileName(
         this,
         tr("Save As Image"),
         QString(),
@@ -273,8 +226,7 @@ void WidgetInspectorWidget::saveAsImage()
 
 void WidgetInspectorWidget::saveAsSvg()
 {
-    const QString fileName
-        = QFileDialog::getSaveFileName(
+    const QString fileName = QFileDialog::getSaveFileName(
         this,
         tr("Save As SVG"),
         QString(),
@@ -286,25 +238,9 @@ void WidgetInspectorWidget::saveAsSvg()
     m_inspector->saveAsSvg(fileName);
 }
 
-void WidgetInspectorWidget::saveAsPdf()
-{
-    const QString fileName
-        = QFileDialog::getSaveFileName(
-        this,
-        tr("Save As PDF"),
-        QString(),
-        tr("PDF (*.pdf)"));
-
-    if (fileName.isEmpty())
-        return;
-
-    m_inspector->saveAsPdf(fileName);
-}
-
 void WidgetInspectorWidget::saveAsUiFile()
 {
-    const QString fileName
-        = QFileDialog::getSaveFileName(
+    const QString fileName = QFileDialog::getSaveFileName(
         this,
         tr("Save As Qt Designer UI File"),
         QString(),
@@ -320,8 +256,7 @@ void WidgetInspectorWidget::analyzePainting()
 {
     m_inspector->analyzePainting();
 
-    PaintBufferViewer *viewer
-        = new PaintBufferViewer(QStringLiteral("com.kdab.GammaRay.WidgetPaintAnalyzer"), this);
+    PaintBufferViewer *viewer = new PaintBufferViewer(QStringLiteral("com.kdab.GammaRay.WidgetPaintAnalyzer"), this);
     viewer->show();
 }
 

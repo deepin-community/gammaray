@@ -1,29 +1,14 @@
 /*
   eventmonitorwidget.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2012-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2012 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Tim Henning <tim.henning@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "eventmonitorwidget.h"
@@ -62,7 +47,7 @@ EventMonitorWidget::EventMonitorWidget(QWidget *parent)
 
     ui->setupUi(this);
 
-    QAbstractItemModel * const eventModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.EventModel"));
+    QAbstractItemModel *const eventModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.EventModel"));
     new SearchLineController(ui->eventSearchLine, eventModel);
     ui->eventTree->setDeferredResizeMode(EventModelColumn::Time, QHeaderView::ResizeToContents);
     ui->eventTree->setModel(eventModel);
@@ -79,9 +64,9 @@ EventMonitorWidget::EventMonitorWidget(QWidget *parent)
     ui->eventInspector->setItemDelegate(new PropertyEditorDelegate(this));
     connect(ui->eventInspector, &QTreeView::customContextMenuRequested, this, &EventMonitorWidget::eventInspectorContextMenu);
 
-    QAbstractItemModel * const eventTypeModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.EventTypeModel"));
+    QAbstractItemModel *const eventTypeModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.EventTypeModel"));
     new SearchLineController(ui->typeSearchLine, eventTypeModel);
-    EventTypeClientProxyModel * const eventTypeProxyModel = new EventTypeClientProxyModel(this);
+    EventTypeClientProxyModel *const eventTypeProxyModel = new EventTypeClientProxyModel(this);
     eventTypeProxyModel->setSourceModel(eventTypeModel);
     ui->eventTypeTree->sortByColumn(EventTypeModel::Columns::Type, Qt::AscendingOrder);
     ui->eventTypeTree->setDeferredResizeMode(EventTypeModel::Columns::Type, QHeaderView::Stretch);
@@ -130,7 +115,7 @@ void EventMonitorWidget::eventInspectorContextMenu(QPoint pos)
     const auto objectId = idx.data(PropertyModel::ObjectIdRole).value<ObjectId>();
     ContextMenuExtension ext(objectId);
     const bool canShow = (actions == PropertyModel::NavigateTo && !objectId.isNull())
-                         || ext.discoverPropertySourceLocation(ContextMenuExtension::GoTo, idx);
+        || ext.discoverPropertySourceLocation(ContextMenuExtension::GoTo, idx);
     if (!canShow)
         return;
 

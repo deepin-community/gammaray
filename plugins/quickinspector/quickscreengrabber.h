@@ -1,29 +1,14 @@
 /*
   quickscreengrabber.h
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2010-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2010 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Filipe Azevedo <filipe.azevedo@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #ifndef GAMMARAY_QUICKINSPECTOR_QUICKSCREENGRABBER_H
@@ -52,7 +37,7 @@ class ItemOrLayoutFacade
 {
 public:
     ItemOrLayoutFacade() = default;
-    ItemOrLayoutFacade(QQuickItem *item); //krazy:exclude=explicit
+    ItemOrLayoutFacade(QQuickItem *item); // krazy:exclude=explicit
 
     /// Get either the layout of the widget or the this-pointer
     QQuickItem *layout() const;
@@ -109,17 +94,26 @@ public:
     QVector<QuickItemGeometry> itemsGeometry;
 };
 
+/**
+ * @brief Base for all screen grabbers that decorate and return a pixmap for the window.
+ */
 class AbstractScreenGrabber : public QObject
 {
     Q_OBJECT
 public:
-    struct RenderInfo {
+    struct RenderInfo
+    {
         // Keep in sync with QSGRendererInterface::GraphicsApi
-        enum GraphicsApi {
-            Unknown,
+        enum GraphicsApi
+        {
+            Unknown = 0,
             Software,
+            OpenVG,
             OpenGL,
-            Direct3D12
+            Direct3D11,
+            Vulkan,
+            Metal,
+            Null,
         };
 
         RenderInfo()
@@ -128,6 +122,7 @@ public:
         }
 
         qreal dpr;
+        QPoint windowPosition;
         QSize windowSize;
         GraphicsApi graphicsApi = Unknown;
     };
@@ -135,7 +130,13 @@ public:
     explicit AbstractScreenGrabber(QQuickWindow *window);
     ~AbstractScreenGrabber() override;
 
+    /**
+     * @return The graphics API used to render @p window.
+     */
     static RenderInfo::GraphicsApi graphicsApiFor(QQuickWindow *window);
+    /**
+     * @return Screen grabber compatible with the given @p window.
+     */
     static std::unique_ptr<AbstractScreenGrabber> get(QQuickWindow *window);
 
     QQuickWindow *window() const;
@@ -164,18 +165,22 @@ protected:
     void doDrawDecorations(QPainter &painter);
     void gatherRenderInfo();
 
+    /**
+     * @brief Draw decorations on the target window.
+     */
     virtual void drawDecorations() = 0;
 
     virtual void updateOverlay();
     static QuickItemGeometry initFromItem(QQuickItem *item);
+    bool eventFilter(QObject *object, QEvent *event) override;
 
 private:
     void itemParentChanged(QQuickItem *parent);
     void itemWindowChanged(QQuickWindow *window);
-    void connectItemChanges(QQuickItem *item);
-    void disconnectItemChanges(QQuickItem *item);
-    void connectTopItemChanges(QQuickItem *item);
-    void disconnectTopItemChanges(QQuickItem *item);
+    void connectItemChanges(QQuickItem *item) const;
+    void disconnectItemChanges(QQuickItem *item) const;
+    void connectTopItemChanges(QQuickItem *item) const;
+    void disconnectTopItemChanges(QQuickItem *item) const;
 
 protected:
     QPointer<QQuickWindow> m_window;
@@ -209,7 +214,9 @@ private:
 };
 #endif
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
+/**
+ * @brief Screen grabber meant for software rendering.
+ */
 class SoftwareScreenGrabber : public AbstractScreenGrabber
 {
     Q_OBJECT
@@ -230,7 +237,25 @@ private:
     bool m_isGrabbing = false;
     QPointF m_lastItemPosition;
 };
-#endif
+
+/**
+ * @brief Screen grabber used for unsupported rendering backends. Doesn't do anything useful otherwise.
+ */
+class UnsupportedScreenGrabber : public AbstractScreenGrabber
+{
+    Q_OBJECT
+public:
+    explicit UnsupportedScreenGrabber(QQuickWindow *window);
+    ~UnsupportedScreenGrabber() override;
+
+    void requestGrabWindow(const QRectF &userViewport) override;
+    void drawDecorations() override;
+
+private:
+    void updateOverlay() override;
+
+    QPointF m_lastItemPosition;
+};
 
 }
 

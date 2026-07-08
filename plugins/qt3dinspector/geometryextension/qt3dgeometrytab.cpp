@@ -1,29 +1,14 @@
 /*
   qt3dgeometrytab.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "qt3dgeometrytab.h"
@@ -39,10 +24,13 @@
 #include <Qt3DExtras/QCuboidMesh>
 #include <Qt3DExtras/QForwardRenderer>
 
-#include <Qt3DRender/QAttribute>
+#include <Qt3DCore/QAttribute>
+#include <Qt3DCore/QBuffer>
+#include <Qt3DCore/QGeometry>
+namespace Qt3DGeometry = Qt3DCore;
+
 #include <Qt3DRender/QBlendEquation>
 #include <Qt3DRender/QBlendEquationArguments>
-#include <Qt3DRender/QBuffer>
 #include <Qt3DRender/QCamera>
 #include <Qt3DRender/QCullFace>
 #include <Qt3DRender/QDepthTest>
@@ -75,11 +63,13 @@
 #include <QUrl>
 #include <QToolBar>
 #include <QWindow>
+#include <QActionGroup>
 
 using namespace GammaRay;
 
 // ### keep in sync with wireframe.vert/wireframe.frag
-enum ShadingMode {
+enum ShadingMode
+{
     ShadingModeFlat = 0,
     ShadingModePhong = 1,
     ShadingModeTexture = 2,
@@ -132,8 +122,7 @@ Qt3DGeometryTab::Qt3DGeometryTab(PropertyWidget *parent)
     });
     connect(ui->actionCullBack, &QAction::toggled, this, [this]() {
         if (m_cullMode) {
-            m_cullMode->setMode(ui->actionCullBack->isChecked() ? Qt3DRender::QCullFace::Back :
-                                Qt3DRender::QCullFace::NoCulling);
+            m_cullMode->setMode(ui->actionCullBack->isChecked() ? Qt3DRender::QCullFace::Back : Qt3DRender::QCullFace::NoCulling);
         }
     });
     connect(m_shadingModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this]() {
@@ -147,8 +136,7 @@ Qt3DGeometryTab::Qt3DGeometryTab(PropertyWidget *parent)
             m_depthTest->setDepthFunction(Qt3DRender::QDepthTest::Always);
         } else {
             ui->actionCullBack->setEnabled(true);
-            m_cullMode->setMode(ui->actionCullBack->isChecked() ? Qt3DRender::QCullFace::Back :
-                                Qt3DRender::QCullFace::NoCulling);
+            m_cullMode->setMode(ui->actionCullBack->isChecked() ? Qt3DRender::QCullFace::Back : Qt3DRender::QCullFace::NoCulling);
             m_depthTest->setDepthFunction(Qt3DRender::QDepthTest::Less);
         }
     });
@@ -213,11 +201,9 @@ bool Qt3DGeometryTab::eventFilter(QObject *receiver, QEvent *event)
 
     auto renderSettings = new Qt3DRender::QRenderSettings;
     renderSettings->setActiveFrameGraph(forwardRenderer);
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     renderSettings->pickingSettings()->setFaceOrientationPickingMode(Qt3DRender::QPickingSettings::FrontFace);
     renderSettings->pickingSettings()->setPickMethod(Qt3DRender::QPickingSettings::TrianglePicking);
     renderSettings->pickingSettings()->setPickResultMode(Qt3DRender::QPickingSettings::NearestPick);
-#endif
     rootEntity->addComponent(renderSettings);
 
     auto skyboxEntity = new Qt3DCore::QEntity(rootEntity);
@@ -329,11 +315,11 @@ Qt3DCore::QComponent *Qt3DGeometryTab::createMaterial(Qt3DCore::QNode *parent)
 
     auto normalsShader = new Qt3DRender::QShaderProgram;
     normalsShader->setVertexShaderCode(Qt3DRender::QShaderProgram::loadSource(QUrl(QStringLiteral(
-                                                                                       "qrc:/gammaray/qt3dinspector/geometryextension/gl3/passthrough.vert"))));
+        "qrc:/gammaray/qt3dinspector/geometryextension/gl3/passthrough.vert"))));
     normalsShader->setGeometryShaderCode(Qt3DRender::QShaderProgram::loadSource(QUrl(QStringLiteral(
-                                                                                         "qrc:/gammaray/qt3dinspector/geometryextension/gl3/normals.geom"))));
+        "qrc:/gammaray/qt3dinspector/geometryextension/gl3/normals.geom"))));
     normalsShader->setFragmentShaderCode(Qt3DRender::QShaderProgram::loadSource(QUrl(QStringLiteral(
-                                                                                         "qrc:/gammaray/qt3dinspector/geometryextension/gl3/normals.frag"))));
+        "qrc:/gammaray/qt3dinspector/geometryextension/gl3/normals.frag"))));
 
     m_normalsRenderPass = new Qt3DRender::QRenderPass;
     m_normalsRenderPass->setShaderProgram(normalsShader);
@@ -367,7 +353,7 @@ Qt3DCore::QComponent *Qt3DGeometryTab::createMaterial(Qt3DCore::QNode *parent)
     return material;
 }
 
-Qt3DCore::QComponent* Qt3DGeometryTab::createES2WireframeMaterial(Qt3DCore::QNode *parent)
+Qt3DCore::QComponent *Qt3DGeometryTab::createES2WireframeMaterial(Qt3DCore::QNode *parent)
 {
     auto material = new Qt3DRender::QMaterial(parent);
 
@@ -451,14 +437,15 @@ Qt3DCore::QComponent *Qt3DGeometryTab::createSkyboxMaterial(Qt3DCore::QNode *par
     return material;
 }
 
-static void setupAttribute(Qt3DRender::QAttribute *attr, const Qt3DGeometryAttributeData &attrData)
+static void setupAttribute(Qt3DGeometry::QAttribute *attr, const Qt3DGeometryAttributeData &attrData)
 {
     attr->setByteOffset(attrData.byteOffset);
     attr->setByteStride(attrData.byteStride);
     attr->setCount(attrData.count);
     attr->setDivisor(attrData.divisor);
-    attr->setDataType(attrData.vertexBaseType);
-    attr->setDataSize(attrData.vertexSize);
+    attr->setAttributeType(attrData.attributeType);
+    attr->setVertexBaseType(attrData.vertexBaseType);
+    attr->setVertexSize(attrData.vertexSize);
 }
 
 void Qt3DGeometryTab::updateGeometry()
@@ -477,66 +464,66 @@ void Qt3DGeometryTab::updateGeometry()
     const auto geo = m_interface->geometryData();
     m_bufferModel->setGeometryData(geo);
 
-    auto geometry = new Qt3DRender::QGeometry();
-    QVector<Qt3DRender::QBuffer *> buffers;
+    auto geometry = new Qt3DGeometry::QGeometry();
+    QVector<Qt3DGeometry::QBuffer *> buffers;
     buffers.reserve(geo.buffers.size());
     for (const auto &bufferData : geo.buffers) {
-        auto buffer = new Qt3DRender::QBuffer(bufferData.type, geometry);
+        auto buffer = new Qt3DGeometry::QBuffer(geometry);
         buffer->setData(bufferData.data);
         buffers.push_back(buffer);
         ui->bufferBox->addItem(bufferData.name, QVariant::fromValue(buffer));
     }
 
     for (const auto &attrData : geo.attributes) {
-        if (attrData.name == Qt3DRender::QAttribute::defaultPositionAttributeName()) {
-            auto posAttr = new Qt3DRender::QAttribute();
-            posAttr->setAttributeType(Qt3DRender::QAttribute::VertexAttribute);
+        if (attrData.name == Qt3DGeometry::QAttribute::defaultPositionAttributeName()) {
+            auto posAttr = new Qt3DGeometry::QAttribute();
+            posAttr->setAttributeType(Qt3DGeometry::QAttribute::VertexAttribute);
             posAttr->setBuffer(buffers.at(attrData.bufferIndex));
             setupAttribute(posAttr, attrData);
-            posAttr->setName(Qt3DRender::QAttribute::defaultPositionAttributeName());
+            posAttr->setName(Qt3DGeometry::QAttribute::defaultPositionAttributeName());
             geometry->addAttribute(posAttr);
             geometry->setBoundingVolumePositionAttribute(posAttr);
             computeBoundingVolume(attrData, posAttr->buffer()->data());
             m_geometryTransform->setTranslation(-m_boundingVolume.center());
             m_normalLength->setValue(0.025 * m_boundingVolume.radius());
-        } else if (attrData.name == Qt3DRender::QAttribute::defaultNormalAttributeName()) {
-            auto normalAttr = new Qt3DRender::QAttribute();
-            normalAttr->setAttributeType(Qt3DRender::QAttribute::VertexAttribute);
+        } else if (attrData.name == Qt3DGeometry::QAttribute::defaultNormalAttributeName()) {
+            auto normalAttr = new Qt3DGeometry::QAttribute();
+            normalAttr->setAttributeType(Qt3DGeometry::QAttribute::VertexAttribute);
             normalAttr->setBuffer(buffers.at(attrData.bufferIndex));
             setupAttribute(normalAttr, attrData);
-            normalAttr->setName(Qt3DRender::QAttribute::defaultNormalAttributeName());
+            normalAttr->setName(Qt3DGeometry::QAttribute::defaultNormalAttributeName());
             geometry->addAttribute(normalAttr);
             ui->actionShowNormals->setEnabled(!m_usingES2Fallback);
             m_shadingModeCombo->addItem(tr("Phong"), ShadingModePhong);
             m_shadingModeCombo->addItem(tr("Normal"), ShadingModeNormal);
-        } else if (attrData.attributeType == Qt3DRender::QAttribute::IndexAttribute) {
-            auto indexAttr = new Qt3DRender::QAttribute();
-            indexAttr->setAttributeType(Qt3DRender::QAttribute::IndexAttribute);
+        } else if (attrData.attributeType == Qt3DGeometry::QAttribute::IndexAttribute) {
+            auto indexAttr = new Qt3DGeometry::QAttribute();
+            indexAttr->setAttributeType(Qt3DGeometry::QAttribute::IndexAttribute);
             indexAttr->setBuffer(buffers.at(attrData.bufferIndex));
             setupAttribute(indexAttr, attrData);
             geometry->addAttribute(indexAttr);
-        } else if (attrData.name == Qt3DRender::QAttribute::defaultTextureCoordinateAttributeName()) {
-            auto texCoordAttr = new Qt3DRender::QAttribute();
-            texCoordAttr->setAttributeType(Qt3DRender::QAttribute::VertexAttribute);
+        } else if (attrData.name == Qt3DGeometry::QAttribute::defaultTextureCoordinateAttributeName()) {
+            auto texCoordAttr = new Qt3DGeometry::QAttribute();
+            texCoordAttr->setAttributeType(Qt3DGeometry::QAttribute::VertexAttribute);
             texCoordAttr->setBuffer(buffers.at(attrData.bufferIndex));
             setupAttribute(texCoordAttr, attrData);
-            texCoordAttr->setName(Qt3DRender::QAttribute::defaultTextureCoordinateAttributeName());
+            texCoordAttr->setName(Qt3DGeometry::QAttribute::defaultTextureCoordinateAttributeName());
             geometry->addAttribute(texCoordAttr);
             m_shadingModeCombo->addItem(tr("Texture Coordinate"), ShadingModeTexture);
-        } else if (attrData.name == Qt3DRender::QAttribute::defaultTangentAttributeName()) {
-            auto tangentAttr = new Qt3DRender::QAttribute();
-            tangentAttr->setAttributeType(Qt3DRender::QAttribute::VertexAttribute);
+        } else if (attrData.name == Qt3DGeometry::QAttribute::defaultTangentAttributeName()) {
+            auto tangentAttr = new Qt3DGeometry::QAttribute();
+            tangentAttr->setAttributeType(Qt3DGeometry::QAttribute::VertexAttribute);
             tangentAttr->setBuffer(buffers.at(attrData.bufferIndex));
             setupAttribute(tangentAttr, attrData);
-            tangentAttr->setName(Qt3DRender::QAttribute::defaultTangentAttributeName());
+            tangentAttr->setName(Qt3DGeometry::QAttribute::defaultTangentAttributeName());
             geometry->addAttribute(tangentAttr);
             m_shadingModeCombo->addItem(tr("Tangent"), ShadingModeTangent);
-        } else if (attrData.name == Qt3DRender::QAttribute::defaultColorAttributeName()) {
-            auto colorAttr = new Qt3DRender::QAttribute();
-            colorAttr->setAttributeType(Qt3DRender::QAttribute::VertexAttribute);
+        } else if (attrData.name == Qt3DGeometry::QAttribute::defaultColorAttributeName()) {
+            auto colorAttr = new Qt3DGeometry::QAttribute();
+            colorAttr->setAttributeType(Qt3DGeometry::QAttribute::VertexAttribute);
             colorAttr->setBuffer(buffers.at(attrData.bufferIndex));
             setupAttribute(colorAttr, attrData);
-            colorAttr->setName(Qt3DRender::QAttribute::defaultColorAttributeName());
+            colorAttr->setName(Qt3DGeometry::QAttribute::defaultColorAttributeName());
             geometry->addAttribute(colorAttr);
             m_shadingModeCombo->addItem(tr("Color"), ShadingModeColor);
         }
@@ -589,12 +576,11 @@ void Qt3DGeometryTab::computeBoundingVolume(const Qt3DGeometryAttributeData &ver
     m_boundingVolume = BoundingVolume();
     QVector3D v;
     const auto vertexSize = std::max(vertexAttr.vertexSize, 1u);
-    const auto stride = std::max(vertexAttr.byteStride, (uint)Attribute::size(vertexAttr.vertexBaseType) * vertexSize);
+    const auto stride = std::max(vertexAttr.byteStride, ( uint )Attribute::size(vertexAttr.vertexBaseType) * vertexSize);
     for (unsigned int i = 0; i < vertexAttr.count; ++i) {
         const char *c = bufferData.constData() + vertexAttr.byteOffset + i * stride;
         switch (vertexAttr.vertexBaseType) {
-        case Qt3DRender::QAttribute::Float:
-        {
+        case Qt3DGeometry::QAttribute::Float: {
             // cppcheck-suppress invalidPointerCast
             auto f = reinterpret_cast<const float *>(c);
             v.setX(*f);
@@ -616,20 +602,19 @@ bool Qt3DGeometryTab::isIndexBuffer(unsigned int bufferIndex) const
 {
     foreach (const auto &attr, m_interface->geometryData().attributes) {
         if (attr.bufferIndex == bufferIndex)
-            return attr.attributeType == Qt3DRender::QAttribute::IndexAttribute;
+            return attr.attributeType == Qt3DGeometry::QAttribute::IndexAttribute;
     }
     return false;
 }
 
 
-void Qt3DGeometryTab::trianglePicked(Qt3DRender::QPickEvent* pick)
+void Qt3DGeometryTab::trianglePicked(Qt3DRender::QPickEvent *pick)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 8, 0)
     if (pick->button() != Qt3DRender::QPickEvent::LeftButton)
         return;
-    const auto trianglePick = qobject_cast<Qt3DRender::QPickTriangleEvent*>(pick);
+    const auto trianglePick = qobject_cast<Qt3DRender::QPickTriangleEvent *>(pick);
 
-    qDebug() << trianglePick << trianglePick->vertex1Index() << trianglePick->vertex2Index() << trianglePick->vertex3Index() << trianglePick->localIntersection() << trianglePick->triangleIndex() << m_interface->geometryData().buffers.at(ui->bufferBox->currentIndex()).type << ui->bufferBox->currentIndex();
+    // qDebug() << trianglePick << trianglePick->vertex1Index() << trianglePick->vertex2Index() << trianglePick->vertex3Index() << trianglePick->localIntersection() << trianglePick->triangleIndex() << m_interface->geometryData().buffers.at(ui->bufferBox->currentIndex()).type << ui->bufferBox->currentIndex();
     auto selModel = ui->bufferView->selectionModel();
     selModel->clear();
     if (isIndexBuffer(ui->bufferBox->currentIndex())) {
@@ -645,9 +630,6 @@ void Qt3DGeometryTab::trianglePicked(Qt3DRender::QPickEvent* pick)
 
     foreach (const auto &row, selModel->selectedRows())
         ui->bufferView->scrollTo(row, QAbstractItemView::EnsureVisible);
-#else
-    Q_UNUSED(pick);
-#endif
 }
 
 QSurfaceFormat Qt3DGeometryTab::probeFormat() const

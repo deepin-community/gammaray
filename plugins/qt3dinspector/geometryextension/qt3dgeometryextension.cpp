@@ -1,29 +1,14 @@
 /*
   qt3dgeometryextension.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "qt3dgeometryextension.h"
@@ -31,12 +16,12 @@
 #include <core/propertycontroller.h>
 #include <core/util.h>
 
-#include <Qt3DRender/QAttribute>
-#include <Qt3DRender/QBuffer>
-#include <Qt3DRender/QBufferDataGenerator>
-#include <Qt3DRender/QGeometry>
-#include <Qt3DRender/QGeometryRenderer>
+#include <Qt3DCore/QAttribute>
+#include <Qt3DCore/QBuffer>
+#include <Qt3DCore/QGeometry>
+namespace Qt3DGeometry = Qt3DCore;
 
+#include <Qt3DRender/QGeometryRenderer>
 #include <Qt3DCore/QEntity>
 
 #include <QDebug>
@@ -65,11 +50,11 @@ bool Qt3DGeometryExtension::setQObject(QObject *object)
             if ((geometry = qobject_cast<Qt3DRender::QGeometryRenderer *>(component)))
                 break;
         }
-    } else if (auto geo = qobject_cast<Qt3DRender::QGeometry *>(object)) {
+    } else if (auto geo = qobject_cast<Qt3DGeometry::QGeometry *>(object)) {
         return setQObject(geo->parent());
-    } else if (auto attr = qobject_cast<Qt3DRender::QAttribute *>(object)) {
+    } else if (auto attr = qobject_cast<Qt3DGeometry::QAttribute *>(object)) {
         return setQObject(attr->parent());
-    } else if (auto buffer = qobject_cast<Qt3DRender::QBuffer *>(object)) {
+    } else if (auto buffer = qobject_cast<Qt3DGeometry::QBuffer *>(object)) {
         return setQObject(buffer->parent());
     }
 
@@ -92,7 +77,7 @@ void Qt3DGeometryExtension::updateGeometryData()
         return;
     }
 
-    QHash<Qt3DRender::QBuffer *, uint> bufferMap;
+    QHash<Qt3DGeometry::QBuffer *, uint> bufferMap;
     data.attributes.reserve(m_geometry->geometry()->attributes().size());
     foreach (auto attr, m_geometry->geometry()->attributes()) {
         if (attr->count() == 0) // ignore empty/invalid attributes
@@ -113,12 +98,7 @@ void Qt3DGeometryExtension::updateGeometryData()
         } else {
             Qt3DGeometryBufferData buffer;
             buffer.name = Util::displayString(attr->buffer());
-            buffer.type = attr->buffer()->type();
-            auto generator = attr->buffer()->dataGenerator();
-            if (generator)
-                buffer.data = (*generator.data())();
-            else
-                buffer.data = attr->buffer()->data();
+            buffer.data = attr->buffer()->data();
 
             attrData.bufferIndex = data.buffers.size();
             bufferMap.insert(attr->buffer(), attrData.bufferIndex);

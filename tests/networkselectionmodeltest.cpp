@@ -1,30 +1,15 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  networkselectionmodeltest.cpp
 
-  Copyright (C) 2016-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2016 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
-
-#include <3rdparty/qt/modeltest.h>
 
 #include <common/networkselectionmodel.h>
 #include <common/message.h>
@@ -39,8 +24,9 @@
 
 QT_BEGIN_NAMESPACE
 namespace QTest {
-template<> bool qCompare(const QPersistentModelIndex &lhs, const QModelIndex &rhs,
-                         char const *actual, char const *expected, char const *file, int line)
+template<>
+bool qCompare(const QPersistentModelIndex &lhs, const QModelIndex &rhs,
+              char const *actual, char const *expected, char const *file, int line)
 {
     return qCompare(lhs, QPersistentModelIndex(rhs), actual, expected, file, line);
 }
@@ -50,7 +36,8 @@ QT_END_NAMESPACE
 using namespace GammaRay;
 
 namespace GammaRay {
-enum FakeAddress {
+enum FakeAddress
+{
     ServerAddress = 23,
     ClientAddress = 42,
 };
@@ -73,23 +60,35 @@ protected:
         buffer.open(QIODevice::ReadWrite);
         msg.write(&buffer);
         buffer.seek(sizeof(Protocol::PayloadSize));
-        Protocol::ObjectAddress addr
-            = qToBigEndian(static_cast<Protocol::ObjectAddress>(msg.address()
-                                                                == ServerAddress ? ClientAddress :
-                                                                ServerAddress));
-        buffer.write((char *)&addr, sizeof(addr));
+        Protocol::ObjectAddress addr = qToBigEndian(static_cast<Protocol::ObjectAddress>(msg.address()
+                                                                                                 == ServerAddress
+                                                                                             ? ClientAddress
+                                                                                             : ServerAddress));
+        buffer.write(( char * )&addr, sizeof(addr));
         buffer.seek(0);
         emit message(Message::readMessage(&buffer));
     }
 
-    bool isRemoteClient() const override { return true; }
-    void messageReceived(const GammaRay::Message &) override {}
-    QUrl serverAddress() const override { return QUrl(); }
-    void handlerDestroyed(Protocol::ObjectAddress, const QString &) override {}
-    void objectDestroyed(Protocol::ObjectAddress, const QString &, QObject *) override {}
+    bool isRemoteClient() const override
+    {
+        return true;
+    }
+    void messageReceived(const GammaRay::Message &) override
+    {
+    }
+    QUrl serverAddress() const override
+    {
+        return QUrl();
+    }
+    void handlerDestroyed(Protocol::ObjectAddress, const QString &) override
+    {
+    }
+    void objectDestroyed(Protocol::ObjectAddress, const QString &, QObject *) override
+    {
+    }
 
 signals:
-    void message(const GammaRay::Message &msg);
+    void message(const GammaRay::Message &);
 };
 
 class FakeNetworkSelectionModel : public NetworkSelectionModel
@@ -102,12 +101,19 @@ public:
     {
         m_myAddress = address;
 
-        connect(Endpoint::instance(), SIGNAL(message(GammaRay::Message)), this,
-                SLOT(dispatchMessage(GammaRay::Message)));
+        auto endpoint = qobject_cast<FakeEndpoint *>(FakeEndpoint::instance());
+        QVERIFY(endpoint);
+        connect(endpoint, &FakeEndpoint::message, this, &FakeNetworkSelectionModel::dispatchMessage);
     }
 
-    void applyPendingSelection() { NetworkSelectionModel::applyPendingSelection(); }
-    void requestSelection() { NetworkSelectionModel::requestSelection(); }
+    void applyPendingSelection()
+    {
+        NetworkSelectionModel::applyPendingSelection();
+    }
+    void requestSelection()
+    {
+        NetworkSelectionModel::requestSelection();
+    }
 
 private slots:
     void dispatchMessage(const GammaRay::Message &msg)
@@ -123,7 +129,7 @@ class NetworkSelectionModelTest : public QObject
 {
     Q_OBJECT
 private:
-    void fillModel(QStandardItemModel *model)
+    static void fillModel(QStandardItemModel *model)
     {
         model->appendRow(new QStandardItem(QStringLiteral("Row 1")));
         model->appendRow(new QStandardItem(QStringLiteral("Row 2")));
@@ -133,7 +139,7 @@ private:
     }
 
 private slots:
-    void initTestCase()
+    static void initTestCase()
     {
         qRegisterMetaType<QItemSelection>();
         qRegisterMetaType<QModelIndex>();
@@ -143,7 +149,7 @@ private slots:
         QVERIFY(Endpoint::isConnected());
     }
 
-    void cleanupTestCase()
+    static void cleanupTestCase()
     {
         delete FakeEndpoint::instance();
     }
@@ -153,13 +159,13 @@ private slots:
         QStandardItemModel serverModel;
         FakeNetworkSelectionModel serverSelection(ServerAddress, &serverModel);
         fillModel(&serverModel);
-        QSignalSpy serverSpy(&serverSelection, SIGNAL(selectionChanged(QItemSelection,QItemSelection)));
+        QSignalSpy serverSpy(&serverSelection, &FakeNetworkSelectionModel::selectionChanged);
         QVERIFY(serverSpy.isValid());
 
         QStandardItemModel clientModel;
         fillModel(&clientModel);
         FakeNetworkSelectionModel clientSelection(ClientAddress, &clientModel);
-        QSignalSpy clientSpy(&clientSelection, SIGNAL(selectionChanged(QItemSelection,QItemSelection)));
+        QSignalSpy clientSpy(&clientSelection, &FakeNetworkSelectionModel::selectionChanged);
         QVERIFY(clientSpy.isValid());
 
         serverSelection.select(serverModel.index(2, 0), QItemSelectionModel::ClearAndSelect);
@@ -186,7 +192,7 @@ private slots:
 
         QStandardItemModel clientModel;
         FakeNetworkSelectionModel clientSelection(ClientAddress, &clientModel);
-        QSignalSpy clientSpy(&clientSelection, SIGNAL(selectionChanged(QItemSelection,QItemSelection)));
+        QSignalSpy clientSpy(&clientSelection, &FakeNetworkSelectionModel::selectionChanged);
         QVERIFY(clientSpy.isValid());
         QVERIFY(!clientSelection.hasSelection());
 
@@ -212,7 +218,7 @@ private slots:
         QStandardItemModel clientModel;
         fillModel(&clientModel);
         FakeNetworkSelectionModel clientSelection(ClientAddress, &clientModel);
-        QSignalSpy clientSpy(&clientSelection, SIGNAL(selectionChanged(QItemSelection,QItemSelection)));
+        QSignalSpy clientSpy(&clientSelection, &FakeNetworkSelectionModel::selectionChanged);
         QVERIFY(clientSpy.isValid());
 
         clientSelection.requestSelection(); // usually called by SelectionModelClient
@@ -227,15 +233,15 @@ private slots:
         QStandardItemModel serverModel;
         FakeNetworkSelectionModel serverSelection(ServerAddress, &serverModel);
         fillModel(&serverModel);
-        QSignalSpy serverSpy(&serverSelection, SIGNAL(currentChanged(QModelIndex,QModelIndex)));
+        QSignalSpy serverSpy(&serverSelection, &FakeNetworkSelectionModel::currentChanged);
         QVERIFY(serverSpy.isValid());
 
         QStandardItemModel clientModel;
         fillModel(&clientModel);
         FakeNetworkSelectionModel clientSelection(ClientAddress, &clientModel);
-        QSignalSpy clientSpy(&clientSelection, SIGNAL(currentChanged(QModelIndex,QModelIndex)));
+        QSignalSpy clientSpy(&clientSelection, &FakeNetworkSelectionModel::currentChanged);
         QVERIFY(clientSpy.isValid());
-        QSignalSpy clientRowSpy(&clientSelection, SIGNAL(currentRowChanged(QModelIndex,QModelIndex)));
+        QSignalSpy clientRowSpy(&clientSelection, &FakeNetworkSelectionModel::currentRowChanged);
         QVERIFY(clientRowSpy.isValid());
 
         serverSelection.setCurrentIndex(serverModel.index(2, 0), QItemSelectionModel::NoUpdate);

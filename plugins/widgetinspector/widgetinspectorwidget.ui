@@ -39,6 +39,9 @@
                 <widget class="QLineEdit" name="widgetSearchLine"/>
                </item>
                <item>
+                <widget class="GammaRay::ObjectsFavoriteView" name="favoritesTreeView"/>
+               </item>
+               <item>
                 <widget class="GammaRay::DeferredTreeView" name="widgetTreeView">
                  <property name="contextMenuPolicy">
                   <enum>Qt::CustomContextMenu</enum>
@@ -79,14 +82,6 @@
     <string>Renders the currently selected image as SVG vector graphic.</string>
    </property>
   </action>
-  <action name="actionSaveAsPdf">
-   <property name="text">
-    <string>Save as &amp;PDF...</string>
-   </property>
-   <property name="toolTip">
-    <string>Renders the currently selected widget in to a PDF file.</string>
-   </property>
-  </action>
   <action name="actionSaveAsUiFile">
    <property name="text">
     <string>Save as &amp;UI file...</string>
@@ -115,6 +110,11 @@
    <extends>QWidget</extends>
    <header location="global">ui/propertywidget.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>GammaRay::ObjectsFavoriteView</class>
+   <extends>QTreeView</extends>
+   <header location="global">ui/favoritesitemview.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

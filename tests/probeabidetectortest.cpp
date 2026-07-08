@@ -1,29 +1,14 @@
 /*
   probeabidetectortest.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include <config-gammaray.h>
@@ -40,7 +25,7 @@ class ProbeABIDetectorTest : public QObject
 {
     Q_OBJECT
 private slots:
-    void testDetectExecutable()
+    static void testDetectExecutable()
     {
         ProbeABIDetector detector;
         QVERIFY(!detector.qtCoreForExecutable(QCoreApplication::applicationFilePath()).isEmpty());
@@ -48,7 +33,7 @@ private slots:
         QCOMPARE(abi.id(), QStringLiteral(GAMMARAY_PROBE_ABI));
     }
 
-    void testDetectProcess()
+    static void testDetectProcess()
     {
         ProbeABIDetector detector;
         QVERIFY(!detector.qtCoreForProcess(QCoreApplication::applicationPid()).isEmpty());
@@ -56,7 +41,7 @@ private slots:
         QCOMPARE(abi.id(), QStringLiteral(GAMMARAY_PROBE_ABI));
     }
 
-    void testContainsQtCore_data()
+    static void testContainsQtCore_data()
     {
         QTest::addColumn<QString>("line", nullptr);
         QTest::addColumn<bool>("isQtCore", nullptr);
@@ -68,7 +53,8 @@ private slots:
         QTest::newRow("unix1") << "libQtCore.so.4.8.6" << true;
         QTest::newRow("unix2") << "libQt5Core.so" << true;
         QTest::newRow("unix3") << "/path/to/libQt6Core.so.6.5.4" << true;
-        QTest::newRow("unix4") << "\t   libQt5Core.so.5.4.1\n" << true;
+        QTest::newRow("unix4") << "\t   libQt5Core.so.5.4.1\n"
+                               << true;
 
         QTest::newRow("mac1") << "QtCore" << true;
         QTest::newRow("mac2") << "/framework/5/QtCore" << true;
@@ -94,9 +80,14 @@ private slots:
         QTest::newRow("QT") << "QTCore" << false;
         QTest::newRow("prefix") << "libFooQtCore.so" << false;
         QTest::newRow("libQt") << "libQt.dylib" << false;
+
+        // pyside
+        QTest::newRow("QtCore.abi3.so") << "QtCore.abi3.so" << false;
+        QTest::newRow("QtCore.pyd") << "QtCore.pyd" << false;
+        QTest::newRow("QtGui.pyd") << "QtGui.pyd" << false;
     }
 
-    void testContainsQtCore()
+    static void testContainsQtCore()
     {
         QFETCH(QString, line);
         QFETCH(bool, isQtCore);

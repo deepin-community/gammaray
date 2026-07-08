@@ -1,29 +1,14 @@
 /*
   widgetinspector_export_actions.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2011-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2011 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 /**
@@ -36,10 +21,6 @@
 
 #ifdef HAVE_QT_SVG
 #include <QSvgGenerator>
-#endif
-
-#ifdef HAVE_QT_PRINTSUPPORT
-#include <QPrinter>
 #endif
 
 #include <QPainter>
@@ -69,20 +50,6 @@ Q_DECL_EXPORT void gammaray_save_widget_to_ui(QWidget *widget, const QString &fi
         GammaRay::UiExtractor formBuilder;
         formBuilder.save(&file, widget);
     }
-}
-
-#endif
-
-#ifdef HAVE_QT_PRINTSUPPORT
-Q_DECL_EXPORT void gammaray_save_widget_to_pdf(QWidget *widget, const QString &fileName)
-{
-    QPrinter printer(QPrinter::ScreenResolution);
-    printer.setOutputFileName(fileName);
-    printer.setOutputFormat(QPrinter::PdfFormat);
-    printer.setPageMargins(0, 0, 0, 0, QPrinter::DevicePixel);
-    printer.setPaperSize(widget->size(), QPrinter::DevicePixel);
-
-    widget->render(&printer);
 }
 
 #endif

@@ -1,29 +1,14 @@
 /*
   widget3dmodel.h
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2011-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2011 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Daniel Vrátil <daniel.vratil@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #ifndef WIDGET3DMODEL_H
@@ -50,22 +35,51 @@ public:
     Widget3DWidget(QWidget *qWidget, const QPersistentModelIndex &modelIndex, Widget3DWidget *parent);
     ~Widget3DWidget() override;
 
-    inline QImage texture() const { return mTextureImage; }
-    inline QImage backTexture() const { return mBackTextureImage; }
-    inline QRect geometry() const { return mGeometry; }
-    inline QWidget *qWidget() const { return mQWidget; }
-    inline Widget3DWidget *parentWidget() const { return static_cast<Widget3DWidget*>(parent()); }
-    inline bool isVisible() const { return mQWidget->isVisible(); }
-    inline QVariantMap metaData() const { return mMetaData; }
+    inline QImage texture() const
+    {
+        return mTextureImage;
+    }
+    inline QImage backTexture() const
+    {
+        return mBackTextureImage;
+    }
+    inline QRect geometry() const
+    {
+        return mGeometry;
+    }
+    inline QWidget *qWidget() const
+    {
+        return mQWidget;
+    }
+    inline Widget3DWidget *parentWidget() const
+    {
+        return static_cast<Widget3DWidget *>(parent());
+    }
+    inline bool isVisible() const
+    {
+        return mQWidget->isVisible();
+    }
+    inline QVariantMap metaData() const
+    {
+        return mMetaData;
+    }
     inline bool isWindow() const;
-    inline int depth() const { return mDepth; }
-    inline QPersistentModelIndex modelIndex() const { return mModelIndex; }
+    inline int depth() const
+    {
+        return mDepth;
+    }
+    inline QPersistentModelIndex modelIndex() const
+    {
+        return mModelIndex;
+    }
     // QML does not handle 64bit integers, so use string instead, we only need
     // the value for comparison, we can convert back to quintptr in C++
-    inline QString id() const {
+    inline QString id() const
+    {
         QString str(8, QLatin1Char('0'));
         quint64 ptr = reinterpret_cast<quint64>(mQWidget.data());
-        std::memcpy(str.data(), static_cast<void*>(&ptr), 8);
+        // this is almost certainly wrong, but keep it for backwards compat:
+        std::memcpy(static_cast<void *>(str.data()), static_cast<void *>(&ptr), 8);
         return str;
     };
 
@@ -102,7 +116,8 @@ class Widget3DModel : public QSortFilterProxyModel
 {
     Q_OBJECT
 public:
-    enum Roles {
+    enum Roles
+    {
         IdRole = ObjectModel::UserRole + 1,
         TextureRole,
         BackTextureRole,
@@ -135,7 +150,7 @@ private:
     Widget3DWidget *widgetForIndex(const QModelIndex &idx, bool createWhenMissing = true) const;
 
     // mutable because we populate it lazily from data() const
-    mutable QHash<QObject *, Widget3DWidget*> mDataCache;
+    mutable QHash<QObject *, Widget3DWidget *> mDataCache;
 };
 
 }

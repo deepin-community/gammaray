@@ -1,29 +1,14 @@
 /*
   endpoint.cpp
 
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Volker Krause <volker.krause@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "endpoint.h"
@@ -33,8 +18,9 @@
 
 #include <iostream>
 
+#include <QIODevice>
 #include <QLoggingCategory>
-//we use qCWarning, which we turn off by default, but which is not compiled out in releasebuilds
+// we use qCWarning, which we turn off by default, but which is not compiled out in releasebuilds
 Q_LOGGING_CATEGORY(networkstatistics, "gammaray.network.statistics", QtMsgType::QtCriticalMsg)
 
 using namespace GammaRay;
@@ -46,7 +32,7 @@ Endpoint::Endpoint(QObject *parent)
     : QObject(parent)
     , m_propertySyncer(new PropertySyncer(this))
     , m_socket(nullptr)
-    , m_myAddress(Protocol::InvalidObjectAddress +1)
+    , m_myAddress(Protocol::InvalidObjectAddress + 1)
     , m_bytesRead(0)
     , m_bytesWritten(0)
     , m_pid(-1)
@@ -77,6 +63,10 @@ Endpoint::~Endpoint()
 {
     for (auto it = m_addressMap.constBegin(); it != m_addressMap.constEnd(); ++it) {
         delete it.value();
+    }
+
+    if (m_socket) {
+        connectionClosed();
     }
 
     s_instance = nullptr;
@@ -132,8 +122,8 @@ void Endpoint::doLogTransmissionRate()
 {
     emit logTransmissionRate(m_bytesRead, m_bytesWritten);
 
-    if(!isRemoteClient()) {
-        if(m_bytesRead != 0 || m_bytesWritten != 0) {
+    if (!isRemoteClient()) {
+        if (m_bytesRead != 0 || m_bytesWritten != 0) {
             const float transmissionRateRX = (m_bytesRead * 8 / 1024.0 / 1024.0); // in Mpbs
             const float transmissionRateTX = (m_bytesWritten * 8 / 1024.0 / 1024.0); // in Mpbs
             qCWarning(networkstatistics, "RX %7.3f Mbps | TX %7.3f Mbps", transmissionRateRX, transmissionRateTX);
@@ -232,12 +222,14 @@ void Endpoint::invokeObject(const QString &objectName, const char *method,
 }
 
 void Endpoint::invokeObjectLocal(QObject *object, const char *method,
-                                 const QVariantList &args) const
+                                 const QVariantList &args)
 {
     Q_ASSERT(args.size() <= 10);
-    QVector<MethodArgument> a(10);
+    MethodArgument m[10] = {};
+    QGenericArgument a[10] = {};
     for (int i = 0; i < args.size(); ++i) {
-        a[i] = MethodArgument(args.at(i));
+        m[i] = MethodArgument(args.at(i));
+        a[i] = QGenericArgument(m[i]);
     }
 
     QMetaObject::invokeMethod(object, method, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8],
@@ -366,9 +358,9 @@ void Endpoint::dispatchMessage(const Message &msg)
     }
 }
 
-QVector< QPair< Protocol::ObjectAddress, QString > > Endpoint::objectAddresses() const
+QVector<QPair<Protocol::ObjectAddress, QString>> Endpoint::objectAddresses() const
 {
-    QVector<QPair<Protocol::ObjectAddress, QString> > addrs;
+    QVector<QPair<Protocol::ObjectAddress, QString>> addrs;
     addrs.reserve(m_addressMap.size());
     for (auto it = m_addressMap.constBegin(); it != m_addressMap.constEnd(); ++it) {
         addrs.push_back(qMakePair(it.key(), it.value()->name));

@@ -1,27 +1,14 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  statemachineviewerinterface.h
 
-  Copyright (C) 2013-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2013 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Milian Wolff <milian.wolff@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #ifndef GAMMARAY_STATEMACHINEVIEWER_STATEMACHINEVIEWERINTERFACE_H
@@ -40,7 +27,8 @@ struct TransitionId
 {
     explicit TransitionId(quintptr transition = 0)
         : id(static_cast<quint64>(transition))
-    {}
+    {
+    }
     operator quint64() const
     {
         return id;
@@ -64,7 +52,8 @@ struct StateId
 {
     explicit StateId(quintptr state = 0)
         : id(static_cast<quint64>(state))
-    {}
+    {
+    }
     operator quint64() const
     {
         return id;
@@ -84,7 +73,8 @@ inline QDataStream &operator>>(QDataStream &in, StateId &value)
     return in;
 }
 
-enum StateType {
+enum StateType
+{
     OtherState,
     FinalState,
     ShallowHistoryState,
@@ -140,7 +130,7 @@ signals:
 
 Q_DECLARE_METATYPE(GammaRay::StateId)
 QT_BEGIN_NAMESPACE
-    Q_DECLARE_TYPEINFO(GammaRay::StateId, Q_PRIMITIVE_TYPE);
+Q_DECLARE_TYPEINFO(GammaRay::StateId, Q_PRIMITIVE_TYPE);
 QT_END_NAMESPACE
 Q_DECLARE_METATYPE(GammaRay::TransitionId)
 Q_DECLARE_METATYPE(GammaRay::StateMachineConfiguration)

@@ -1,27 +1,14 @@
 /*
-  This file is part of GammaRay, the Qt application inspection and
-  manipulation tool.
+  statemachineviewerwidget.cpp
 
-  Copyright (C) 2014-2021 Klarälvdalens Datakonsult AB, a KDAB Group company, info@kdab.com
+  This file is part of GammaRay, the Qt application inspection and manipulation tool.
+
+  SPDX-FileCopyrightText: 2014 Klarälvdalens Datakonsult AB, a KDAB Group company <info@kdab.com>
   Author: Kevin Funk <kevin.funk@kdab.com>
 
-  Licensees holding valid commercial KDAB GammaRay licenses may use this file in
-  accordance with GammaRay Commercial License Agreement provided with the Software.
+  SPDX-License-Identifier: GPL-2.0-or-later
 
-  Contact info@kdab.com if any conditions of this licensing are not clear to you.
-
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  Contact KDAB at <info@kdab.com> for commercial licensing options.
 */
 
 #include "statemachineviewerwidget.h"
@@ -38,14 +25,14 @@
 #include <ui/contextmenuextension.h>
 #include <ui/clientdecorationidentityproxymodel.h>
 
-#include <kdstatemachineeditor/core/elementmodel.h>
-#include <kdstatemachineeditor/core/layoutproperties.h>
-#include <kdstatemachineeditor/core/state.h>
-#include <kdstatemachineeditor/core/transition.h>
-#include <kdstatemachineeditor/core/runtimecontroller.h>
-#include <kdstatemachineeditor/view/statemachinescene.h>
-#include <kdstatemachineeditor/view/statemachinetoolbar.h>
-#include <kdstatemachineeditor/view/statemachineview.h>
+#include <elementmodel.h>
+#include <layoutproperties.h>
+#include <state.h>
+#include <transition.h>
+#include <runtimecontroller.h>
+#include <statemachinescene.h>
+#include <statemachinetoolbar.h>
+#include <statemachineview.h>
 
 #include <QDebug>
 #include <QMenu>
@@ -161,14 +148,12 @@ StateMachineViewerWidget::StateMachineViewerWidget(QWidget *parent, Qt::WindowFl
     });
     setShowLog(false);
 
-    QAbstractItemModel *stateMachineModel
-        = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.StateMachineModel"));
+    QAbstractItemModel *stateMachineModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.StateMachineModel"));
     m_ui->stateMachinesView->setModel(stateMachineModel);
     connect(m_ui->stateMachinesView, SIGNAL(currentIndexChanged(int)), m_interface,
             SLOT(selectStateMachine(int)));
 
-    QAbstractItemModel *stateModel
-        = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.StateModel"));
+    QAbstractItemModel *stateModel = ObjectBroker::model(QStringLiteral("com.kdab.GammaRay.StateModel"));
     ClientDecorationIdentityProxyModel *stateProxyModel = new ClientDecorationIdentityProxyModel(this);
     stateProxyModel->setSourceModel(stateModel);
     connect(stateProxyModel, SIGNAL(modelReset()), this, SLOT(stateModelReset()));
@@ -197,30 +182,29 @@ StateMachineViewerWidget::StateMachineViewerWidget(QWidget *parent, Qt::WindowFl
     m_stateMachineView->scene()->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_stateMachineView->scene(), &KDSME::StateMachineScene::customContextMenuEvent,
             this, [this](KDSME::AbstractSceneContextMenuEvent *event) {
-        const auto objectId
-            = ObjectId(reinterpret_cast<QObject *>(event->elementUnderCursor()->internalId()));
-        const auto model = objectInspector()->model();
-        const auto matches = model->match(
-            model->index(0, 0), ObjectModel::ObjectIdRole,
-            QVariant::fromValue(objectId), 1,
-            Qt::MatchExactly | Qt::MatchRecursive | Qt::MatchWrap);
-        showContextMenuForObject(matches.value(0), event->globalPos());
-    });
+                const auto objectId = ObjectId(reinterpret_cast<QObject *>(event->elementUnderCursor()->internalId()));
+                const auto model = objectInspector()->model();
+                const auto matches = model->match(
+                    model->index(0, 0), ObjectModel::ObjectIdRole,
+                    QVariant::fromValue(objectId), 1,
+                    Qt::MatchExactly | Qt::MatchRecursive | Qt::MatchWrap);
+                showContextMenuForObject(matches.value(0), event->globalPos());
+            });
 
     connect(m_interface, SIGNAL(message(QString)), this, SLOT(showMessage(QString)));
     connect(m_interface, SIGNAL(stateConfigurationChanged(GammaRay::StateMachineConfiguration)),
             this, SLOT(stateConfigurationChanged(GammaRay::StateMachineConfiguration)));
     connect(m_interface,
-            SIGNAL(stateAdded(GammaRay::StateId,GammaRay::StateId,bool,QString,GammaRay::StateType,bool)),
+            SIGNAL(stateAdded(GammaRay::StateId, GammaRay::StateId, bool, QString, GammaRay::StateType, bool)),
             this,
-            SLOT(stateAdded(GammaRay::StateId,GammaRay::StateId,bool,QString,GammaRay::StateType,bool)));
+            SLOT(stateAdded(GammaRay::StateId, GammaRay::StateId, bool, QString, GammaRay::StateType, bool)));
     connect(m_interface,
-            SIGNAL(transitionAdded(GammaRay::TransitionId,GammaRay::StateId,GammaRay::StateId,QString)),
+            SIGNAL(transitionAdded(GammaRay::TransitionId, GammaRay::StateId, GammaRay::StateId, QString)),
             this,
-            SLOT(transitionAdded(GammaRay::TransitionId,GammaRay::StateId,GammaRay::StateId,QString)));
-    connect(m_interface, SIGNAL(statusChanged(bool,bool)), this, SLOT(statusChanged(bool,bool)));
-    connect(m_interface, SIGNAL(transitionTriggered(GammaRay::TransitionId,QString)),
-            this, SLOT(transitionTriggered(GammaRay::TransitionId,QString)));
+            SLOT(transitionAdded(GammaRay::TransitionId, GammaRay::StateId, GammaRay::StateId, QString)));
+    connect(m_interface, SIGNAL(statusChanged(bool, bool)), this, SLOT(statusChanged(bool, bool)));
+    connect(m_interface, SIGNAL(transitionTriggered(GammaRay::TransitionId, QString)),
+            this, SLOT(transitionTriggered(GammaRay::TransitionId, QString)));
 
     connect(m_interface, SIGNAL(aboutToRepopulateGraph()), this, SLOT(clearGraph()));
     connect(m_interface, SIGNAL(graphRepopulated()), this, SLOT(repopulateView()));
@@ -235,8 +219,10 @@ StateMachineViewerWidget::StateMachineViewerWidget(QWidget *parent, Qt::WindowFl
     // share selection model
     new SelectionModelSyncer(this);
 
-    m_stateManager.setDefaultSizes(m_ui->verticalSplitter, UISizeVector() << "50%" << "50%");
-    m_stateManager.setDefaultSizes(m_ui->horizontalSplitter, UISizeVector() << "30%" << "70%");
+    m_stateManager.setDefaultSizes(m_ui->verticalSplitter, UISizeVector() << "50%"
+                                                                          << "50%");
+    m_stateManager.setDefaultSizes(m_ui->horizontalSplitter, UISizeVector() << "30%"
+                                                                            << "70%");
 
     loadSettings();
 }
@@ -276,8 +262,7 @@ void StateMachineViewerWidget::showContextMenuForObject(const QModelIndex &index
 
     QMenu menu(tr("Entity @ %1").arg(QLatin1String("0x") + QString::number(objectId.id(), 16)));
     ContextMenuExtension ext(objectId);
-    ext.setLocation(ContextMenuExtension::Creation, index.data(
-                        ObjectModel::CreationLocationRole).value<SourceLocation>());
+    ext.setLocation(ContextMenuExtension::Creation, index.data(ObjectModel::CreationLocationRole).value<SourceLocation>());
     ext.setLocation(ContextMenuExtension::Declaration,
                     index.data(ObjectModel::DeclarationLocationRole).value<SourceLocation>());
     ext.populateMenu(&menu);
@@ -382,7 +367,7 @@ void StateMachineViewerWidget::transitionAdded(const TransitionId transitionId,
     KDSME::State *source = m_idToStateMap.value(sourceId);
     KDSME::State *target = m_idToStateMap.value(targetId);
     if (!source || !target) {
-        qDebug() << "Null source or target for transition:" <<  transitionId;
+        qDebug() << "Null source or target for transition:" << transitionId;
         return;
     }
 
