@@ -2,3 +2,4 @@ debian-archs-fix-build.patch
 qt-system-paths.patch
 disable-flaky-tests.patch
 no-fatal-warnings.patch
+disable-qmllint.patch
