@@ -1,3 +1,9 @@
+gammaray (3.4.0-1deepin1) unstable; urgency=medium
+
+  * Avoid CI qmllint crash
+
+ -- Wang Zichong <wangzichong@deepin.org>  Thu, 09 Jul 2026 17:08:54 +0800
+
 gammaray (3.4.0-1) unstable; urgency=medium
 
   * Team upload.
